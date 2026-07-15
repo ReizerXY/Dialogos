@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+:root {
+    --primary: #FF5900;
+    --primary-dark: #E04E00;
+    --primary-light: #FF7A33;
+    --white: #FFFFFF;
+}
+
+.bg-primary {
+    background-color: var(--primary);
+}
+.bg-primary-dark {
+    background-color: var(--primary-dark);
+}
+.bg-primary-light {
+    background-color: var(--primary-light);
+}
+.text-primary {
+    color: var(--primary);
+}
+.hover\:bg-primary-dark:hover {
+    background-color: var(--primary-dark);
+}
+.border-primary {
+    border-color: var(--primary);
+}
+/* Puedes añadir más utilidades si lo deseas */
