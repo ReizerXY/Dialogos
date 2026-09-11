@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Panel\MetricasController;
+use App\Http\Controllers\Panel\IndicadoresController;
 use App\Http\Controllers\Panel\HorarioController;
 use App\Http\Controllers\Panel\CitaController as CitaPanelController;
 use App\Http\Controllers\Panel\ExpedienteController;
 use App\Http\Controllers\Panel\UsuarioController;
 use App\Http\Controllers\Panel\HorarioAdminController;
+use App\Http\Controllers\Panel\EstudianteController;
+use App\Http\Controllers\Panel\ReporteController;
+use App\Http\Controllers\Panel\MiHorarioController;
 use App\Http\Controllers\CitaController as CitaPublicController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -22,31 +25,24 @@ use Illuminate\Support\Facades\Session;
 // RUTAS PÚBLICAS (sin autenticación)
 // =============================================
 
-// Página de inicio
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
-// Formulario público para solicitar cita
 Route::get('/solicitar-cita', [CitaPublicController::class, 'index'])->name('cita.solicitar');
 Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])->name('cita.store');
 
-// =============================================
-// RUTAS DE API PÚBLICAS
-// =============================================
-Route::prefix('api')->group(function () {
-    Route::get('/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
-    Route::get('/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
-});
+Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
+
+Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
+Route::get('/api/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
 
 // =============================================
-// AUTENTICACIÓN PERSONALIZADA (con throttle)
+// AUTENTICACIÓN PERSONALIZADA
 // =============================================
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login'])
-    ->middleware('throttle:5,1') // ✅ 5 intentos por minuto
-    ->name('login.post');
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1')->name('login.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // =============================================
@@ -56,20 +52,36 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::middleware(['auth.session'])->group(function () {
 
     // ---------- COORDINADOR ----------
-    // Métricas (dashboard del coordinador)
-    Route::get('/metricas', [MetricasController::class, 'index'])
+    Route::get('/indicadores', [IndicadoresController::class, 'index'])
         ->middleware('check.role:Coordinador')
-        ->name('metricas.index');
+        ->name('indicadores.index');
 
-    // Gestión de usuarios (solo coordinador)
+    Route::get('/reportes', [ReporteController::class, 'index'])
+        ->middleware('check.role:Coordinador')
+        ->name('reportes.index');
+    Route::get('/reportes/generar', [ReporteController::class, 'generarPDF'])
+        ->middleware('check.role:Coordinador')
+        ->name('reportes.generar');
+
+    // Gestión de estudiantes
+    Route::prefix('estudiantes')->middleware('check.role:Coordinador')->group(function () {
+        Route::get('/', [EstudianteController::class, 'index'])->name('estudiantes.index');
+        Route::post('/', [EstudianteController::class, 'store'])->name('estudiantes.store');
+        Route::post('/importar', [EstudianteController::class, 'import'])->name('estudiantes.importar');
+        Route::delete('/todos', [EstudianteController::class, 'destroyAll'])->name('estudiantes.destroyAll');
+        Route::put('/{id_estudiante}', [EstudianteController::class, 'update'])->name('estudiantes.update');
+        Route::delete('/{id_estudiante}', [EstudianteController::class, 'destroy'])->name('estudiantes.destroy');
+    });
+
+    // Gestión de usuarios
     Route::prefix('usuarios')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/', [UsuarioController::class, 'store'])->name('usuarios.store');
-        Route::put('/{id}', [UsuarioController::class, 'update'])->name('usuarios.update');
-        Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+        Route::put('/{id_usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
+        Route::put('/{id_usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggleActivo');
     });
 
-    // Modificar horarios (solo coordinador) - SIN columna id
+    // Modificar horarios (coordinador)
     Route::prefix('admin/horarios')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [HorarioAdminController::class, 'index'])->name('admin.horarios.index');
         Route::post('/', [HorarioAdminController::class, 'store'])->name('admin.horarios.store');
@@ -77,12 +89,17 @@ Route::middleware(['auth.session'])->group(function () {
         Route::delete('/{usuario_id}/{dia_semana}/{hora_inicio}', [HorarioAdminController::class, 'destroy'])->name('admin.horarios.destroy');
     });
 
-    // ---------- AMBOS ROLES (Coordinador y Formador) ----------
+    // Gestionar mis propios horarios
+    Route::prefix('mis-horarios')->middleware('check.role:Formador')->group(function () {
+        Route::get('/', [MiHorarioController::class, 'index'])->name('mis-horarios.index');
+        Route::post('/', [MiHorarioController::class, 'store'])->name('mis-horarios.store');
+        Route::put('/{dia_semana}/{hora_inicio}', [MiHorarioController::class, 'update'])->name('mis-horarios.update');
+        Route::delete('/{dia_semana}/{hora_inicio}', [MiHorarioController::class, 'destroy'])->name('mis-horarios.destroy');
+    });
 
-    // Horarios (solo consulta, con filtros)
+    // ---------- AMBOS ROLES ----------
     Route::get('/horarios', [HorarioController::class, 'index'])->name('horarios.index');
 
-    // Gestión de citas (con permisos en el controlador)
     Route::prefix('citas')->group(function () {
         Route::get('/', [CitaPanelController::class, 'index'])->name('citas.index');
         Route::get('/{id}', [CitaPanelController::class, 'show'])->name('citas.show');
@@ -92,7 +109,9 @@ Route::middleware(['auth.session'])->group(function () {
         Route::put('/{id}', [CitaPanelController::class, 'update'])->name('citas.update');
     });
 
-    // Expediente de estudiantes (buscador + detalle)
+    Route::get('/api/disponibilidad-para-modificar', [CitaPanelController::class, 'disponibilidadParaModificar'])
+        ->name('api.disponibilidad.modificar');
+
     Route::get('/expediente', function () {
         return inertia('Panel/Expediente', [
             'estudiante' => null,
@@ -105,9 +124,8 @@ Route::middleware(['auth.session'])->group(function () {
         ]);
     })->name('expediente.index');
 
-    Route::get('/expediente/{id}', [ExpedienteController::class, 'show'])->name('expediente.show');
+    Route::get('/expediente/{id_estudiante}', [ExpedienteController::class, 'show'])->name('expediente.show');
 
-    // API para autocompletado de estudiantes (usado por el buscador) - protegida
     Route::get('/api/expediente/estudiantes', [ExpedienteController::class, 'buscarEstudiantes'])
         ->name('api.expediente.estudiantes');
 });

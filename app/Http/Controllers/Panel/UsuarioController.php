@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\Session;
 
 class UsuarioController extends Controller
 {
-    /**
-     * Listado de usuarios ordenados por rol y luego por id.
-     */
     public function index()
     {
         $user = Session::get('user');
@@ -21,8 +18,9 @@ class UsuarioController extends Controller
         }
 
         $usuarios = DB::table('usuarios')
+            ->select('id_usuario', 'usuario', 'nombre', 'rol', 'activo')
             ->orderByRaw("FIELD(rol, 'Coordinador', 'Formador')")
-            ->orderBy('id', 'asc')
+            ->orderBy('id_usuario', 'asc')
             ->get();
 
         return inertia('Panel/Usuarios', [
@@ -31,9 +29,6 @@ class UsuarioController extends Controller
         ]);
     }
 
-    /**
-     * Crear un nuevo usuario (contraseña en texto plano → se hashea automáticamente)
-     */
     public function store(Request $request)
     {
         $user = Session::get('user');
@@ -48,25 +43,23 @@ class UsuarioController extends Controller
             'rol' => 'required|in:Coordinador,Formador',
         ]);
 
-        $lastId = DB::table('usuarios')->max('id') ?? 0;
+        $lastId = DB::table('usuarios')->max('id_usuario') ?? 0;
         $newId = $lastId + 1;
 
         DB::table('usuarios')->insert([
-            'id' => $newId,
+            'id_usuario' => $newId,
             'usuario' => $validated['usuario'],
-            'clave' => Hash::make($validated['clave']), // ✅ Hash automático
+            'clave' => Hash::make($validated['clave']),
             'nombre' => $validated['nombre'],
             'rol' => $validated['rol'],
+            'activo' => 1,
         ]);
 
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario creado exitosamente.');
     }
 
-    /**
-     * Actualizar un usuario existente (si se proporciona nueva contraseña, se hashea)
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id_usuario)
     {
         $user = Session::get('user');
         if ($user['rol'] != 'Coordinador') {
@@ -74,8 +67,8 @@ class UsuarioController extends Controller
         }
 
         $validated = $request->validate([
-            'usuario' => 'required|string|max:50|unique:usuarios,usuario,' . $id,
-            'clave' => 'nullable|string|min:4', // opcional
+            'usuario' => 'required|string|max:50|unique:usuarios,usuario,' . $id_usuario . ',id_usuario',
+            'clave' => 'nullable|string|min:4',
             'nombre' => 'required|string|max:100',
             'rol' => 'required|in:Coordinador,Formador',
         ]);
@@ -86,13 +79,12 @@ class UsuarioController extends Controller
             'rol' => $validated['rol'],
         ];
 
-        // Si se envió una nueva contraseña, se hashea y se guarda
         if (!empty($validated['clave'])) {
-            $data['clave'] = Hash::make($validated['clave']); // ✅ Hash automático
+            $data['clave'] = Hash::make($validated['clave']);
         }
 
         DB::table('usuarios')
-            ->where('id', $id)
+            ->where('id_usuario', $id_usuario)
             ->update($data);
 
         return redirect()->route('usuarios.index')
@@ -100,24 +92,39 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Eliminar un usuario (solo si no tiene citas asociadas)
+     * Dar de baja o reactivar un usuario.
+     * activo = 0 → no puede iniciar sesión, pero sus citas se conservan.
+     * activo = 1 → puede iniciar sesión normalmente.
      */
-    public function destroy($id)
+    public function toggleActivo($id_usuario)
     {
         $user = Session::get('user');
         if ($user['rol'] != 'Coordinador') {
             return response()->json(['error' => 'No autorizado'], 403);
         }
 
-        $citas = DB::table('citas')->where('usuario_id', $id)->count();
-        if ($citas > 0) {
+        // No permitir darse de baja a sí mismo
+        if ((int) $id_usuario === (int) $user['id_usuario']) {
             return redirect()->route('usuarios.index')
-                ->with('error', 'No se puede eliminar el usuario porque tiene citas asociadas.');
+                ->with('error', 'No puedes darte de baja a ti mismo.');
         }
 
-        DB::table('usuarios')->where('id', $id)->delete();
+        $usuario = DB::table('usuarios')->where('id_usuario', $id_usuario)->first();
+        if (!$usuario) {
+            return redirect()->route('usuarios.index')
+                ->with('error', 'Usuario no encontrado.');
+        }
 
-        return redirect()->route('usuarios.index')
-            ->with('success', 'Usuario eliminado exitosamente.');
+        $nuevoEstado = $usuario->activo == 1 ? 0 : 1;
+
+        DB::table('usuarios')
+            ->where('id_usuario', $id_usuario)
+            ->update(['activo' => $nuevoEstado]);
+
+        $mensaje = $nuevoEstado == 1
+            ? 'Usuario reactivado correctamente.'
+            : 'Usuario dado de baja. Sus datos históricos se conservan.';
+
+        return redirect()->route('usuarios.index')->with('success', $mensaje);
     }
 }

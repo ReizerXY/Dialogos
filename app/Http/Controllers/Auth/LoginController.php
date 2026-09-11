@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Hash; // 👈 Importante
+use Illuminate\Support\Facades\Hash;
 
 class LoginController extends Controller
 {
@@ -22,23 +22,27 @@ class LoginController extends Controller
             'clave' => 'required|string',
         ]);
 
-        // Buscar usuario por nombre de usuario
         $user = DB::table('usuarios')
             ->where('usuario', $credentials['usuario'])
             ->first();
 
-        // Verificar si existe y si la contraseña coincide con el hash
         if (!$user || !Hash::check($credentials['clave'], $user->clave)) {
             return back()->withErrors([
                 'usuario' => 'Usuario o clave incorrectos.',
             ]);
         }
 
+        // ✅ Bloquear el acceso si el usuario está dado de baja
+        if (isset($user->activo) && $user->activo == 0) {
+            return back()->withErrors([
+                'usuario' => 'Este usuario está dado de baja. Contacta al coordinador.',
+            ]);
+        }
+
         Session::put('user', (array) $user);
 
-        // Redirigir según rol
         if ($user->rol === 'Coordinador') {
-            return redirect()->route('metricas.index');
+            return redirect()->route('indicadores.index');
         } else {
             return redirect()->route('horarios.index');
         }

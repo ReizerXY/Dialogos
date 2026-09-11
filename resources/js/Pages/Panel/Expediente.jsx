@@ -3,24 +3,30 @@ import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
 
-export default function Expediente({ estudiante, citas, totalCitas, citasProgramadas, citasCompletadas, citasCanceladas, user }) {
+export default function Expediente({ estudiante, citas, totalCitas, citasProgramadas, citasCompletadas, citasCanceladas, asistencias, faltas, pendientesAsistencia, egresado, user }) {
     const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null);
     const [opcionesEstudiantes, setOpcionesEstudiantes] = useState([]);
     const [buscando, setBuscando] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [error, setError] = useState(null);
 
-    // Si ya hay un estudiante cargado (por parámetro URL), lo seteamos
+    const formatFecha = (fecha) => {
+        if (!fecha) return '';
+        const partes = fecha.split('-');
+        return `${partes[2]}-${partes[1]}-${partes[0]}`;
+    };
+
     useEffect(() => {
         if (estudiante) {
             setEstudianteSeleccionado({
-                value: estudiante.matricula,
-                label: `${estudiante.nombre} (${estudiante.matricula}) - ${estudiante.grado} ${estudiante.grupo}`
+                value: estudiante.id_estudiante,
+                label: egresado
+                    ? `${estudiante.nombre} (${estudiante.id_estudiante}) - Egresado`
+                    : `${estudiante.nombre} (${estudiante.id_estudiante}) - ${estudiante.grado} ${estudiante.grupo}`
             });
         }
-    }, [estudiante]);
+    }, [estudiante, egresado]);
 
-    // Buscar estudiantes con debounce (igual que en SolicitarCita)
     useEffect(() => {
         if (inputValue.length < 1) {
             setOpcionesEstudiantes([]);
@@ -36,10 +42,11 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                     return res.json();
                 })
                 .then(data => {
-                    console.log('Estudiantes encontrados:', data); // Depuración
                     const options = data.map(item => ({
-                        value: item.matricula,
-                        label: `${item.nombre} (${item.matricula}) - ${item.grado} ${item.grupo}`
+                        value: item.id_estudiante,
+                        label: item.egresado
+                            ? `${item.nombre} (${item.id_estudiante}) - Egresado`
+                            : `${item.nombre} (${item.id_estudiante}) - ${item.grado} ${item.grupo}`
                     }));
                     setOpcionesEstudiantes(options);
                     setBuscando(false);
@@ -66,22 +73,25 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
     return (
         <AuthenticatedLayout>
             <Head title="Expediente de estudiantes" />
-            <div className="space-y-6">
-                <h1 className="text-2xl font-bold">Expediente de estudiantes</h1>
+            <div className="max-w-7xl mx-auto">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-800">Expediente de estudiantes</h1>
+                    <p className="text-gray-500 mt-1">Consulta el historial completo de citas de cada estudiante</p>
+                    <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
+                </div>
 
-                {/* Buscador predictivo (igual que el formulario) */}
-                <div className="bg-white p-6 rounded-lg shadow">
+                <div className="bg-white rounded-2xl shadow-md p-6 mb-8 border border-gray-100">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Buscar estudiante por nombre o matrícula
+                        Buscar estudiante por nombre o ID
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-3">
                         <div className="flex-1">
                             <Select
                                 options={opcionesEstudiantes}
                                 value={estudianteSeleccionado}
                                 onChange={setEstudianteSeleccionado}
                                 onInputChange={(newValue) => setInputValue(newValue)}
-                                placeholder="Escribe nombre o matrícula..."
+                                placeholder="Escribe nombre o ID..."
                                 isClearable
                                 className="mt-1"
                                 classNamePrefix="select"
@@ -99,114 +109,155 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                         </div>
                         <button
                             onClick={handleBuscar}
-                            className="mt-1 px-6 py-2 bg-[#FF5900] text-white rounded hover:bg-[#CC4700] transition-colors whitespace-nowrap"
+                            className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 whitespace-nowrap"
                         >
                             Buscar
                         </button>
                     </div>
                     {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-                    <p className="mt-1 text-xs text-gray-500">
-                        Escribe al menos 1 carácter para buscar por nombre o matrícula.
+                    <p className="mt-2 text-xs text-gray-400">
+                        Escribe al menos 1 carácter para buscar por nombre o ID. Se incluyen estudiantes egresados.
                     </p>
                 </div>
 
-                {/* Mostrar expediente si hay estudiante seleccionado */}
                 {estudiante ? (
                     <div className="space-y-6">
-                        {/* Tarjeta de datos del estudiante */}
-                        <div className="bg-white p-6 rounded-lg shadow">
-                            <h2 className="text-xl font-bold text-[#FF5900] mb-4">Datos del estudiante</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="bg-gray-50 p-3 rounded">
-                                    <span className="text-sm text-gray-500">Matrícula</span>
-                                    <p className="font-semibold">{estudiante.matricula}</p>
+                        {egresado && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-start gap-3">
+                                <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                                </svg>
+                                <div>
+                                    <p className="font-semibold text-yellow-800">Estudiante egresado de la institución</p>
+                                    <p className="text-sm text-yellow-700 mt-1">
+                                        Este estudiante ya no está en el registro activo. Se conserva su historial de citas.
+                                    </p>
                                 </div>
-                                <div className="bg-gray-50 p-3 rounded">
-                                    <span className="text-sm text-gray-500">Nombre completo</span>
-                                    <p className="font-semibold">{estudiante.nombre}</p>
+                            </div>
+                        )}
+
+                        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-[#FF5900]/10 flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
                                 </div>
-                                <div className="bg-gray-50 p-3 rounded">
-                                    <span className="text-sm text-gray-500">Grado</span>
-                                    <p className="font-semibold">{estudiante.grado}</p>
+                                <h2 className="text-xl font-bold text-gray-800">Datos del estudiante</h2>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">ID Estudiante</span>
+                                    <p className="font-semibold text-gray-800 font-mono">{estudiante.id_estudiante}</p>
                                 </div>
-                                <div className="bg-gray-50 p-3 rounded">
-                                    <span className="text-sm text-gray-500">Grupo</span>
-                                    <p className="font-semibold">{estudiante.grupo}</p>
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Nombre completo</span>
+                                    <p className="font-semibold text-gray-800">{estudiante.nombre}</p>
                                 </div>
-                                <div className="bg-gray-50 p-3 rounded">
-                                    <span className="text-sm text-gray-500">Teléfono estudiante</span>
-                                    <p className="font-semibold">{estudiante.telefono_estudiante || 'No registrado'}</p>
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Grado</span>
+                                    <p className="font-semibold text-gray-800">{estudiante.grado}</p>
                                 </div>
-                                <div className="bg-gray-50 p-3 rounded">
-                                    <span className="text-sm text-gray-500">Teléfono padre/tutor</span>
-                                    <p className="font-semibold">{estudiante.telefono_padre || 'No registrado'}</p>
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Grupo</span>
+                                    <p className="font-semibold text-gray-800">{estudiante.grupo}</p>
+                                </div>
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Teléfono estudiante</span>
+                                    <p className="font-semibold text-gray-800 font-mono">{estudiante.telefono_estudiante || 'No registrado'}</p>
+                                </div>
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Teléfono padre/tutor</span>
+                                    <p className="font-semibold text-gray-800 font-mono">{estudiante.telefono_padre || 'No registrado'}</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Estadísticas rápidas */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="bg-blue-50 p-4 rounded-lg shadow text-center">
-                                <div className="text-2xl font-bold text-blue-600">{totalCitas}</div>
-                                <div className="text-sm text-gray-600">Total citas</div>
-                            </div>
-                            <div className="bg-yellow-50 p-4 rounded-lg shadow text-center">
-                                <div className="text-2xl font-bold text-yellow-600">{citasProgramadas}</div>
-                                <div className="text-sm text-gray-600">Programadas</div>
-                            </div>
-                            <div className="bg-green-50 p-4 rounded-lg shadow text-center">
-                                <div className="text-2xl font-bold text-green-600">{citasCompletadas}</div>
-                                <div className="text-sm text-gray-600">Completadas</div>
-                            </div>
-                            <div className="bg-red-50 p-4 rounded-lg shadow text-center">
-                                <div className="text-2xl font-bold text-red-600">{citasCanceladas}</div>
-                                <div className="text-sm text-gray-600">Canceladas</div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-700 mb-3">Estados de citas</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-blue-50 rounded-2xl p-4 text-center border border-blue-100">
+                                    <div className="text-2xl font-bold text-blue-600">{totalCitas}</div>
+                                    <div className="text-sm text-gray-600">Total citas</div>
+                                </div>
+                                <div className="bg-yellow-50 rounded-2xl p-4 text-center border border-yellow-100">
+                                    <div className="text-2xl font-bold text-yellow-600">{citasProgramadas}</div>
+                                    <div className="text-sm text-gray-600">Programadas</div>
+                                </div>
+                                <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-100">
+                                    <div className="text-2xl font-bold text-green-600">{citasCompletadas}</div>
+                                    <div className="text-sm text-gray-600">Completadas</div>
+                                </div>
+                                <div className="bg-red-50 rounded-2xl p-4 text-center border border-red-100">
+                                    <div className="text-2xl font-bold text-red-600">{citasCanceladas}</div>
+                                    <div className="text-sm text-gray-600">Canceladas</div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Historial de citas */}
-                        <div className="bg-white p-6 rounded-lg shadow">
-                            <h2 className="text-xl font-bold mb-4">Historial de citas</h2>
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-700 mb-3">Asistencia a citas</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-100">
+                                    <div className="text-2xl font-bold text-green-600">{asistencias}</div>
+                                    <div className="text-sm text-gray-600">Asistió</div>
+                                </div>
+                                <div className="bg-red-50 rounded-2xl p-4 text-center border border-red-100">
+                                    <div className="text-2xl font-bold text-red-600">{faltas}</div>
+                                    <div className="text-sm text-gray-600">No asistió</div>
+                                </div>
+                                <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-200">
+                                    <div className="text-2xl font-bold text-gray-600">{pendientesAsistencia}</div>
+                                    <div className="text-sm text-gray-600">Pendiente</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+                            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                                <h2 className="text-xl font-bold text-gray-800">Historial de citas</h2>
+                            </div>
                             {citas.length > 0 ? (
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
                                             <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Formador</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clasificación</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Asistencia</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notas</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Formador</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clasificación</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asistencia</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white divide-y divide-gray-100">
                                             {citas.map(c => (
-                                                <tr key={c.id} className="hover:bg-gray-50">
-                                                    <td className="px-4 py-3">{c.nombre_formador}</td>
-                                                    <td className="px-4 py-3">{c.fecha}</td>
-                                                    <td className="px-4 py-3">{c.hora?.substring(0,5)}</td>
+                                                <tr key={c.id_cita} className="hover:bg-[#FF5900]/5 transition-colors duration-150">
+                                                    <td className="px-4 py-3 text-sm text-gray-700">{c.nombre_formador}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-700">{formatFecha(c.fecha)}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-700">{c.hora?.substring(0,5)}</td>
                                                     <td className="px-4 py-3">
                                                         {c.clasificacion ? (
-                                                            <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                                                            <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                                                 {c.clasificacion}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-gray-400">-</span>
+                                                            <span className="text-gray-400 text-sm">—</span>
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`px-2 py-1 rounded text-xs ${
+                                                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
                                                             c.estado === 'programada' ? 'bg-yellow-100 text-yellow-800' :
                                                             c.estado === 'cancelada' ? 'bg-red-100 text-red-800' :
+                                                            c.estado === 'cancelada_liberada' ? 'bg-orange-100 text-orange-800' :
                                                             'bg-green-100 text-green-800'
                                                         }`}>
-                                                            {c.estado}
+                                                            {c.estado === 'cancelada_liberada' ? 'Cancelada (liberada)' : c.estado}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`px-2 py-1 rounded text-xs ${
+                                                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
                                                             c.asistencia === 'pendiente' ? 'bg-gray-100 text-gray-600' :
                                                             c.asistencia === 'asistió' ? 'bg-green-100 text-green-800' :
                                                             'bg-red-100 text-red-800'
@@ -214,7 +265,7 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                                             {c.asistencia || 'pendiente'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 max-w-xs truncate">
+                                                    <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
                                                         {c.notas || '-'}
                                                     </td>
                                                 </tr>
@@ -223,17 +274,22 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                     </table>
                                 </div>
                             ) : (
-                                <p className="text-center text-gray-500 py-4">No hay citas registradas para este estudiante.</p>
+                                <div className="py-12 text-center">
+                                    <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <p className="text-gray-500">No hay citas registradas para este estudiante.</p>
+                                </div>
                             )}
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white p-12 rounded-lg shadow text-center">
-                        <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-16 text-center">
+                        <svg className="mx-auto h-20 w-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <h3 className="mt-4 text-lg font-medium text-gray-600">Busca un estudiante</h3>
-                        <p className="text-gray-400">Escribe el nombre o la matrícula y haz clic en "Buscar" para ver su expediente completo.</p>
+                        <p className="text-gray-400 mt-1">Escribe el nombre o el ID y haz clic en "Buscar" para ver su expediente completo.</p>
                     </div>
                 )}
             </div>

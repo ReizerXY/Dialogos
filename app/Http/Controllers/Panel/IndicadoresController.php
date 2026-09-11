@@ -7,62 +7,46 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
-class MetricasController extends Controller
+class IndicadoresController extends Controller
 {
     public function index(Request $request)
     {
         $user = Session::get('user');
+
         if ($user['rol'] != 'Coordinador') {
             abort(403, 'No autorizado.');
         }
 
-        // Filtros
-        $mes = $request->get('mes'); // formato YYYY-MM
-        $semana = $request->get('semana'); // formato YYYY-WW
-        $fechaInicio = $request->get('fecha_inicio');
-        $fechaFin = $request->get('fecha_fin');
+        $mes = $request->get('mes');
+        $semana = $request->get('semana');
 
-        // Determinar rango de fechas
         $whereRaw = '';
         $bindings = [];
 
         if ($mes) {
-            $whereRaw = "YEAR(fecha) = ? AND MONTH(fecha) = ?";
             $parts = explode('-', $mes);
+            $whereRaw = "YEAR(fecha) = ? AND MONTH(fecha) = ?";
             $bindings = [$parts[0], $parts[1]];
         } elseif ($semana) {
-            // Obtener lunes y domingo de la semana (formato YYYY-WW)
             $year = substr($semana, 0, 4);
             $week = substr($semana, 6, 2);
             $fechaLunes = (new \DateTime())->setISODate($year, $week)->format('Y-m-d');
             $fechaDomingo = (new \DateTime())->setISODate($year, $week, 7)->format('Y-m-d');
             $whereRaw = "fecha BETWEEN ? AND ?";
             $bindings = [$fechaLunes, $fechaDomingo];
-        } elseif ($fechaInicio && $fechaFin) {
-            $whereRaw = "fecha BETWEEN ? AND ?";
-            $bindings = [$fechaInicio, $fechaFin];
         } else {
-            // Por defecto: mes actual
             $mesActual = now()->format('Y-m');
             $parts = explode('-', $mesActual);
             $whereRaw = "YEAR(fecha) = ? AND MONTH(fecha) = ?";
             $bindings = [$parts[0], $parts[1]];
         }
 
-        // ==========================================
-        // 1. DATOS GENERALES (filtrados)
-        // ==========================================
-        $totalCitas = DB::table('citas')
-            ->whereRaw($whereRaw, $bindings)
-            ->count();
-
+        // 1. DATOS GENERALES
+        $totalCitas = DB::table('citas')->whereRaw($whereRaw, $bindings)->count();
         $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->count();
-
         $totalEstudiantes = DB::table('estudiantes')->count();
 
-        // ==========================================
         // 2. ESTUDIANTES POR GRADO Y GRUPO
-        // ==========================================
         $estudiantesPorGrado = DB::table('estudiantes')
             ->select('grado', DB::raw('count(*) as total'))
             ->groupBy('grado')
@@ -75,9 +59,7 @@ class MetricasController extends Controller
             ->orderBy('grupo')
             ->get();
 
-        // ==========================================
-        // 3. CITAS POR ESTADO (filtradas)
-        // ==========================================
+        // 3. CITAS POR ESTADO
         $citasPorEstado = DB::table('citas')
             ->select('estado', DB::raw('count(*) as total'))
             ->whereRaw($whereRaw, $bindings)
@@ -85,9 +67,7 @@ class MetricasController extends Controller
             ->pluck('total', 'estado')
             ->toArray();
 
-        // ==========================================
         // 4. CITAS POR CLASIFICACIÓN
-        // ==========================================
         $citasPorClasificacion = DB::table('citas')
             ->select('clasificacion', DB::raw('count(*) as total'))
             ->whereRaw($whereRaw, $bindings)
@@ -96,9 +76,7 @@ class MetricasController extends Controller
             ->pluck('total', 'clasificacion')
             ->toArray();
 
-        // ==========================================
         // 5. CITAS POR ASISTENCIA
-        // ==========================================
         $citasPorAsistencia = DB::table('citas')
             ->select('asistencia', DB::raw('count(*) as total'))
             ->whereRaw($whereRaw, $bindings)
@@ -106,11 +84,9 @@ class MetricasController extends Controller
             ->pluck('total', 'asistencia')
             ->toArray();
 
-        // ==========================================
-        // 6. FORMADORES TOP (filtrados)
-        // ==========================================
+        // 6. FORMADORES TOP ✅ FIX
         $formadoresTop = DB::table('citas')
-            ->join('usuarios', 'citas.usuario_id', '=', 'usuarios.id')
+            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select('usuarios.nombre', DB::raw('count(*) as total'))
             ->whereRaw($whereRaw, $bindings)
             ->groupBy('usuarios.nombre')
@@ -118,17 +94,12 @@ class MetricasController extends Controller
             ->limit(5)
             ->get();
 
-        // ==========================================
-        // 7. PROMEDIO CITAS POR FORMADOR
-        // ==========================================
-        $totalCitasParaPromedio = $totalCitas; // ya filtrado
+        // 7. PROMEDIO
         $promedioCitasPorFormador = $totalFormadores > 0
-            ? round($totalCitasParaPromedio / $totalFormadores, 1)
+            ? round($totalCitas / $totalFormadores, 1)
             : 0;
 
-        // ==========================================
-        // 8. CITAS POR MES (últimos 6 meses, sin filtrar)
-        // ==========================================
+        // 8. CITAS POR MES
         $citasPorMes = DB::table('citas')
             ->select(DB::raw("DATE_FORMAT(fecha, '%Y-%m') as mes"), DB::raw('count(*) as total'))
             ->where('fecha', '>=', now()->subMonths(5)->startOfMonth()->toDateString())
@@ -136,9 +107,7 @@ class MetricasController extends Controller
             ->orderBy('mes')
             ->get();
 
-        // ==========================================
-        // 9. CITAS DE LA SEMANA ACTUAL VS ANTERIOR (filtrado)
-        // ==========================================
+        // 9. SEMANA ACTUAL VS ANTERIOR
         $semanaActual = now()->startOfWeek()->toDateString();
         $semanaAnterior = now()->subWeek()->startOfWeek()->toDateString();
 
@@ -150,11 +119,9 @@ class MetricasController extends Controller
             ->whereBetween('fecha', [$semanaAnterior, now()->subWeek()->endOfWeek()->toDateString()])
             ->count();
 
-        // ==========================================
-        // 10. PRÓXIMAS CITAS (7 días, solo programadas, sin filtro de mes)
-        // ==========================================
+        // 10. PRÓXIMAS CITAS ✅ FIX
         $proximasCitas = DB::table('citas')
-            ->join('usuarios', 'citas.usuario_id', '=', 'usuarios.id')
+            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select('citas.*', 'usuarios.nombre as nombre_formador')
             ->where('citas.fecha', '>=', now()->toDateString())
             ->where('citas.fecha', '<=', now()->addDays(7)->toDateString())
@@ -164,9 +131,7 @@ class MetricasController extends Controller
             ->limit(10)
             ->get();
 
-        // ==========================================
-        // 11. ESTUDIANTES TOP (filtrados)
-        // ==========================================
+        // 11. ESTUDIANTES TOP
         $estudiantesTop = DB::table('citas')
             ->select('nombre_estudiante', DB::raw('count(*) as total'))
             ->whereRaw($whereRaw, $bindings)
@@ -175,9 +140,7 @@ class MetricasController extends Controller
             ->limit(5)
             ->get();
 
-        // ==========================================
-        // 12. CITAS POR DÍA DE LA SEMANA (filtradas)
-        // ==========================================
+        // 12. CITAS POR DÍA DE LA SEMANA
         $citasPorDiaSemana = DB::table('citas')
             ->select(DB::raw('DAYNAME(fecha) as dia'), DB::raw('count(*) as total'))
             ->whereRaw($whereRaw, $bindings)
@@ -198,7 +161,7 @@ class MetricasController extends Controller
             })
             ->toArray();
 
-        return inertia('Panel/Metricas', [
+        return inertia('Panel/Indicadores', [
             'totalFormadores' => $totalFormadores,
             'totalEstudiantes' => $totalEstudiantes,
             'totalCitas' => $totalCitas,
@@ -216,7 +179,6 @@ class MetricasController extends Controller
             'estudiantesTop' => $estudiantesTop,
             'citasPorDiaSemana' => $citasPorDiaSemana,
             'user' => $user,
-            // Parámetros de filtro para la vista
             'filtroMes' => $mes,
             'filtroSemana' => $semana,
         ]);

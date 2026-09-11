@@ -7,61 +7,59 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
+use App\Services\WhatsAppService;
 
 class CitaController extends Controller
 {
-    /**
-     * Listado de citas con filtros (semana actual por defecto)
-     */
     public function index(Request $request)
     {
         $user = Session::get('user');
         $rol = $user['rol'];
-        $usuarioId = $user['id'];
+        $usuarioId = $user['id_usuario'];
+
+        $verTodas = ($rol === 'Formador') && ($request->get('todas') == 1);
+        $soloLectura = $verTodas;
 
         $filtroFormador = $request->get('formador');
         $filtroEstado = $request->get('estado');
         $filtroFecha = $request->get('fecha');
-        $semana = $request->get('semana', 'actual'); // por defecto, semana actual
+        $semana = $request->get('semana', 'actual');
 
         $query = DB::table('citas')
-            ->join('usuarios', 'citas.usuario_id', '=', 'usuarios.id')
+            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select('citas.*', 'usuarios.nombre as nombre_formador');
 
-        // Filtrar por rol
-        if ($rol == 'Formador') {
-            $query->where('citas.usuario_id', $usuarioId);
+        if ($rol == 'Formador' && !$verTodas) {
+            $query->where('citas.id_usuario', $usuarioId);
         } else {
             if ($filtroFormador) {
-                $query->where('citas.usuario_id', $filtroFormador);
+                $query->where('citas.id_usuario', $filtroFormador);
             }
         }
 
-        // Filtro por estado
         if ($filtroEstado) {
             $query->where('citas.estado', $filtroEstado);
         }
 
-        // Filtro por fecha específica
-        if ($filtroFecha) {
-            $query->whereDate('citas.fecha', $filtroFecha);
-        }
-
-        // Filtro por semana (actual por defecto)
         if ($semana == 'actual') {
             $hoy = now()->toDateString();
-            $domingo = now()->endOfWeek()->toDateString();
-            // Mostrar solo citas desde hoy hasta el domingo (dentro de la semana actual)
+            $fechaLimite = now()->addDays(7)->toDateString();
             $query->where('citas.fecha', '>=', $hoy)
-                  ->where('citas.fecha', '<=', $domingo);
+                  ->where('citas.fecha', '<=', $fechaLimite);
+        } else {
+            if ($filtroFecha) {
+                $query->whereDate('citas.fecha', $filtroFecha);
+            }
         }
 
-        $citas = $query->orderBy('citas.fecha')->orderBy('citas.hora')->get();
+        $citas = $query->orderBy('citas.fecha', 'desc')
+                       ->orderBy('citas.hora', 'desc')
+                       ->get();
 
-        // Lista de formadores para el filtro (coordinador)
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
-            ->select('id', 'nombre')
+            ->where('activo', 1)
+            ->select('id_usuario', 'nombre')
             ->get();
 
         return inertia('Panel/Citas', [
@@ -74,28 +72,30 @@ class CitaController extends Controller
                 'semana' => $semana,
             ],
             'rol' => $rol,
+            'soloLectura' => $soloLectura,
             'user' => $user,
         ]);
     }
 
-    /**
-     * Mostrar detalle de una cita para gestión
-     */
     public function show($id)
     {
         $user = Session::get('user');
 
+        if ($user['rol'] != 'Formador') {
+            abort(403, 'Solo los formadores pueden gestionar citas.');
+        }
+
         $cita = DB::table('citas')
-            ->join('usuarios', 'citas.usuario_id', '=', 'usuarios.id')
+            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select('citas.*', 'usuarios.nombre as nombre_formador')
-            ->where('citas.id', $id)
+            ->where('citas.id_cita', $id)
             ->first();
 
         if (!$cita) {
             abort(404, 'Cita no encontrada.');
         }
 
-        if ($user['rol'] == 'Formador' && $cita->usuario_id != $user['id']) {
+        if ($cita->id_usuario != $user['id_usuario']) {
             abort(403, 'No tienes permiso para gestionar esta cita.');
         }
 
@@ -105,20 +105,17 @@ class CitaController extends Controller
         ]);
     }
 
-    /**
-     * Actualizar notas, clasificación y asistencia
-     */
     public function actualizarNotas(Request $request, $id)
     {
         try {
             $user = Session::get('user');
-            $cita = DB::table('citas')->where('id', $id)->first();
+            $cita = DB::table('citas')->where('id_cita', $id)->first();
 
             if (!$cita) {
                 return response()->json(['error' => 'Cita no encontrada'], 404);
             }
 
-            if ($user['rol'] == 'Formador' && $cita->usuario_id != $user['id']) {
+            if ($user['rol'] == 'Formador' && $cita->id_usuario != $user['id_usuario']) {
                 return response()->json(['error' => 'No autorizado'], 403);
             }
 
@@ -128,14 +125,20 @@ class CitaController extends Controller
                 'asistencia' => 'nullable|in:pendiente,asistió,no asistió',
             ]);
 
-            Log::info('Actualizando notas de cita', ['id' => $id, 'datos' => $validated]);
+            Log::info('Actualizando notas de cita', ['id_cita' => $id, 'datos' => $validated]);
+
+            $nuevoEstado = $cita->estado;
+            if ($cita->estado === 'programada') {
+                $nuevoEstado = 'completada';
+            }
 
             DB::table('citas')
-                ->where('id', $id)
+                ->where('id_cita', $id)
                 ->update([
                     'clasificacion' => $validated['clasificacion'] ?? null,
                     'notas' => $validated['notas'] ?? null,
                     'asistencia' => $validated['asistencia'] ?? 'pendiente',
+                    'estado' => $nuevoEstado,
                 ]);
 
             return response()->json(['success' => true, 'message' => 'Notas actualizadas correctamente.']);
@@ -146,19 +149,20 @@ class CitaController extends Controller
     }
 
     /**
-     * Modificar fecha y hora de una cita
+     * Modificar fecha y hora de una cita.
+     * Envía notificación por WhatsApp al estudiante.
      */
     public function modificarCita(Request $request, $id)
     {
         try {
             $user = Session::get('user');
-            $cita = DB::table('citas')->where('id', $id)->first();
+            $cita = DB::table('citas')->where('id_cita', $id)->first();
 
             if (!$cita) {
                 return response()->json(['error' => 'Cita no encontrada'], 404);
             }
 
-            if ($user['rol'] == 'Formador' && $cita->usuario_id != $user['id']) {
+            if ($user['rol'] == 'Formador' && $cita->id_usuario != $user['id_usuario']) {
                 return response()->json(['error' => 'No autorizado'], 403);
             }
 
@@ -169,13 +173,13 @@ class CitaController extends Controller
 
             $horaConSegundos = $validated['hora'] . ':00';
 
-            // Verificar disponibilidad (evitar duplicados)
+            // Verificar duplicados
             $existe = DB::table('citas')
-                ->where('usuario_id', $cita->usuario_id)
+                ->where('id_usuario', $cita->id_usuario)
                 ->where('fecha', $validated['fecha'])
                 ->where('hora', $horaConSegundos)
-                ->where('id', '!=', $id)
-                ->whereIn('estado', ['programada', 'completada'])
+                ->where('id_cita', '!=', $id)
+                ->whereIn('estado', ['programada', 'completada', 'cancelada'])
                 ->exists();
 
             if ($existe) {
@@ -183,11 +187,20 @@ class CitaController extends Controller
             }
 
             DB::table('citas')
-                ->where('id', $id)
+                ->where('id_cita', $id)
                 ->update([
                     'fecha' => $validated['fecha'],
                     'hora' => $horaConSegundos,
                 ]);
+
+            // ✅ Enviar notificación por WhatsApp (no bloquea la respuesta si falla)
+            try {
+                $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
+                $whatsapp = new WhatsAppService();
+                $whatsapp->sendModification($citaActualizada);
+            } catch (\Exception $e) {
+                Log::warning('Error al enviar WhatsApp de modificación: ' . $e->getMessage());
+            }
 
             return response()->json(['success' => true, 'message' => 'Cita modificada correctamente.']);
         } catch (\Exception $e) {
@@ -196,49 +209,117 @@ class CitaController extends Controller
     }
 
     /**
-     * Cancelar una cita (cambia estado a cancelada)
+     * Cancelar una cita.
+     * Envía notificación por WhatsApp al estudiante.
      */
-    public function cancelarCita($id)
+    public function cancelarCita(Request $request, $id)
     {
         try {
             $user = Session::get('user');
-            $cita = DB::table('citas')->where('id', $id)->first();
+            $cita = DB::table('citas')->where('id_cita', $id)->first();
 
             if (!$cita) {
                 return response()->json(['error' => 'Cita no encontrada'], 404);
             }
 
-            if ($user['rol'] == 'Formador' && $cita->usuario_id != $user['id']) {
+            if ($user['rol'] == 'Formador' && $cita->id_usuario != $user['id_usuario']) {
                 return response()->json(['error' => 'No autorizado'], 403);
             }
 
-            if ($cita->estado == 'cancelada') {
+            if (in_array($cita->estado, ['cancelada', 'cancelada_liberada'])) {
                 return response()->json(['error' => 'La cita ya está cancelada.'], 422);
             }
 
-            DB::table('citas')
-                ->where('id', $id)
-                ->update(['estado' => 'cancelada']);
+            $notaCancelacion = trim((string) $request->get('nota_cancelacion', ''));
+            $liberarHorario  = (int) $request->get('liberar_horario', 1) === 1;
 
-            return response()->json(['success' => true, 'message' => 'Cita cancelada correctamente.']);
+            $nuevoEstado = $liberarHorario ? 'cancelada_liberada' : 'cancelada';
+
+            $notaFinal = $cita->notas;
+            if ($notaCancelacion !== '') {
+                $notaFinal = $cita->notas
+                    ? $cita->notas . "\n\n" . $notaCancelacion
+                    : $notaCancelacion;
+            }
+
+            DB::table('citas')
+                ->where('id_cita', $id)
+                ->update([
+                    'estado' => $nuevoEstado,
+                    'notas' => $notaFinal,
+                ]);
+
+            // ✅ Enviar notificación por WhatsApp (no bloquea la respuesta si falla)
+            try {
+                $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
+                $whatsapp = new WhatsAppService();
+                $whatsapp->sendCancellation($citaActualizada);
+            } catch (\Exception $e) {
+                Log::warning('Error al enviar WhatsApp de cancelación: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $liberarHorario
+                    ? 'Cita cancelada. El horario quedó disponible.'
+                    : 'Cita cancelada. El horario quedó bloqueado.'
+            ]);
         } catch (\Exception $e) {
+            Log::error('Error al cancelar cita:', ['error' => $e->getMessage()]);
             return response()->json(['error' => 'Error al cancelar: ' . $e->getMessage()], 500);
         }
     }
 
+    public function disponibilidadParaModificar(Request $request)
+    {
+        $usuarioId = $request->get('usuario_id');
+        $fecha = $request->get('fecha');
+        $citaId = $request->get('cita_id');
+
+        if (!$usuarioId || !$fecha) {
+            return response()->json([]);
+        }
+
+        $diaSemana = strtolower(now()->parse($fecha)->locale('es')->dayName);
+
+        $horarios = DB::table('horarios')
+            ->where('id_usuario', $usuarioId)
+            ->where('dia_semana', $diaSemana)
+            ->pluck('hora_inicio')
+            ->toArray();
+
+        $citasOcupadas = DB::table('citas')
+            ->where('id_usuario', $usuarioId)
+            ->where('fecha', $fecha)
+            ->whereIn('estado', ['programada', 'completada', 'cancelada'])
+            ->when($citaId, function ($query, $citaId) {
+                return $query->where('id_cita', '!=', $citaId);
+            })
+            ->pluck('hora')
+            ->map(function ($hora) {
+                return substr($hora, 0, 5);
+            })
+            ->toArray();
+
+        $horasDisponibles = array_diff($horarios, $citasOcupadas);
+
+        return response()->json(array_values($horasDisponibles));
+    }
+
     /**
-     * Método genérico de actualización (para compatibilidad)
+     * Actualización genérica desde GestionCita.jsx.
+     * Si el estado cambia a cancelada/cancelada_liberada, envía WhatsApp.
      */
     public function update(Request $request, $id)
     {
         $user = Session::get('user');
-        $cita = DB::table('citas')->where('id', $id)->first();
+        $cita = DB::table('citas')->where('id_cita', $id)->first();
 
         if (!$cita) {
             abort(404);
         }
 
-        if ($user['rol'] == 'Formador' && $cita->usuario_id != $user['id']) {
+        if ($user['rol'] == 'Formador' && $cita->id_usuario != $user['id_usuario']) {
             abort(403);
         }
 
@@ -246,11 +327,13 @@ class CitaController extends Controller
             'clasificacion' => 'nullable|in:académica,familiar,emocional,espiritual,institucional',
             'notas' => 'nullable|string',
             'asistencia' => 'nullable|in:pendiente,asistió,no asistió',
-            'estado' => 'required|in:programada,cancelada,completada',
+            'estado' => 'required|in:programada,cancelada,completada,cancelada_liberada',
         ]);
 
+        $estadoAnterior = $cita->estado;
+
         DB::table('citas')
-            ->where('id', $id)
+            ->where('id_cita', $id)
             ->update([
                 'clasificacion' => $validated['clasificacion'] ?? null,
                 'notas' => $validated['notas'] ?? null,
@@ -258,12 +341,23 @@ class CitaController extends Controller
                 'estado' => $validated['estado'],
             ]);
 
+        // ✅ Si el estado cambió a cancelada/cancelada_liberada, enviar WhatsApp
+        if (
+            $estadoAnterior !== $validated['estado'] &&
+            in_array($validated['estado'], ['cancelada', 'cancelada_liberada'])
+        ) {
+            try {
+                $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
+                $whatsapp = new WhatsAppService();
+                $whatsapp->sendCancellation($citaActualizada);
+            } catch (\Exception $e) {
+                Log::warning('Error al enviar WhatsApp de cancelación: ' . $e->getMessage());
+            }
+        }
+
         return redirect()->route('citas.index')->with('success', 'Cita actualizada exitosamente.');
     }
 
-    /**
-     * Historial de citas por estudiante
-     */
     public function historial(Request $request)
     {
         $query = $request->get('query', '');
@@ -271,7 +365,7 @@ class CitaController extends Controller
 
         if (strlen($query) >= 1) {
             $citas = DB::table('citas')
-                ->join('usuarios', 'citas.usuario_id', '=', 'usuarios.id')
+                ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
                 ->select('citas.*', 'usuarios.nombre as nombre_formador')
                 ->where('citas.nombre_estudiante', 'LIKE', "%$query%")
                 ->orderBy('citas.fecha', 'desc')

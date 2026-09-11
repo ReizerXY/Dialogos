@@ -14,23 +14,24 @@ class HorarioController extends Controller
         $formadorId = $request->get('formador');
 
         $query = DB::table('horarios')
-            ->join('usuarios', 'horarios.usuario_id', '=', 'usuarios.id')
+            ->join('usuarios', 'horarios.id_usuario', '=', 'usuarios.id_usuario')
             ->select('horarios.*', 'usuarios.nombre as nombre_formador');
 
         if ($formadorId) {
-            $query->where('horarios.usuario_id', $formadorId);
+            $query->where('horarios.id_usuario', $formadorId);
         }
 
-        // ✅ Ordenar alfabéticamente por nombre, luego por día de semana, luego por hora
         $horarios = $query
             ->orderBy('usuarios.nombre')
             ->orderByRaw("FIELD(horarios.dia_semana, 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo')")
             ->orderBy('horarios.hora_inicio')
             ->get();
 
+        // ✅ Solo formadores ACTIVOS para el filtro
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
-            ->select('id', 'nombre')
+            ->where('activo', 1)
+            ->select('id_usuario', 'nombre')
             ->get();
 
         return inertia('Panel/Horarios', [

@@ -5,22 +5,20 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\WhatsAppService;
 
 class CitaController extends Controller
 {
-    /**
-     * Muestra el formulario de solicitar cita
-     */
     public function index()
     {
-        // Obtener lista de formadores (usuarios con rol = 'Formador')
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
-            ->select('id', 'nombre')
+            ->where('activo', 1)
+            ->select('id_usuario', 'nombre')
             ->get()
             ->map(function ($item) {
                 return [
-                    'id' => $item->id,
+                    'id' => $item->id_usuario,
                     'nombre' => $item->nombre,
                 ];
             })
@@ -31,9 +29,23 @@ class CitaController extends Controller
         ]);
     }
 
-    /**
-     * API para autocompletar estudiantes
-     */
+    public function verificarIdEstudiante($id_estudiante)
+    {
+        $estudiante = DB::table('estudiantes')
+            ->where('id_estudiante', $id_estudiante)
+            ->first();
+
+        if ($estudiante) {
+            return response()->json([
+                'existe' => true,
+                'nombre' => $estudiante->nombre,
+                'id_estudiante' => $estudiante->id_estudiante,
+            ]);
+        }
+
+        return response()->json(['existe' => false]);
+    }
+
     public function estudiantes(Request $request)
     {
         $query = $request->get('q', '');
@@ -43,17 +55,14 @@ class CitaController extends Controller
 
         $estudiantes = DB::table('estudiantes')
             ->where('nombre', 'LIKE', "%$query%")
-            ->orWhere('matricula', 'LIKE', "%$query%")
-            ->select('matricula', 'nombre', 'grado', 'grupo')
+            ->orWhere('id_estudiante', 'LIKE', "%$query%")
+            ->select('id_estudiante', 'nombre', 'grado', 'grupo')
             ->limit(10)
             ->get();
 
         return response()->json($estudiantes);
     }
 
-    /**
-     * API para disponibilidad (basada en usuario_id y día de la semana)
-     */
     public function disponibilidad(Request $request)
     {
         $formadorId = $request->get('formador_id');
@@ -64,42 +73,38 @@ class CitaController extends Controller
         $hoy = now();
         $limite = now()->addDays(7);
 
-        // Obtener días de la semana en español para los próximos 7 días
         $diasSemana = [];
         for ($i = 0; $i <= 7; $i++) {
             $fecha = $hoy->copy()->addDays($i);
             $diasSemana[] = [
                 'fecha' => $fecha->toDateString(),
-                'dia' => strtolower($fecha->locale('es')->dayName), // ej: "lunes"
+                'dia' => strtolower($fecha->locale('es')->dayName),
             ];
         }
 
-        // Obtener horarios del formador para esos días
         $horarios = DB::table('horarios')
-            ->where('usuario_id', $formadorId)
+            ->where('id_usuario', $formadorId)
             ->whereIn('dia_semana', array_column($diasSemana, 'dia'))
             ->get(['dia_semana', 'hora_inicio']);
 
-        // Obtener citas ocupadas para ese formador en esas fechas
         $citas = DB::table('citas')
-            ->where('usuario_id', $formadorId)
-            ->whereIn('estado', ['programada', 'completada'])
+            ->where('id_usuario', $formadorId)
+            ->whereIn('estado', ['programada', 'completada', 'cancelada'])
             ->whereBetween('fecha', [$hoy->toDateString(), $limite->toDateString()])
             ->get(['fecha', 'hora']);
 
-        // Construir array de ocupadas por fecha
         $ocupadas = [];
         foreach ($citas as $cita) {
-            $horaCita = substr($cita->hora, 0, 5); // "09:00"
+            $horaCita = substr($cita->hora, 0, 5);
             $ocupadas[$cita->fecha][] = $horaCita;
         }
 
-        // Construir disponibilidad por fecha
         $disponible = [];
         foreach ($diasSemana as $item) {
             $fecha = $item['fecha'];
             $dia = $item['dia'];
             $horas = [];
+
             foreach ($horarios as $horario) {
                 if ($horario->dia_semana == $dia) {
                     $hora = substr($horario->hora_inicio, 0, 5);
@@ -108,6 +113,7 @@ class CitaController extends Controller
                     }
                 }
             }
+
             if (!empty($horas)) {
                 $disponible[$fecha] = $horas;
             }
@@ -117,35 +123,46 @@ class CitaController extends Controller
     }
 
     /**
-     * Guardar la cita (con asignación manual de id)
+     * Guardar la cita y enviar notificación por WhatsApp
      */
     public function store(Request $request)
     {
         try {
             $validated = $request->validate([
                 'nombre_estudiante' => 'required|string|max:100',
-                'usuario_id' => 'required|integer|exists:usuarios,id',
-                'fecha' => 'required|date',
-                'hora' => 'required|date_format:H:i',
+                'usuario_id'        => 'required|integer|exists:usuarios,id_usuario',
+                'fecha'             => 'required|date',
+                'hora'              => 'required|date_format:H:i',
             ]);
 
-            // ✅ Obtener el último ID y sumar 1 (asignación manual)
-            $lastId = DB::table('citas')->max('id') ?? 0;
-            $newId = $lastId + 1;
+            $estudiante = DB::table('estudiantes')
+                ->where('nombre', $validated['nombre_estudiante'])
+                ->first();
 
-            // Agregar ":00" para guardar con segundos (formato TIME)
+            $lastId = DB::table('citas')->max('id_cita') ?? 0;
+            $newId = $lastId + 1;
             $horaConSegundos = $validated['hora'] . ':00';
 
             DB::table('citas')->insert([
-                'id' => $newId, // ✅ Asignación manual del ID
-                'nombre_estudiante' => $validated['nombre_estudiante'],
-                'usuario_id' => $validated['usuario_id'],
-                'fecha' => $validated['fecha'],
-                'hora' => $horaConSegundos,
-                'notas' => null,
-                'asistencia' => 'pendiente',
-                'estado' => 'programada',
+                'id_cita'            => $newId,
+                'id_estudiante'      => $estudiante ? $estudiante->id_estudiante : null,
+                'nombre_estudiante'  => $validated['nombre_estudiante'],
+                'id_usuario'         => $validated['usuario_id'],
+                'fecha'              => $validated['fecha'],
+                'hora'               => $horaConSegundos,
+                'notas'              => null,
+                'asistencia'         => 'pendiente',
+                'estado'             => 'programada',
             ]);
+
+            // ✅ Enviar notificación por WhatsApp (no bloquea la respuesta si falla)
+            try {
+                $cita = DB::table('citas')->where('id_cita', $newId)->first();
+                $whatsapp = new WhatsAppService();
+                $whatsapp->sendConfirmation($cita);
+            } catch (\Exception $e) {
+                Log::warning('Error al enviar WhatsApp de confirmación: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,

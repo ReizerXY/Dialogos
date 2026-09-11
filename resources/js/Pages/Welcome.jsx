@@ -1,10 +1,10 @@
-import { Link, Head } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
-import AdminCard from '@/Components/PanelAdmin';
-import StudentCard from '@/Components/FormEstudiante';
+import AdminCard from '@/Components/AdminCard';
+import StudentCard from '@/Components/StudentCard';
 
 export default function Welcome({ auth }) {
-    if (auth.user) {
+    if (auth?.user) {
         return (
             <>
                 <Head title="Dashboard" />
@@ -22,12 +22,18 @@ export default function Welcome({ auth }) {
 
     return (
         <GuestLayout title="Bienvenida">
-            <div className="text-center mb-10">
-                <h1 className="text-4xl font-bold text-gray-800">Diálogos</h1>
-                <p className="text-gray-500 mt-2 text-lg">Selecciona tu perfil para continuar</p>
+            <Head title="Bienvenida" />
+            <div className="text-center mb-12">
+                <h1 className="text-5xl md:text-6xl font-extrabold text-gray-800 tracking-tight">
+                    Diálogos
+                </h1>
+                <p className="text-gray-500 mt-3 text-lg md:text-xl font-light">
+                    Selecciona tu perfil para continuar
+                </p>
+                <div className="w-24 h-1 bg-[#FF5900] mx-auto mt-4 rounded-full"></div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                 <AdminCard />
                 <StudentCard />
             </div>
