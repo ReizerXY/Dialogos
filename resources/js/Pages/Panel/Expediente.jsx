@@ -1,7 +1,17 @@
+// resources/js/Pages/Panel/Expediente.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
+
+// Paleta consistente con Citas.jsx y NotasModal.jsx
+const CLASIFICACION_COLOR = {
+    'académica':     'bg-blue-500',
+    'familiar':      'bg-green-500',
+    'emocional':     'bg-purple-500',
+    'espiritual':    'bg-pink-500',
+    'institucional': 'bg-amber-500',
+};
 
 export default function Expediente({ estudiante, citas, totalCitas, citasProgramadas, citasCompletadas, citasCanceladas, asistencias, faltas, pendientesAsistencia, egresado, user }) {
     const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null);
@@ -225,7 +235,7 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Formador</th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clasificación</th>
+                                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Clasificación</th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asistencia</th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
@@ -237,15 +247,20 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                                     <td className="px-4 py-3 text-sm text-gray-700">{c.nombre_formador}</td>
                                                     <td className="px-4 py-3 text-sm text-gray-700">{formatFecha(c.fecha)}</td>
                                                     <td className="px-4 py-3 text-sm text-gray-700">{c.hora?.substring(0,5)}</td>
-                                                    <td className="px-4 py-3">
+
+                                                    {/* Clasificación: solo bloque de color, centrado y visible */}
+                                                    <td className="px-4 py-3 text-center">
                                                         {c.clasificacion ? (
-                                                            <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                                {c.clasificacion}
-                                                            </span>
+                                                            <div
+                                                                className={`inline-block w-7 h-7 rounded-lg ${CLASIFICACION_COLOR[c.clasificacion] || 'bg-gray-400'} shadow-sm`}
+                                                                title={c.clasificacion}
+                                                                aria-label={`Clasificación: ${c.clasificacion}`}
+                                                            />
                                                         ) : (
-                                                            <span className="text-gray-400 text-sm">—</span>
+                                                            <div className="inline-block w-7 h-7 rounded-lg bg-gray-100 border border-gray-200" title="Sin clasificar" aria-label="Sin clasificar" />
                                                         )}
                                                     </td>
+
                                                     <td className="px-4 py-3">
                                                         <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
                                                             c.estado === 'programada' ? 'bg-yellow-100 text-yellow-800' :

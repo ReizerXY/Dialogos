@@ -1,7 +1,17 @@
+// resources/js/Pages/Panel/Indicadores.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
 import SelectorSemana from '@/Components/SelectorSemana';
+
+// Paleta consistente con Citas / Expediente / NotasModal
+const CLASIFICACION_COLOR_BLOCK = {
+    'académica':     'bg-blue-500',
+    'familiar':      'bg-green-500',
+    'emocional':     'bg-purple-500',
+    'espiritual':    'bg-pink-500',
+    'institucional': 'bg-amber-500',
+};
 
 export default function Indicadores({
     totalFormadores,
@@ -27,18 +37,24 @@ export default function Indicadores({
     const [mes, setMes] = useState(filtroMes || '');
     const [semana, setSemana] = useState(filtroSemana || '');
 
+    const formatFecha = (fecha) => {
+        if (!fecha) return '';
+        const partes = fecha.split('-');
+        return `${partes[2]}-${partes[1]}-${partes[0]}`;
+    };
+
     const estadoColores = {
         programada: 'bg-yellow-100 text-yellow-800',
         cancelada: 'bg-red-100 text-red-800',
+        cancelada_liberada: 'bg-orange-100 text-orange-800',
         completada: 'bg-green-100 text-green-800',
     };
 
-    const clasificacionColores = {
-        académica: 'bg-blue-100 text-blue-800',
-        familiar: 'bg-indigo-100 text-indigo-800',
-        emocional: 'bg-purple-100 text-purple-800',
-        espiritual: 'bg-pink-100 text-pink-800',
-        institucional: 'bg-teal-100 text-teal-800',
+    const estadoLabels = {
+        programada: 'Programada',
+        cancelada: 'Cancelada',
+        cancelada_liberada: 'Cancelada (hora liberada)',
+        completada: 'Completada',
     };
 
     const asistenciaColores = {
@@ -69,6 +85,19 @@ export default function Indicadores({
     const limpiarFiltros = () => {
         window.location.href = '/indicadores';
     };
+
+    // Título dinámico de la sección de citas según filtro activo
+    const tituloCitas = filtroMes
+        ? `Citas del mes (${filtroMes})`
+        : filtroSemana
+            ? `Citas de la semana (${filtroSemana})`
+            : 'Próximas citas (7 días)';
+
+    const mensajeSinCitas = filtroMes
+        ? 'No hay citas registradas en este mes.'
+        : filtroSemana
+            ? 'No hay citas registradas en esta semana.'
+            : 'No hay citas programadas en los próximos 7 días.';
 
     return (
         <AuthenticatedLayout>
@@ -276,8 +305,8 @@ export default function Indicadores({
                                 <div className="space-y-2">
                                     {Object.entries(citasPorEstado).map(([estado, total]) => (
                                         <div key={`estado-${estado}`} className="flex justify-between items-center">
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${estadoColores[estado] || 'bg-gray-100'}`}>
-                                                {estado}
+                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${estadoColores[estado] || 'bg-gray-100 text-gray-700'}`}>
+                                                {estadoLabels[estado] || estado}
                                             </span>
                                             <span className="font-medium text-gray-800">{total}</span>
                                         </div>
@@ -293,9 +322,11 @@ export default function Indicadores({
                                 <div className="space-y-2">
                                     {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
                                         <div key={`clasif-${clasif}`} className="flex justify-between items-center">
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${clasificacionColores[clasif] || 'bg-gray-100'}`}>
-                                                {clasif}
-                                            </span>
+                                            <div
+                                                className={`inline-block w-7 h-7 rounded-lg ${CLASIFICACION_COLOR_BLOCK[clasif] || 'bg-gray-400'} shadow-sm`}
+                                                title={clasif}
+                                                aria-label={`Clasificación: ${clasif}`}
+                                            />
                                             <span className="font-medium text-gray-800">{total}</span>
                                         </div>
                                     ))}
@@ -310,7 +341,7 @@ export default function Indicadores({
                                 <div className="space-y-2">
                                     {Object.entries(citasPorAsistencia).map(([asis, total]) => (
                                         <div key={`asistencia-${asis}`} className="flex justify-between items-center">
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${asistenciaColores[asis] || 'bg-gray-100'}`}>
+                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${asistenciaColores[asis] || 'bg-gray-100 text-gray-700'}`}>
                                                 {asis}
                                             </span>
                                             <span className="font-medium text-gray-800">{total}</span>
@@ -380,10 +411,10 @@ export default function Indicadores({
                     </div>
                 </div>
 
-                {/* Sección: Próximas citas */}
+                {/* Sección: Citas del periodo (dinámico según filtro) */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                     <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                        <h2 className="text-xl font-bold text-gray-800">Próximas citas (7 días)</h2>
+                        <h2 className="text-xl font-bold text-gray-800">{tituloCitas}</h2>
                     </div>
                     {proximasCitas.length > 0 ? (
                         <div className="overflow-x-auto">
@@ -401,7 +432,7 @@ export default function Indicadores({
                                         <tr key={`cita-${c.id_cita}`} className="hover:bg-[#FF5900]/5 transition-colors">
                                             <td className="px-4 py-3 text-sm text-gray-700">{c.nombre_estudiante}</td>
                                             <td className="px-4 py-3 text-sm text-gray-700">{c.nombre_formador}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">{c.fecha}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{formatFecha(c.fecha)}</td>
                                             <td className="px-4 py-3 text-sm text-gray-700">{c.hora?.substring(0,5)}</td>
                                         </tr>
                                     ))}
@@ -413,7 +444,7 @@ export default function Indicadores({
                             <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <p className="text-gray-500">No hay citas programadas en los próximos 7 días.</p>
+                            <p className="text-gray-500">{mensajeSinCitas}</p>
                         </div>
                     )}
                 </div>

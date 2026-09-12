@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Panel/IndicadoresController.php
 
 namespace App\Http\Controllers\Panel;
 
@@ -84,7 +85,7 @@ class IndicadoresController extends Controller
             ->pluck('total', 'asistencia')
             ->toArray();
 
-        // 6. FORMADORES TOP ✅ FIX
+        // 6. FORMADORES TOP
         $formadoresTop = DB::table('citas')
             ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select('usuarios.nombre', DB::raw('count(*) as total'))
@@ -119,17 +120,29 @@ class IndicadoresController extends Controller
             ->whereBetween('fecha', [$semanaAnterior, now()->subWeek()->endOfWeek()->toDateString()])
             ->count();
 
-        // 10. PRÓXIMAS CITAS ✅ FIX
-        $proximasCitas = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-            ->select('citas.*', 'usuarios.nombre as nombre_formador')
-            ->where('citas.fecha', '>=', now()->toDateString())
-            ->where('citas.fecha', '<=', now()->addDays(7)->toDateString())
-            ->where('citas.estado', 'programada')
-            ->orderBy('citas.fecha')
-            ->orderBy('citas.hora')
-            ->limit(10)
-            ->get();
+        // 10. CITAS DEL PERIODO
+        // - Con filtro (mes o semana) → todas las citas del periodo, sin límite
+        // - Sin filtro → próximas citas programadas en 7 días (comportamiento original)
+        if ($mes || $semana) {
+            $proximasCitas = DB::table('citas')
+                ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
+                ->select('citas.*', 'usuarios.nombre as nombre_formador')
+                ->whereRaw($whereRaw, $bindings)
+                ->orderBy('citas.fecha', 'desc')
+                ->orderBy('citas.hora', 'desc')
+                ->get();
+        } else {
+            $proximasCitas = DB::table('citas')
+                ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
+                ->select('citas.*', 'usuarios.nombre as nombre_formador')
+                ->where('citas.fecha', '>=', now()->toDateString())
+                ->where('citas.fecha', '<=', now()->addDays(7)->toDateString())
+                ->where('citas.estado', 'programada')
+                ->orderBy('citas.fecha')
+                ->orderBy('citas.hora')
+                ->limit(10)
+                ->get();
+        }
 
         // 11. ESTUDIANTES TOP
         $estudiantesTop = DB::table('citas')

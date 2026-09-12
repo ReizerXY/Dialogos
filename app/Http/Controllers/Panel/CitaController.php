@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Panel/CitaController.php
 
 namespace App\Http\Controllers\Panel;
 
@@ -7,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 use App\Services\WhatsAppService;
 
 class CitaController extends Controller
@@ -52,8 +54,9 @@ class CitaController extends Controller
             }
         }
 
-        $citas = $query->orderBy('citas.fecha', 'desc')
-                       ->orderBy('citas.hora', 'desc')
+        // ✅ Orden ASCENDENTE: la cita más próxima primero (por fecha y luego por hora).
+        $citas = $query->orderBy('citas.fecha', 'asc')
+                       ->orderBy('citas.hora', 'asc')
                        ->get();
 
         $formadores = DB::table('usuarios')
@@ -105,6 +108,14 @@ class CitaController extends Controller
         ]);
     }
 
+    /**
+     * Actualiza notas, clasificación y asistencia de una cita.
+     * El estado se recalcula SIEMPRE en el servidor según la regla de negocio:
+     *   - Si la cita está cancelada/cancelada_liberada → no se toca.
+     *   - Si la fecha+hora ya pasó → completada.
+     *   - Si asistencia es asistió/no asistió → completada.
+     *   - Si sigue pendiente y aún no pasa → programada.
+     */
     public function actualizarNotas(Request $request, $id)
     {
         try {
@@ -121,31 +132,68 @@ class CitaController extends Controller
 
             $validated = $request->validate([
                 'clasificacion' => 'nullable|in:académica,familiar,emocional,espiritual,institucional',
-                'notas' => 'nullable|string',
-                'asistencia' => 'nullable|in:pendiente,asistió,no asistió',
+                'notas'         => 'nullable|string|max:500',
+                'asistencia'    => 'nullable|in:pendiente,asistió,no asistió',
+                // El frontend lo manda, pero lo ignoramos: el servidor lo recalcula.
+                'estado'        => 'nullable|in:programada,cancelada,completada,cancelada_liberada',
             ]);
 
-            Log::info('Actualizando notas de cita', ['id_cita' => $id, 'datos' => $validated]);
+            $asistencia = $validated['asistencia'] ?? 'pendiente';
+            $nuevoEstado = $this->calcularEstadoNotas($cita, $asistencia);
 
-            $nuevoEstado = $cita->estado;
-            if ($cita->estado === 'programada') {
-                $nuevoEstado = 'completada';
-            }
+            Log::info('Actualizando notas de cita', [
+                'id_cita'         => $id,
+                'estado_anterior' => $cita->estado,
+                'estado_nuevo'    => $nuevoEstado,
+                'asistencia'      => $asistencia,
+            ]);
 
             DB::table('citas')
                 ->where('id_cita', $id)
                 ->update([
                     'clasificacion' => $validated['clasificacion'] ?? null,
-                    'notas' => $validated['notas'] ?? null,
-                    'asistencia' => $validated['asistencia'] ?? 'pendiente',
-                    'estado' => $nuevoEstado,
+                    'notas'         => $validated['notas'] ?? null,
+                    'asistencia'    => $asistencia,
+                    'estado'        => $nuevoEstado,
                 ]);
 
-            return response()->json(['success' => true, 'message' => 'Notas actualizadas correctamente.']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Notas actualizadas correctamente.',
+                'estado'  => $nuevoEstado,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error al actualizar notas:', ['error' => $e->getMessage()]);
             return response()->json(['error' => 'Error en el servidor: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Regla centralizada de estado al guardar notas.
+     * Mantener sincronizada con NotasModal.jsx (calcularNuevoEstado).
+     */
+    private function calcularEstadoNotas($cita, $asistencia)
+    {
+        // 1. Si ya está cancelada (con o sin liberación), no se toca.
+        if (in_array($cita->estado, ['cancelada', 'cancelada_liberada'], true)) {
+            return $cita->estado;
+        }
+
+        // 2. ¿Ya pasó la fecha/hora de la cita?
+        $hora = $cita->hora ? substr($cita->hora, 0, 8) : '00:00:00';
+        $fechaHoraCita = Carbon::parse($cita->fecha . ' ' . $hora);
+        $yaPaso = $fechaHoraCita->isPast();
+
+        // 3. ¿El formador registró asistencia?
+        $asistenciaRegistrada = in_array($asistencia, ['asistió', 'no asistió'], true);
+
+        if ($yaPaso || $asistenciaRegistrada) {
+            return 'completada';
+        }
+
+        return 'programada';
     }
 
     /**
@@ -168,7 +216,7 @@ class CitaController extends Controller
 
             $validated = $request->validate([
                 'fecha' => 'required|date',
-                'hora' => 'required|date_format:H:i',
+                'hora'  => 'required|date_format:H:i',
             ]);
 
             $horaConSegundos = $validated['hora'] . ':00';
@@ -190,7 +238,7 @@ class CitaController extends Controller
                 ->where('id_cita', $id)
                 ->update([
                     'fecha' => $validated['fecha'],
-                    'hora' => $horaConSegundos,
+                    'hora'  => $horaConSegundos,
                 ]);
 
             // ✅ Enviar notificación por WhatsApp (no bloquea la respuesta si falla)
@@ -235,6 +283,7 @@ class CitaController extends Controller
 
             $nuevoEstado = $liberarHorario ? 'cancelada_liberada' : 'cancelada';
 
+            // Solo se agrega el motivo si realmente viene texto (no vacío).
             $notaFinal = $cita->notas;
             if ($notaCancelacion !== '') {
                 $notaFinal = $cita->notas
@@ -246,7 +295,7 @@ class CitaController extends Controller
                 ->where('id_cita', $id)
                 ->update([
                     'estado' => $nuevoEstado,
-                    'notas' => $notaFinal,
+                    'notas'  => $notaFinal,
                 ]);
 
             // ✅ Enviar notificación por WhatsApp (no bloquea la respuesta si falla)
@@ -325,9 +374,9 @@ class CitaController extends Controller
 
         $validated = $request->validate([
             'clasificacion' => 'nullable|in:académica,familiar,emocional,espiritual,institucional',
-            'notas' => 'nullable|string',
-            'asistencia' => 'nullable|in:pendiente,asistió,no asistió',
-            'estado' => 'required|in:programada,cancelada,completada,cancelada_liberada',
+            'notas'         => 'nullable|string',
+            'asistencia'    => 'nullable|in:pendiente,asistió,no asistió',
+            'estado'        => 'required|in:programada,cancelada,completada,cancelada_liberada',
         ]);
 
         $estadoAnterior = $cita->estado;
@@ -336,9 +385,9 @@ class CitaController extends Controller
             ->where('id_cita', $id)
             ->update([
                 'clasificacion' => $validated['clasificacion'] ?? null,
-                'notas' => $validated['notas'] ?? null,
-                'asistencia' => $validated['asistencia'] ?? 'pendiente',
-                'estado' => $validated['estado'],
+                'notas'         => $validated['notas'] ?? null,
+                'asistencia'    => $validated['asistencia'] ?? 'pendiente',
+                'estado'        => $validated['estado'],
             ]);
 
         // ✅ Si el estado cambió a cancelada/cancelada_liberada, enviar WhatsApp

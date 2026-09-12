@@ -1,12 +1,15 @@
+// resources/js/Pages/Panel/Modales/CancelarModal.jsx
 import { useState, useEffect } from 'react';
 
 export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [notaCancelacion, setNotaCancelacion] = useState('Motivo de cancelación: ');
+    const [motivo, setMotivo] = useState('');       // texto crudo que escribe el usuario
+    const [motivoError, setMotivoError] = useState(''); // error específico del campo motivo
     const [liberarHorario, setLiberarHorario] = useState(true);
 
     const MAX_NOTA = 300;
+    const PREFIJO = 'Motivo de cancelación: ';
 
     const formatFecha = (fecha) => {
         if (!fecha) return '';
@@ -16,7 +19,8 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
 
     useEffect(() => {
         if (isOpen && cita) {
-            setNotaCancelacion('Motivo de cancelación: ');
+            setMotivo('');
+            setMotivoError('');
             setLiberarHorario(true);
             setError('');
         }
@@ -24,11 +28,28 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
 
     if (!isOpen || !cita) return null;
 
+    const handleMotivoChange = (e) => {
+        setMotivo(e.target.value);
+        // Si había error y el usuario empieza a escribir, se limpia
+        if (motivoError && e.target.value.trim()) {
+            setMotivoError('');
+        }
+    };
+
     const handleCancelar = async () => {
-        setLoading(true);
         setError('');
 
+        // Validación: el motivo es obligatorio
+        const motivoLimpio = motivo.trim();
+        if (!motivoLimpio) {
+            setMotivoError('Debes escribir el motivo de la cancelación.');
+            return;
+        }
+
+        setLoading(true);
+
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const notaCancelacion = PREFIJO + motivoLimpio;
 
         try {
             const response = await fetch(`/citas/${cita.id_cita}/cancelar`, {
@@ -39,7 +60,7 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({
-                    nota_cancelacion: notaCancelacion.trim(),
+                    nota_cancelacion: notaCancelacion,
                     liberar_horario: liberarHorario ? 1 : 0,
                 }),
             });
@@ -73,19 +94,26 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
 
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Motivo de cancelación
+                        Motivo de cancelación <span className="text-red-500">*</span>
                     </label>
                     <textarea
-                        value={notaCancelacion}
-                        onChange={(e) => setNotaCancelacion(e.target.value)}
+                        value={motivo}
+                        onChange={handleMotivoChange}
                         rows="3"
                         maxLength={MAX_NOTA}
-                        placeholder="Motivo de cancelación: "
-                        className="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] resize-none"
+                        placeholder="Escribe aquí el motivo de la cancelación..."
+                        className={`w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 resize-none ${
+                            motivoError
+                                ? 'border-red-400 focus:ring-red-300 focus:border-red-500'
+                                : 'border-gray-300 focus:ring-[#FF5900]/50 focus:border-[#FF5900]'
+                        }`}
                     />
-                    <div className="mt-1 flex justify-end text-xs text-gray-500">
-                        <span className={notaCancelacion.length >= MAX_NOTA ? 'text-red-500 font-semibold' : ''}>
-                            {notaCancelacion.length} / {MAX_NOTA} caracteres
+                    <div className="mt-1 flex justify-between text-xs">
+                        <span className={`${motivoError ? 'text-red-600 font-medium' : 'text-transparent'}`}>
+                            {motivoError || '.'}
+                        </span>
+                        <span className={motivo.length >= MAX_NOTA ? 'text-red-500 font-semibold' : 'text-gray-500'}>
+                            {motivo.length} / {MAX_NOTA} caracteres
                         </span>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">
