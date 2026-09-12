@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Panel/ReporteController.php
 
 namespace App\Http\Controllers\Panel;
 
@@ -75,8 +76,6 @@ class ReporteController extends Controller
 
         $datos = [];
         $titulo = '';
-        // ✅ FIX: subtítulo con fecha DD-MM-YYYY
-        $subtitulo = "Periodo: " . $this->formatFechaPDF($fechaInicio) . " al " . $this->formatFechaPDF($fechaFin);
 
         switch ($tipo) {
             case 'estudiantes':
@@ -95,15 +94,21 @@ class ReporteController extends Controller
                 abort(400, 'Tipo de reporte no válido.');
         }
 
+        // Inyectamos fecha_inicio y fecha_fin en $datos para la vista
+        $datos['fecha_inicio'] = $fechaInicio;
+        $datos['fecha_fin'] = $fechaFin;
+
         $pdf = Pdf::loadView('pdf.reporte', [
             'titulo' => $titulo,
-            'subtitulo' => $subtitulo,
             'datos' => $datos,
             'tipo' => $tipo,
             'fechaGeneracion' => now()->format('d/m/Y H:i'),
+            'generadoPor' => $user['nombre'] ?? $user['usuario'] ?? null,
         ]);
 
-        // ✅ Nombre del PDF con fechas DD-MM-YYYY
+        $pdf->setPaper('letter', 'portrait');
+
+        // Nombre del PDF con fechas DD-MM-YYYY
         $nombreArchivo = "reporte_{$tipo}_" . $this->formatFechaPDF($fechaInicio) . "_al_" . $this->formatFechaPDF($fechaFin) . ".pdf";
 
         return $pdf->download($nombreArchivo);
@@ -120,12 +125,19 @@ class ReporteController extends Controller
         return "{$p[2]}-{$p[1]}-{$p[0]}";
     }
 
+    // ==================================================================
+    // ====================== REPORTE DE ESTUDIANTES ====================
+    // ==================================================================
     private function reporteEstudiantes($fechaInicio, $fechaFin)
     {
         $totalEstudiantes = DB::table('citas')
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
             ->distinct('nombre_estudiante')
             ->count('nombre_estudiante');
+
+        $totalCitas = DB::table('citas')
+            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+            ->count();
 
         $estudiantes = DB::table('citas')
             ->select('nombre_estudiante', DB::raw('count(*) as total_citas'))
@@ -142,13 +154,37 @@ class ReporteController extends Controller
             ->orderBy('total', 'desc')
             ->get();
 
+        // ✅ NUEVO: distribución de estudiantes por grado (solo los que tuvieron citas en el periodo)
+        $estudiantes_por_grado = DB::table('citas')
+            ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
+            ->select('estudiantes.grado', DB::raw('count(distinct citas.nombre_estudiante) as total'))
+            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
+            ->groupBy('estudiantes.grado')
+            ->orderBy('estudiantes.grado')
+            ->get();
+
+        // ✅ NUEVO: distribución de estudiantes por grupo
+        $estudiantes_por_grupo = DB::table('citas')
+            ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
+            ->select('estudiantes.grupo', DB::raw('count(distinct citas.nombre_estudiante) as total'))
+            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
+            ->groupBy('estudiantes.grupo')
+            ->orderBy('estudiantes.grupo')
+            ->get();
+
         return [
-            'total_estudiantes' => $totalEstudiantes,
-            'estudiantes' => $estudiantes,
-            'clasificaciones' => $clasificaciones,
+            'total_estudiantes'      => $totalEstudiantes,
+            'total_citas'            => $totalCitas,
+            'estudiantes'            => $estudiantes,
+            'clasificaciones'        => $clasificaciones,
+            'estudiantes_por_grado'  => $estudiantes_por_grado,
+            'estudiantes_por_grupo'  => $estudiantes_por_grupo,
         ];
     }
 
+    // ==================================================================
+    // ======================== REPORTE DE CITAS ========================
+    // ==================================================================
     private function reporteCitas($fechaInicio, $fechaFin)
     {
         $totalCitas = DB::table('citas')
@@ -167,6 +203,7 @@ class ReporteController extends Controller
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
             ->whereNotNull('clasificacion')
             ->groupBy('clasificacion')
+            ->orderBy('total', 'desc')
             ->pluck('total', 'clasificacion')
             ->toArray();
 
@@ -181,19 +218,33 @@ class ReporteController extends Controller
             ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select('citas.*', 'usuarios.nombre as nombre_formador')
             ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
-            ->orderBy('citas.fecha')
-            ->orderBy('citas.hora')
+            ->orderBy('citas.fecha', 'asc')
+            ->orderBy('citas.hora', 'asc')
+            ->get();
+
+        // ✅ NUEVO: Top formadores por citas en el periodo
+        $topFormadores = DB::table('citas')
+            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
+            ->select('usuarios.nombre as formador', DB::raw('count(*) as total_citas'))
+            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
+            ->groupBy('usuarios.nombre')
+            ->orderBy('total_citas', 'desc')
+            ->limit(5)
             ->get();
 
         return [
-            'total_citas' => $totalCitas,
-            'citas_por_estado' => $citasPorEstado,
+            'total_citas'             => $totalCitas,
+            'citas_por_estado'        => $citasPorEstado,
             'citas_por_clasificacion' => $citasPorClasificacion,
-            'citas_por_asistencia' => $citasPorAsistencia,
-            'citas' => $citas,
+            'citas_por_asistencia'    => $citasPorAsistencia,
+            'citas'                   => $citas,
+            'top_formadores'          => $topFormadores,
         ];
     }
 
+    // ==================================================================
+    // ===================== REPORTE DE FORMADORES ======================
+    // ==================================================================
     private function reporteFormadores($fechaInicio, $fechaFin)
     {
         $formadoresActivos = DB::table('citas')
@@ -215,12 +266,28 @@ class ReporteController extends Controller
             ->count();
         $promedio = $totalFormadores > 0 ? round($totalCitas / $totalFormadores, 1) : 0;
 
+        // ✅ NUEVO: Detalles por formador (completadas, canceladas, asistencias)
+        $detallesFormador = DB::table('citas')
+            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
+            ->select(
+                'usuarios.nombre as formador',
+                DB::raw('count(*) as total'),
+                DB::raw("SUM(CASE WHEN citas.estado = 'completada' THEN 1 ELSE 0 END) as completadas"),
+                DB::raw("SUM(CASE WHEN citas.estado IN ('cancelada', 'cancelada_liberada') THEN 1 ELSE 0 END) as canceladas"),
+                DB::raw("SUM(CASE WHEN citas.asistencia = 'asistió' THEN 1 ELSE 0 END) as asistencias")
+            )
+            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
+            ->groupBy('usuarios.nombre')
+            ->orderBy('total', 'desc')
+            ->get();
+
         return [
             'formadores_activos' => $formadoresActivos,
-            'formadores' => $formadores,
-            'total_citas' => $totalCitas,
-            'promedio' => $promedio,
-            'total_formadores' => $totalFormadores,
+            'formadores'         => $formadores,
+            'total_citas'        => $totalCitas,
+            'promedio'           => $promedio,
+            'total_formadores'   => $totalFormadores,
+            'detalles_formador'  => $detallesFormador,
         ];
     }
 }
