@@ -85,12 +85,12 @@ class IndicadoresController extends Controller
             ->pluck('total', 'asistencia')
             ->toArray();
 
-        // 6. FORMADORES TOP
+        // 6. FORMADORES TOP (usando el snapshot nombre_formador, sin JOIN)
         $formadoresTop = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-            ->select('usuarios.nombre', DB::raw('count(*) as total'))
+            ->select('nombre_formador as nombre', DB::raw('count(*) as total'))
             ->whereRaw($whereRaw, $bindings)
-            ->groupBy('usuarios.nombre')
+            ->whereNotNull('nombre_formador')
+            ->groupBy('nombre_formador')
             ->orderBy('total', 'desc')
             ->limit(5)
             ->get();
@@ -120,26 +120,22 @@ class IndicadoresController extends Controller
             ->whereBetween('fecha', [$semanaAnterior, now()->subWeek()->endOfWeek()->toDateString()])
             ->count();
 
-        // 10. CITAS DEL PERIODO
+        // 10. CITAS DEL PERIODO (ya no necesita JOIN, nombre_formador es columna propia)
         // - Con filtro (mes o semana) → todas las citas del periodo, sin límite
         // - Sin filtro → próximas citas programadas en 7 días (comportamiento original)
         if ($mes || $semana) {
             $proximasCitas = DB::table('citas')
-                ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-                ->select('citas.*', 'usuarios.nombre as nombre_formador')
                 ->whereRaw($whereRaw, $bindings)
-                ->orderBy('citas.fecha', 'desc')
-                ->orderBy('citas.hora', 'desc')
+                ->orderBy('fecha', 'desc')
+                ->orderBy('hora', 'desc')
                 ->get();
         } else {
             $proximasCitas = DB::table('citas')
-                ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-                ->select('citas.*', 'usuarios.nombre as nombre_formador')
-                ->where('citas.fecha', '>=', now()->toDateString())
-                ->where('citas.fecha', '<=', now()->addDays(7)->toDateString())
-                ->where('citas.estado', 'programada')
-                ->orderBy('citas.fecha')
-                ->orderBy('citas.hora')
+                ->where('fecha', '>=', now()->toDateString())
+                ->where('fecha', '<=', now()->addDays(7)->toDateString())
+                ->where('estado', 'programada')
+                ->orderBy('fecha')
+                ->orderBy('hora')
                 ->limit(10)
                 ->get();
         }

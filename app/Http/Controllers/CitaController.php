@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/CitaController.php
 
 namespace App\Http\Controllers;
 
@@ -123,14 +124,23 @@ class CitaController extends Controller
     }
 
     /**
-     * Guardar la cita y enviar notificación por WhatsApp
+     * Guardar la cita y enviar notificación por WhatsApp.
+     * Se guarda un snapshot del nombre del formador (nombre_formador)
+     * al momento de la solicitud, igual que ya se hace con nombre_estudiante.
+     * Así, si el nombre del usuario cambia después, esta cita conserva
+     * el nombre con el que se agendó (el id_usuario sigue disponible
+     * para saber quién es realmente el formador actual).
+     *
+     * El ID se deja a MySQL (AUTO_INCREMENT) para evitar race conditions
+     * cuando dos personas agendan cita al mismo tiempo.
      */
     public function store(Request $request)
     {
         try {
             $validated = $request->validate([
                 'nombre_estudiante' => 'required|string|max:100',
-                'usuario_id'        => 'required|integer|exists:usuarios,id_usuario',
+                // ✅ Solo permite formadores que existen Y están activos
+                'usuario_id'        => 'required|integer|exists:usuarios,id_usuario,activo,1',
                 'fecha'             => 'required|date',
                 'hora'              => 'required|date_format:H:i',
             ]);
@@ -139,20 +149,23 @@ class CitaController extends Controller
                 ->where('nombre', $validated['nombre_estudiante'])
                 ->first();
 
-            $lastId = DB::table('citas')->max('id_cita') ?? 0;
-            $newId = $lastId + 1;
+            $formador = DB::table('usuarios')
+                ->where('id_usuario', $validated['usuario_id'])
+                ->first();
+
             $horaConSegundos = $validated['hora'] . ':00';
 
-            DB::table('citas')->insert([
-                'id_cita'            => $newId,
-                'id_estudiante'      => $estudiante ? $estudiante->id_estudiante : null,
-                'nombre_estudiante'  => $validated['nombre_estudiante'],
-                'id_usuario'         => $validated['usuario_id'],
-                'fecha'              => $validated['fecha'],
-                'hora'               => $horaConSegundos,
-                'notas'              => null,
-                'asistencia'         => 'pendiente',
-                'estado'             => 'programada',
+            // ✅ insertGetId: MySQL asigna el id_cita por AUTO_INCREMENT (thread-safe)
+            $newId = DB::table('citas')->insertGetId([
+                'id_estudiante'     => $estudiante ? $estudiante->id_estudiante : null,
+                'nombre_estudiante' => $validated['nombre_estudiante'],
+                'id_usuario'        => $validated['usuario_id'],
+                'nombre_formador'   => $formador->nombre ?? null,
+                'fecha'             => $validated['fecha'],
+                'hora'              => $horaConSegundos,
+                'notas'             => null,
+                'asistencia'        => 'pendiente',
+                'estado'            => 'programada',
             ]);
 
             // ✅ Enviar notificación por WhatsApp (no bloquea la respuesta si falla)
@@ -168,6 +181,8 @@ class CitaController extends Controller
                 'success' => true,
                 'message' => 'Cita solicitada exitosamente.'
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error al guardar cita:', ['error' => $e->getMessage()]);
             return response()->json([

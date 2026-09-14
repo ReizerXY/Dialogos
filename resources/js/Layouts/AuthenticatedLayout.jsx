@@ -70,9 +70,9 @@ export default function AuthenticatedLayout({ children }) {
                                 Generar reportes
                             </Link>
 
-                            {/* ─── GRUPO: CITAS Y ATENCIÓN ─── */}
+                            {/* ─── GRUPO: CITAS Y ESTUDIANTES ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Citas y atención
+                                Citas y estudiantes
                             </p>
                             <Link href={route('citas.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,9 +159,9 @@ export default function AuthenticatedLayout({ children }) {
                                 Visualizar citas
                             </Link>
 
-                            {/* ─── GRUPO: ATENCIÓN ─── */}
+                            {/* ─── GRUPO: Estudiantes ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Atención
+                                Estudiantes
                             </p>
                             <Link href={route('expediente.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,3 +1,4 @@
+// resources/js/Pages/Panel/Usuarios.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -5,6 +6,21 @@ import { useState } from 'react';
 export default function Usuarios({ usuarios, user }) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editUser, setEditUser] = useState(null);
+
+    // Estado del modal de confirmación (dar de baja / reactivar)
+    const [confirmModal, setConfirmModal] = useState({
+        open: false,
+        usuario: null,
+        accion: null, // 'baja' | 'reactivar'
+        procesando: false,
+    });
+
+    // Estado del modal de confirmación de ELIMINACIÓN (independiente, acción irreversible)
+    const [deleteModal, setDeleteModal] = useState({
+        open: false,
+        usuario: null,
+        procesando: false,
+    });
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         usuario: '',
@@ -51,13 +67,59 @@ export default function Usuarios({ usuarios, user }) {
         }
     };
 
-    const handleToggleActivo = (usuario) => {
-        const accion = usuario.activo == 1 ? 'dar de baja' : 'reactivar';
-        if (confirm(`¿Estás seguro de ${accion} a ${usuario.nombre}?`)) {
-            router.put(route('usuarios.toggleActivo', usuario.id_usuario), {}, {
-                preserveScroll: true,
-            });
-        }
+    // Abre el modal de confirmación según la acción (baja / reactivar)
+    const abrirConfirmacion = (usuario) => {
+        setConfirmModal({
+            open: true,
+            usuario,
+            accion: usuario.activo == 1 ? 'baja' : 'reactivar',
+            procesando: false,
+        });
+    };
+
+    const cerrarConfirmacion = () => {
+        if (confirmModal.procesando) return; // no cerrar mientras procesa
+        setConfirmModal({ open: false, usuario: null, accion: null, procesando: false });
+    };
+
+    const confirmarAccion = () => {
+        if (!confirmModal.usuario) return;
+
+        setConfirmModal((prev) => ({ ...prev, procesando: true }));
+
+        router.put(route('usuarios.toggleActivo', confirmModal.usuario.id_usuario), {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                setConfirmModal({ open: false, usuario: null, accion: null, procesando: false });
+            },
+        });
+    };
+
+    // Abre el modal de confirmación de ELIMINACIÓN
+    const abrirEliminar = (usuario) => {
+        setDeleteModal({
+            open: true,
+            usuario,
+            procesando: false,
+        });
+    };
+
+    const cerrarEliminar = () => {
+        if (deleteModal.procesando) return;
+        setDeleteModal({ open: false, usuario: null, procesando: false });
+    };
+
+    const confirmarEliminar = () => {
+        if (!deleteModal.usuario) return;
+
+        setDeleteModal((prev) => ({ ...prev, procesando: true }));
+
+        router.delete(route('usuarios.destroy', deleteModal.usuario.id_usuario), {
+            preserveScroll: true,
+            onFinish: () => {
+                setDeleteModal({ open: false, usuario: null, procesando: false });
+            },
+        });
     };
 
     return (
@@ -138,30 +200,42 @@ export default function Usuarios({ usuarios, user }) {
                                                 </button>
 
                                                 {u.usuario !== 'admin' && u.id_usuario !== user.id_usuario && (
-                                                    <button
-                                                        onClick={() => handleToggleActivo(u)}
-                                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 hover:shadow-md active:scale-95 ${
-                                                            u.activo == 1
-                                                                ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                                                                : 'bg-green-600 text-white hover:bg-green-700'
-                                                        }`}
-                                                    >
-                                                        {u.activo == 1 ? (
-                                                            <>
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                                                </svg>
-                                                                Dar de baja
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                </svg>
-                                                                Reactivar
-                                                            </>
-                                                        )}
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => abrirConfirmacion(u)}
+                                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 hover:shadow-md active:scale-95 ${
+                                                                u.activo == 1
+                                                                    ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                                            }`}
+                                                        >
+                                                            {u.activo == 1 ? (
+                                                                <>
+                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                                    </svg>
+                                                                    Dar de baja
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                    Reactivar
+                                                                </>
+                                                            )}
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => abrirEliminar(u)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-all duration-200 hover:shadow-md active:scale-95"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                            Eliminar
+                                                        </button>
+                                                    </>
                                                 )}
                                             </div>
                                         </td>
@@ -181,6 +255,7 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             </div>
 
+            {/* Modal crear / editar usuario */}
             {modalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
@@ -250,6 +325,133 @@ export default function Usuarios({ usuarios, user }) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de confirmación: dar de baja / reactivar */}
+            {confirmModal.open && confirmModal.usuario && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                        {/* Icono contextual */}
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
+                                confirmModal.accion === 'baja' ? 'bg-yellow-100' : 'bg-green-100'
+                            }`}>
+                                {confirmModal.accion === 'baja' ? (
+                                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                )}
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-800">
+                                {confirmModal.accion === 'baja' ? 'Dar de baja usuario' : 'Reactivar usuario'}
+                            </h2>
+                        </div>
+
+                        {/* Mensaje */}
+                        <p className="text-gray-600 mb-2">
+                            ¿Estás seguro de que deseas{' '}
+                            <strong>
+                                {confirmModal.accion === 'baja' ? 'dar de baja' : 'reactivar'}
+                            </strong>{' '}
+                            a <strong>{confirmModal.usuario.nombre}</strong>?
+                        </p>
+
+                        {/* Nota informativa */}
+                        <div className={`rounded-xl p-3 mb-4 text-sm ${
+                            confirmModal.accion === 'baja'
+                                ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
+                                : 'bg-green-50 border border-green-200 text-green-800'
+                        }`}>
+                            {confirmModal.accion === 'baja' ? (
+                                <>El usuario no podrá iniciar sesión, pero sus citas y datos históricos se conservan.</>
+                            ) : (
+                                <>El usuario podrá volver a iniciar sesión con sus credenciales actuales.</>
+                            )}
+                        </div>
+
+                        {/* Botones */}
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={cerrarConfirmacion}
+                                disabled={confirmModal.procesando}
+                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmarAccion}
+                                disabled={confirmModal.procesando}
+                                className={`px-6 py-2 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    confirmModal.accion === 'baja'
+                                        ? 'bg-yellow-500 hover:bg-yellow-600'
+                                        : 'bg-green-600 hover:bg-green-700'
+                                }`}
+                            >
+                                {confirmModal.procesando
+                                    ? 'Procesando...'
+                                    : confirmModal.accion === 'baja'
+                                        ? 'Sí, dar de baja'
+                                        : 'Sí, reactivar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de confirmación: ELIMINAR usuario (acción irreversible) */}
+            {deleteModal.open && deleteModal.usuario && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                        {/* Icono contextual */}
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-800">Eliminar usuario</h2>
+                        </div>
+
+                        {/* Mensaje */}
+                        <p className="text-gray-600 mb-2">
+                            ¿Estás seguro de que deseas <strong>eliminar permanentemente</strong> a{' '}
+                            <strong>{deleteModal.usuario.nombre}</strong>?
+                        </p>
+
+                        {/* Advertencia: acción irreversible */}
+                        <div className="rounded-xl p-3 mb-4 text-sm bg-red-50 border border-red-200 text-red-800">
+                            Esta acción <strong>no se puede deshacer</strong>. El usuario y sus horarios se
+                            eliminarán por completo. Sus citas pasadas conservarán el nombre con el que se
+                            atendieron, pero ya no estarán vinculadas a ninguna cuenta.
+                        </div>
+
+                        {/* Botones */}
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={cerrarEliminar}
+                                disabled={deleteModal.procesando}
+                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmarEliminar}
+                                disabled={deleteModal.procesando}
+                                className="px-6 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deleteModal.procesando ? 'Eliminando...' : 'Sí, eliminar permanentemente'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

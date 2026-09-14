@@ -348,7 +348,7 @@ export default function Estudiantes({ estudiantes, user }) {
                         </button>
                     </form>
                     <p className="text-xs text-gray-400 mt-2">
-                        El archivo debe tener las columnas: <strong>id_estudiante, nombre, grado, grupo, telefono_estudiante, telefono_padre</strong> (las 2 últimas son opcionales).
+                        El archivo debe tener las columnas: <strong>id_estudiante, nombre, grado, grupo, telefono_estudiante, telefono_padre</strong>.
                     </p>
                     <p className="text-xs text-gray-400">
                         Las filas con ID existente se actualizarán; las nuevas se insertarán.

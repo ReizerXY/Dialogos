@@ -27,9 +27,9 @@ class CitaController extends Controller
         $filtroFecha = $request->get('fecha');
         $semana = $request->get('semana', 'actual');
 
-        $query = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-            ->select('citas.*', 'usuarios.nombre as nombre_formador');
+        // ✅ Ya no se necesita el JOIN a usuarios: nombre_formador
+        // ahora vive directamente en la tabla citas (snapshot histórico).
+        $query = DB::table('citas')->select('citas.*');
 
         if ($rol == 'Formador' && !$verTodas) {
             $query->where('citas.id_usuario', $usuarioId);
@@ -88,10 +88,9 @@ class CitaController extends Controller
             abort(403, 'Solo los formadores pueden gestionar citas.');
         }
 
+        // ✅ nombre_formador ya es columna propia de citas
         $cita = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-            ->select('citas.*', 'usuarios.nombre as nombre_formador')
-            ->where('citas.id_cita', $id)
+            ->where('id_cita', $id)
             ->first();
 
         if (!$cita) {
@@ -413,9 +412,8 @@ class CitaController extends Controller
         $citas = [];
 
         if (strlen($query) >= 1) {
+            // ✅ nombre_formador ya es columna propia de citas
             $citas = DB::table('citas')
-                ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-                ->select('citas.*', 'usuarios.nombre as nombre_formador')
                 ->where('citas.nombre_estudiante', 'LIKE', "%$query%")
                 ->orderBy('citas.fecha', 'desc')
                 ->orderBy('citas.hora', 'desc')

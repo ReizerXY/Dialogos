@@ -79,6 +79,7 @@ Route::middleware(['auth.session'])->group(function () {
         Route::post('/', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::put('/{id_usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
         Route::put('/{id_usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggleActivo');
+        Route::delete('/usuarios/{id_usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
     });
 
     // Modificar horarios (coordinador)

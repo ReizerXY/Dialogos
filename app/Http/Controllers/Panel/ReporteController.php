@@ -154,7 +154,7 @@ class ReporteController extends Controller
             ->orderBy('total', 'desc')
             ->get();
 
-        // ✅ NUEVO: distribución de estudiantes por grado (solo los que tuvieron citas en el periodo)
+        // Distribución de estudiantes por grado (solo los que tuvieron citas en el periodo)
         $estudiantes_por_grado = DB::table('citas')
             ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
             ->select('estudiantes.grado', DB::raw('count(distinct citas.nombre_estudiante) as total'))
@@ -163,7 +163,7 @@ class ReporteController extends Controller
             ->orderBy('estudiantes.grado')
             ->get();
 
-        // ✅ NUEVO: distribución de estudiantes por grupo
+        // Distribución de estudiantes por grupo
         $estudiantes_por_grupo = DB::table('citas')
             ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
             ->select('estudiantes.grupo', DB::raw('count(distinct citas.nombre_estudiante) as total'))
@@ -214,20 +214,20 @@ class ReporteController extends Controller
             ->pluck('total', 'asistencia')
             ->toArray();
 
+        // nombre_formador ya viene como columna propia de citas (snapshot histórico)
         $citas = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-            ->select('citas.*', 'usuarios.nombre as nombre_formador')
-            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
-            ->orderBy('citas.fecha', 'asc')
-            ->orderBy('citas.hora', 'asc')
+            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+            ->orderBy('fecha', 'asc')
+            ->orderBy('hora', 'asc')
             ->get();
 
-        // ✅ NUEVO: Top formadores por citas en el periodo
+        // Top formadores por citas en el periodo (agrupado por nombre_formador,
+        // así se conserva el histórico aunque el usuario sea editado o dado de baja)
         $topFormadores = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-            ->select('usuarios.nombre as formador', DB::raw('count(*) as total_citas'))
-            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
-            ->groupBy('usuarios.nombre')
+            ->select('nombre_formador as formador', DB::raw('count(*) as total_citas'))
+            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+            ->whereNotNull('nombre_formador')
+            ->groupBy('nombre_formador')
             ->orderBy('total_citas', 'desc')
             ->limit(5)
             ->get();
@@ -249,35 +249,41 @@ class ReporteController extends Controller
     {
         $formadoresActivos = DB::table('citas')
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
-            ->distinct('id_usuario')
-            ->count('id_usuario');
+            ->whereNotNull('nombre_formador')
+            ->distinct('nombre_formador')
+            ->count('nombre_formador');
 
+        // Agrupado por nombre_formador (snapshot) en vez de JOIN a usuarios
         $formadores = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
-            ->select('usuarios.nombre as formador', DB::raw('count(*) as total_citas'))
-            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
-            ->groupBy('usuarios.nombre')
+            ->select('nombre_formador as formador', DB::raw('count(*) as total_citas'))
+            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+            ->whereNotNull('nombre_formador')
+            ->groupBy('nombre_formador')
             ->orderBy('total_citas', 'desc')
             ->get();
 
-        $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->count();
         $totalCitas = DB::table('citas')
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
             ->count();
-        $promedio = $totalFormadores > 0 ? round($totalCitas / $totalFormadores, 1) : 0;
 
-        // ✅ NUEVO: Detalles por formador (completadas, canceladas, asistencias)
+        // ✅ Promedio sobre formadores que dieron citas en el periodo,
+        //    no sobre el total de usuarios formadores registrados.
+        $promedio = $formadoresActivos > 0
+            ? round($totalCitas / $formadoresActivos, 1)
+            : 0;
+
+        // Detalles por formador (completadas, canceladas, asistencias) usando el snapshot
         $detallesFormador = DB::table('citas')
-            ->join('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select(
-                'usuarios.nombre as formador',
+                'nombre_formador as formador',
                 DB::raw('count(*) as total'),
-                DB::raw("SUM(CASE WHEN citas.estado = 'completada' THEN 1 ELSE 0 END) as completadas"),
-                DB::raw("SUM(CASE WHEN citas.estado IN ('cancelada', 'cancelada_liberada') THEN 1 ELSE 0 END) as canceladas"),
-                DB::raw("SUM(CASE WHEN citas.asistencia = 'asistió' THEN 1 ELSE 0 END) as asistencias")
+                DB::raw("SUM(CASE WHEN estado = 'completada' THEN 1 ELSE 0 END) as completadas"),
+                DB::raw("SUM(CASE WHEN estado IN ('cancelada', 'cancelada_liberada') THEN 1 ELSE 0 END) as canceladas"),
+                DB::raw("SUM(CASE WHEN asistencia = 'asistió' THEN 1 ELSE 0 END) as asistencias")
             )
-            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
-            ->groupBy('usuarios.nombre')
+            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+            ->whereNotNull('nombre_formador')
+            ->groupBy('nombre_formador')
             ->orderBy('total', 'desc')
             ->get();
 
@@ -286,7 +292,7 @@ class ReporteController extends Controller
             'formadores'         => $formadores,
             'total_citas'        => $totalCitas,
             'promedio'           => $promedio,
-            'total_formadores'   => $totalFormadores,
+            'total_formadores'   => $formadoresActivos, // ahora consistente con la tarjeta 1
             'detalles_formador'  => $detallesFormador,
         ];
     }
