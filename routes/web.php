@@ -1,4 +1,5 @@
 <?php
+// routes/web.php
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Panel\IndicadoresController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Panel\HorarioAdminController;
 use App\Http\Controllers\Panel\EstudianteController;
 use App\Http\Controllers\Panel\ReporteController;
 use App\Http\Controllers\Panel\MiHorarioController;
+use App\Http\Controllers\Panel\BackupController;
 use App\Http\Controllers\CitaController as CitaPublicController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -30,12 +32,18 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('/solicitar-cita', [CitaPublicController::class, 'index'])->name('cita.solicitar');
-Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])->name('cita.store');
 
-Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
+// Limitar el POST de cita a 3 por minuto (evita spam masivo)
+Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])
+    ->middleware('throttle:3,1')
+    ->name('cita.store');
 
-Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
-Route::get('/api/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
+// APIs públicas sensibles — 10/min para evitar adivinar matrículas
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
+    Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
+    Route::get('/api/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
+});
 
 // =============================================
 // AUTENTICACIÓN PERSONALIZADA
@@ -49,7 +57,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // RUTAS PROTEGIDAS (requieren sesión activa)
 // =============================================
 
-Route::middleware(['auth.session'])->group(function () {
+Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
 
     // ---------- COORDINADOR ----------
     Route::get('/indicadores', [IndicadoresController::class, 'index'])
@@ -62,6 +70,15 @@ Route::middleware(['auth.session'])->group(function () {
     Route::get('/reportes/generar', [ReporteController::class, 'generarPDF'])
         ->middleware('check.role:Coordinador')
         ->name('reportes.generar');
+
+    // ✅ Backups: citas y completo
+    Route::get('/admin/backup/citas', [BackupController::class, 'descargarCitas'])
+        ->middleware('check.role:Coordinador')
+        ->name('admin.backup.citas');
+
+    Route::get('/admin/backup/completo', [BackupController::class, 'descargarCompleto'])
+        ->middleware('check.role:Coordinador')
+        ->name('admin.backup.completo');
 
     // Gestión de estudiantes
     Route::prefix('estudiantes')->middleware('check.role:Coordinador')->group(function () {
@@ -79,7 +96,7 @@ Route::middleware(['auth.session'])->group(function () {
         Route::post('/', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::put('/{id_usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
         Route::put('/{id_usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggleActivo');
-        Route::delete('/usuarios/{id_usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+        Route::delete('/{id_usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
     });
 
     // Modificar horarios (coordinador)

@@ -7,15 +7,13 @@ export default function Usuarios({ usuarios, user }) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editUser, setEditUser] = useState(null);
 
-    // Estado del modal de confirmación (dar de baja / reactivar)
     const [confirmModal, setConfirmModal] = useState({
         open: false,
         usuario: null,
-        accion: null, // 'baja' | 'reactivar'
+        accion: null,
         procesando: false,
     });
 
-    // Estado del modal de confirmación de ELIMINACIÓN (independiente, acción irreversible)
     const [deleteModal, setDeleteModal] = useState({
         open: false,
         usuario: null,
@@ -67,7 +65,6 @@ export default function Usuarios({ usuarios, user }) {
         }
     };
 
-    // Abre el modal de confirmación según la acción (baja / reactivar)
     const abrirConfirmacion = (usuario) => {
         setConfirmModal({
             open: true,
@@ -78,15 +75,13 @@ export default function Usuarios({ usuarios, user }) {
     };
 
     const cerrarConfirmacion = () => {
-        if (confirmModal.procesando) return; // no cerrar mientras procesa
+        if (confirmModal.procesando) return;
         setConfirmModal({ open: false, usuario: null, accion: null, procesando: false });
     };
 
     const confirmarAccion = () => {
         if (!confirmModal.usuario) return;
-
         setConfirmModal((prev) => ({ ...prev, procesando: true }));
-
         router.put(route('usuarios.toggleActivo', confirmModal.usuario.id_usuario), {}, {
             preserveScroll: true,
             onFinish: () => {
@@ -95,7 +90,6 @@ export default function Usuarios({ usuarios, user }) {
         });
     };
 
-    // Abre el modal de confirmación de ELIMINACIÓN
     const abrirEliminar = (usuario) => {
         setDeleteModal({
             open: true,
@@ -111,9 +105,7 @@ export default function Usuarios({ usuarios, user }) {
 
     const confirmarEliminar = () => {
         if (!deleteModal.usuario) return;
-
         setDeleteModal((prev) => ({ ...prev, procesando: true }));
-
         router.delete(route('usuarios.destroy', deleteModal.usuario.id_usuario), {
             preserveScroll: true,
             onFinish: () => {
@@ -130,6 +122,44 @@ export default function Usuarios({ usuarios, user }) {
                     <h1 className="text-3xl font-bold text-gray-800">Gestión de usuarios</h1>
                     <p className="text-gray-500 mt-1">Administra los usuarios del sistema</p>
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
+                </div>
+
+                {/* ─── Copias de seguridad ─── */}
+                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Copias de seguridad
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Descarga un respaldo en formato <code className="bg-gray-100 px-1 rounded">.sql</code>.
+                            </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <a
+                                href={route('admin.backup.citas')}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF5900] text-white text-sm font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Descargar citas
+                            </a>
+                            <a
+                                href={route('admin.backup.completo')}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 active:scale-95"
+                                title="Descarga todas las tablas: citas, estudiantes, horarios y usuarios"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                </svg>
+                                Backup completo
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-6 flex justify-between items-center">
@@ -333,7 +363,6 @@ export default function Usuarios({ usuarios, user }) {
             {confirmModal.open && confirmModal.usuario && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-                        {/* Icono contextual */}
                         <div className="flex items-center gap-4 mb-4">
                             <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
                                 confirmModal.accion === 'baja' ? 'bg-yellow-100' : 'bg-green-100'
@@ -353,16 +382,12 @@ export default function Usuarios({ usuarios, user }) {
                             </h2>
                         </div>
 
-                        {/* Mensaje */}
                         <p className="text-gray-600 mb-2">
                             ¿Estás seguro de que deseas{' '}
-                            <strong>
-                                {confirmModal.accion === 'baja' ? 'dar de baja' : 'reactivar'}
-                            </strong>{' '}
+                            <strong>{confirmModal.accion === 'baja' ? 'dar de baja' : 'reactivar'}</strong>{' '}
                             a <strong>{confirmModal.usuario.nombre}</strong>?
                         </p>
 
-                        {/* Nota informativa */}
                         <div className={`rounded-xl p-3 mb-4 text-sm ${
                             confirmModal.accion === 'baja'
                                 ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
@@ -375,7 +400,6 @@ export default function Usuarios({ usuarios, user }) {
                             )}
                         </div>
 
-                        {/* Botones */}
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
@@ -406,11 +430,10 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             )}
 
-            {/* Modal de confirmación: ELIMINAR usuario (acción irreversible) */}
+            {/* Modal de confirmación: ELIMINAR usuario */}
             {deleteModal.open && deleteModal.usuario && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-                        {/* Icono contextual */}
                         <div className="flex items-center gap-4 mb-4">
                             <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
                                 <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -420,20 +443,17 @@ export default function Usuarios({ usuarios, user }) {
                             <h2 className="text-xl font-bold text-gray-800">Eliminar usuario</h2>
                         </div>
 
-                        {/* Mensaje */}
                         <p className="text-gray-600 mb-2">
                             ¿Estás seguro de que deseas <strong>eliminar permanentemente</strong> a{' '}
                             <strong>{deleteModal.usuario.nombre}</strong>?
                         </p>
 
-                        {/* Advertencia: acción irreversible */}
                         <div className="rounded-xl p-3 mb-4 text-sm bg-red-50 border border-red-200 text-red-800">
                             Esta acción <strong>no se puede deshacer</strong>. El usuario y sus horarios se
                             eliminarán por completo. Sus citas pasadas conservarán el nombre con el que se
                             atendieron, pero ya no estarán vinculadas a ninguna cuenta.
                         </div>
 
-                        {/* Botones */}
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
