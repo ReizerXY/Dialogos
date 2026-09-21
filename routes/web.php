@@ -71,7 +71,11 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         ->middleware('check.role:Coordinador')
         ->name('reportes.generar');
 
-    // ✅ Backups: citas y completo
+    // ✅ Backups: página principal + descargas
+    Route::get('/admin/backups', [BackupController::class, 'index'])
+        ->middleware('check.role:Coordinador')
+        ->name('admin.backups.index');
+
     Route::get('/admin/backup/citas', [BackupController::class, 'descargarCitas'])
         ->middleware('check.role:Coordinador')
         ->name('admin.backup.citas');

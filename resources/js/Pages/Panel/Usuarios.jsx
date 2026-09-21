@@ -124,44 +124,6 @@ export default function Usuarios({ usuarios, user }) {
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>
 
-                {/* ─── Copias de seguridad ─── */}
-                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div>
-                            <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                                <svg className="w-4 h-4 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Copias de seguridad
-                            </h2>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Descarga un respaldo en formato <code className="bg-gray-100 px-1 rounded">.sql</code>.
-                            </p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <a
-                                href={route('admin.backup.citas')}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF5900] text-white text-sm font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Descargar citas
-                            </a>
-                            <a
-                                href={route('admin.backup.completo')}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 active:scale-95"
-                                title="Descarga todas las tablas: citas, estudiantes, horarios y usuarios"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                                </svg>
-                                Backup completo
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 mb-6 flex justify-between items-center">
                     <div className="text-sm text-gray-500">
                         Total: <span className="font-medium text-gray-700">{usuarios.length}</span> usuarios

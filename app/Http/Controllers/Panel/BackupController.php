@@ -10,6 +10,21 @@ use Ifsnop\Mysqldump\Mysqldump;
 class BackupController extends Controller
 {
     /**
+     * Página de copias de seguridad con los botones de descarga.
+     */
+    public function index()
+    {
+        $user = Session::get('user');
+        if (!$user || $user['rol'] !== 'Coordinador') {
+            abort(403, 'Solo coordinadores pueden acceder a las copias de seguridad.');
+        }
+
+        return inertia('Panel/Backups', [
+            'user' => $user,
+        ]);
+    }
+
+    /**
      * Verifica que el usuario en sesión sea Coordinador.
      */
     private function verificarCoordinador(): void
@@ -44,7 +59,6 @@ class BackupController extends Controller
             'skip-comments'      => true,
             'routines'           => false,
             'events'             => false,
-            // ✅ Un INSERT por fila (legible en cualquier editor)
             'extended-insert'    => false,
         ];
 
@@ -93,7 +107,6 @@ class BackupController extends Controller
 
     /**
      * Descarga TODAS las tablas de la base de datos.
-     * Uso recomendado: antes de deploys importantes o para respaldo completo.
      */
     public function descargarCompleto()
     {

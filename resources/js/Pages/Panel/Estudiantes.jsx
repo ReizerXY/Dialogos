@@ -1,3 +1,4 @@
+// resources/js/Pages/Panel/Estudiantes.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useState, useRef, useMemo } from 'react';
@@ -9,6 +10,9 @@ export default function Estudiantes({ estudiantes, user }) {
     const [mensaje, setMensaje] = useState(null);
     const [listaEstudiantes, setListaEstudiantes] = useState(estudiantes);
     const [orden, setOrden] = useState('id_estudiante');
+
+    // ✅ Estado para colapsar la sección de importación
+    const [importarOpen, setImportarOpen] = useState(false);
 
     const inputFileRef = useRef(null);
 
@@ -308,54 +312,88 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 )}
 
-                {/* Sección de importación */}
-                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 mb-6">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-3">Importar estudiantes</h2>
-                    <form onSubmit={handleImport} className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-                        <div className="flex-1 w-full">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Archivo (.xlsx, .xls, .csv, .txt)
-                            </label>
-                            <input
-                                ref={inputFileRef}
-                                type="file"
-                                accept=".xlsx,.xls,.csv,.txt,.tsv"
-                                onChange={handleFileChange}
-                                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                            />
+                {/* ============================================================ */}
+                {/* Sección de importación (COLAPSABLE) */}
+                {/* ============================================================ */}
+                <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 overflow-hidden">
+                    <button
+                        onClick={() => setImportarOpen(!importarOpen)}
+                        className="w-full flex flex-wrap items-center justify-between gap-3 px-6 py-4 hover:bg-gray-50 transition text-left"
+                    >
+                        <div className="flex flex-wrap items-center gap-3">
+                            <svg className="w-5 h-5 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            <span className="text-base font-semibold text-gray-800">Importar estudiantes</span>
+                            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5 font-medium">
+                                ⚠️ Realizar al inicio de cada semestre
+                            </span>
                         </div>
-                        <button
-                            type="submit"
-                            disabled={cargando || !archivo}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 whitespace-nowrap"
-                        >
-                            {cargando ? (
-                                <>
-                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Importando...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                    </svg>
-                                    Importar
-                                </>
-                            )}
-                        </button>
-                    </form>
-                    <p className="text-xs text-gray-400 mt-2">
-                        El archivo debe tener las columnas: <strong>id_estudiante, nombre, grado, grupo, telefono_estudiante, telefono_padre</strong>.
-                    </p>
-                    <p className="text-xs text-gray-400">
-                        Las filas con ID existente se actualizarán; las nuevas se insertarán.
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                        ✅ Acepta <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong> y <strong>.txt</strong>. Puedes subir el archivo de Excel tal como lo tienes.
-                    </p>
+                        <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${importarOpen ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div className={`transition-all duration-300 ease-in-out ${importarOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                        <div className="px-6 pb-6 border-t border-gray-100">
+                            {/* Mensaje informativo */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 mt-4 flex items-start gap-2 text-sm text-amber-800">
+                                <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div>
+                                    <strong>Se recomienda realizar esta importación al inicio de cada semestre.</strong>
+                                    <div className="text-xs mt-0.5">Actualiza la lista completa de estudiantes inscritos en el ciclo actual.</div>
+                                </div>
+                            </div>
+
+                            <form onSubmit={handleImport} className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                                <div className="flex-1 w-full">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        Archivo (.xlsx, .xls, .csv, .txt)
+                                    </label>
+                                    <input
+                                        ref={inputFileRef}
+                                        type="file"
+                                        accept=".xlsx,.xls,.csv,.txt,.tsv"
+                                        onChange={handleFileChange}
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={cargando || !archivo}
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                                >
+                                    {cargando ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Importando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            </svg>
+                                            Importar
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                            <p className="text-xs text-gray-400 mt-3">
+                                El archivo debe tener las columnas: <strong>id_estudiante, nombre, grado, grupo, telefono_estudiante, telefono_padre</strong>.
+                            </p>
+                            <p className="text-xs text-gray-400">
+                                Las filas con ID existente se actualizarán; las nuevas se insertarán.
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                ✅ Acepta <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong> y <strong>.txt</strong>.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Tabla */}

@@ -1,3 +1,4 @@
+// resources/js/Layouts/AuthenticatedLayout.jsx
 import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 
@@ -25,8 +26,16 @@ export default function AuthenticatedLayout({ children }) {
     const isFormador = user?.rol === 'Formador';
 
     const nombreMostrado = user?.nombre || user?.usuario || 'Usuario';
+    const rolMostrado = user?.rol || '';
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    // Colores del badge según el rol
+    const rolBadgeClases = isCoordinador
+        ? 'bg-purple-100 text-purple-800 border border-purple-200'
+        : isFormador
+            ? 'bg-blue-100 text-blue-800 border border-blue-200'
+            : 'bg-gray-100 text-gray-700 border border-gray-200';
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col lg:flex-row">
@@ -42,15 +51,26 @@ export default function AuthenticatedLayout({ children }) {
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 } lg:relative lg:translate-x-0 lg:shadow-md lg:min-h-screen lg:w-72 lg:flex-shrink-0`}
             >
+                {/* ─── ENCABEZADO CON USUARIO Y ROL ─── */}
                 <div className="p-5 border-b border-gray-200">
                     <h1 className="text-2xl font-bold text-[#FF5900]">Diálogos</h1>
-                    <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-                        {nombreMostrado}
-                    </p>
+
+                    <div className="mt-3 flex items-start gap-2.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block mt-1.5 shrink-0"></span>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-800 truncate">
+                                {nombreMostrado}
+                            </p>
+                            {rolMostrado && (
+                                <span className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide ${rolBadgeClases}`}>
+                                    {rolMostrado}
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
-                <nav className="p-4 space-y-1 overflow-y-auto" style={{ height: 'calc(100vh - 130px)' }}>
+                <nav className="p-4 space-y-1 overflow-y-auto" style={{ height: 'calc(100vh - 150px)' }}>
                     {isCoordinador && (
                         <>
                             {/* ─── GRUPO: ANÁLISIS ─── */}
@@ -120,6 +140,12 @@ export default function AuthenticatedLayout({ children }) {
                                 </svg>
                                 Gestionar usuarios
                             </Link>
+                            <Link href={route('admin.backups.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                                </svg>
+                                Copias de seguridad
+                            </Link>
                         </>
                     )}
 
@@ -142,7 +168,7 @@ export default function AuthenticatedLayout({ children }) {
                                 Modificar mis horarios
                             </Link>
 
-                            {/* ─── GRUPO:CITAS ─── */}
+                            {/* ─── GRUPO: CITAS ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Citas
                             </p>
@@ -159,7 +185,7 @@ export default function AuthenticatedLayout({ children }) {
                                 Visualizar citas
                             </Link>
 
-                            {/* ─── GRUPO: Estudiantes ─── */}
+                            {/* ─── GRUPO: ESTUDIANTES ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Estudiantes
                             </p>

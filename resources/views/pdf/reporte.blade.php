@@ -279,6 +279,10 @@
             ];
             return $map[$clas] ?? 'dot dot-sin';
         }
+
+        function tieneSeccion($secciones, $nombre) {
+            return in_array($nombre, $secciones);
+        }
     @endphp
 
     {{-- ============ HEADER ============ --}}
@@ -299,23 +303,28 @@
     <div class="periodo-bar">
         <strong>Periodo del reporte:</strong>
         {{ formatFechaPDF($datos['fecha_inicio'] ?? null) }} al {{ formatFechaPDF($datos['fecha_fin'] ?? null) }}
+        @if(!empty($datos['periodo_label']))
+            <span style="color:#9CA3AF;"> ({{ $datos['periodo_label'] }})</span>
+        @endif
     </div>
 
-    {{-- =========================================================== --}}
-    {{-- ==================== REPORTE DE CITAS ===================== --}}
-    {{-- =========================================================== --}}
-    @if($tipo == 'citas')
+    {{-- ============ RESUMEN ============ --}}
+    @if(tieneSeccion($secciones, 'resumen'))
         @php
-            $totalCitas = $datos['total_citas'];
-            $completadas = $datos['citas_por_estado']['completada'] ?? 0;
-            $programadas = $datos['citas_por_estado']['programada'] ?? 0;
-            $canceladas  = ($datos['citas_por_estado']['cancelada'] ?? 0) + ($datos['citas_por_estado']['cancelada_liberada'] ?? 0);
-            $tasaCompletacion = $totalCitas > 0 ? round(($completadas / $totalCitas) * 100, 1) : 0;
-            $tasaCancelacion  = $totalCitas > 0 ? round(($canceladas  / $totalCitas) * 100, 1) : 0;
-        @endphp
+            $totalCitas  = $datos['total_citas'];
+            $completadas = $datos['completadas'];
+            $programadas = $datos['programadas'];
+            $canceladas  = $datos['canceladas'];
 
+            // El título cambia según el tipo:
+            // - Reporte ejecutivo → "Resumen ejecutivo general"
+            // - Otros reportes   → "Resumen del periodo"
+            $tituloResumen = ($tipo === 'ejecutivo')
+                ? 'Resumen ejecutivo general'
+                : 'Resumen del periodo';
+        @endphp
         <div class="section">
-            <div class="section-title">Resumen ejecutivo</div>
+            <div class="section-title">{{ $tituloResumen }}</div>
             <div class="cards">
                 <div class="card">
                     <div class="value">{{ $totalCitas }}</div>
@@ -334,156 +343,266 @@
                     <div class="label">Canceladas</div>
                 </div>
             </div>
-            <table>
-                <tr>
-                    <td style="width:50%; border:none; padding-left:0;">
-                        <strong>Tasa de completación:</strong>
-                        <span style="color:#065F46; font-weight:bold;">{{ $tasaCompletacion }}%</span>
-                    </td>
-                    <td style="width:50%; border:none; text-align:right; padding-right:0;">
-                        <strong>Tasa de cancelación:</strong>
-                        <span style="color:#991B1B; font-weight:bold;">{{ $tasaCancelacion }}%</span>
-                    </td>
-                </tr>
-            </table>
+            <div class="cards" style="margin-top:-8px;">
+                <div class="card">
+                    <div class="value">{{ $datos['estudiantes_atendidos'] }}</div>
+                    <div class="label">Estudiantes atendidos</div>
+                </div>
+                <div class="card">
+                    <div class="value">{{ $datos['tasa_completacion'] }}%</div>
+                    <div class="label">Tasa completación</div>
+                </div>
+                <div class="card">
+                    <div class="value">{{ $datos['tasa_cancelacion'] }}%</div>
+                    <div class="label">Tasa cancelación</div>
+                </div>
+                <div class="card">
+                    <div class="value">{{ $datos['tasa_asistencia'] }}%</div>
+                    <div class="label">Tasa asistencia</div>
+                </div>
+            </div>
         </div>
+    @endif
 
-        {{-- Distribución por estado --}}
+    {{-- ============ CITAS POR ESTADO ============ --}}
+    @if(tieneSeccion($secciones, 'por_estado') && !empty($datos['citas_por_estado']))
+        @php $total = $datos['total_citas']; @endphp
         <div class="section">
-            <div class="section-title">Distribución por estado</div>
+            <div class="section-title">Cantidad de citas agrupadas por estado</div>
             <table>
                 <thead>
                     <tr>
-                        <th style="width:35%;">Estado</th>
-                        <th style="width:15%;" class="text-center">Total</th>
-                        <th style="width:15%;" class="text-center">%</th>
+                        <th style="width:35%;">Estado de la cita</th>
+                        <th style="width:15%;" class="text-center">Total citas</th>
+                        <th style="width:15%;" class="text-center">% del total</th>
                         <th style="width:35%;">Visual</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach(['completada','programada','cancelada','cancelada_liberada'] as $estado)
                         @if(isset($datos['citas_por_estado'][$estado]))
-                            @php $total = $datos['citas_por_estado'][$estado]; @endphp
+                            @php $t = $datos['citas_por_estado'][$estado]; @endphp
                             <tr>
                                 <td><span class="{{ classEstadoBadge($estado) }}">{{ labelEstado($estado) }}</span></td>
-                                <td class="text-center"><strong>{{ $total }}</strong></td>
-                                <td class="text-center">{{ pct($total, $totalCitas) }}</td>
-                                <td>
-                                    <div class="bar-container">
-                                        <div class="bar-fill" style="width: {{ pct($total, $totalCitas) }};"></div>
-                                    </div>
-                                </td>
+                                <td class="text-center"><strong>{{ $t }}</strong></td>
+                                <td class="text-center">{{ pct($t, $total) }}</td>
+                                <td><div class="bar-container"><div class="bar-fill" style="width: {{ pct($t, $total) }};"></div></div></td>
                             </tr>
                         @endif
                     @endforeach
                     <tr class="total-row">
-                        <td>TOTAL</td>
-                        <td class="text-center">{{ $totalCitas }}</td>
+                        <td>TOTAL DE CITAS</td>
+                        <td class="text-center">{{ $total }}</td>
                         <td class="text-center">100%</td>
                         <td></td>
                     </tr>
                 </tbody>
             </table>
         </div>
+    @endif
 
-        {{-- Distribución por clasificación --}}
+    {{-- ============ CITAS POR CLASIFICACIÓN ============ --}}
+    @if(tieneSeccion($secciones, 'por_clasificacion') && !empty($datos['citas_por_clasificacion']))
+        @php $total = $datos['total_citas']; @endphp
         <div class="section">
-            <div class="section-title">Distribución por clasificación</div>
-            @if(count($datos['citas_por_clasificacion']) > 0)
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:35%;">Clasificación</th>
-                            <th style="width:15%;" class="text-center">Total</th>
-                            <th style="width:15%;" class="text-center">%</th>
-                            <th style="width:35%;">Visual</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($datos['citas_por_clasificacion'] as $clas => $total)
-                            <tr>
-                                <td>
-                                    <span class="{{ classDotClasificacion($clas) }}"></span>
-                                    {{ ucfirst($clas) }}
-                                </td>
-                                <td class="text-center"><strong>{{ $total }}</strong></td>
-                                <td class="text-center">{{ pct($total, $totalCitas) }}</td>
-                                <td>
-                                    <div class="bar-container">
-                                        <div class="bar-fill" style="width: {{ pct($total, $totalCitas) }};"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @else
-                <p class="muted">No hay clasificaciones registradas en el periodo.</p>
-            @endif
-        </div>
-
-        {{-- Distribución por asistencia --}}
-        <div class="section">
-            <div class="section-title">Distribución por asistencia</div>
+            <div class="section-title">Cantidad de citas agrupadas por tipo de clasificación</div>
             <table>
                 <thead>
                     <tr>
-                        <th style="width:35%;">Asistencia</th>
-                        <th style="width:15%;" class="text-center">Total</th>
-                        <th style="width:15%;" class="text-center">%</th>
+                        <th style="width:35%;">Tipo de clasificación</th>
+                        <th style="width:15%;" class="text-center">Total citas</th>
+                        <th style="width:15%;" class="text-center">% del total</th>
+                        <th style="width:35%;">Visual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($datos['citas_por_clasificacion'] as $clas => $t)
+                        <tr>
+                            <td><span class="{{ classDotClasificacion($clas) }}"></span>{{ ucfirst($clas) }}</td>
+                            <td class="text-center"><strong>{{ $t }}</strong></td>
+                            <td class="text-center">{{ pct($t, $total) }}</td>
+                            <td><div class="bar-container"><div class="bar-fill" style="width: {{ pct($t, $total) }};"></div></div></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    {{-- ============ CITAS POR ASISTENCIA ============ --}}
+    @if(tieneSeccion($secciones, 'por_asistencia') && !empty($datos['citas_por_asistencia']))
+        @php $total = $datos['total_citas']; @endphp
+        <div class="section">
+            <div class="section-title">Cantidad de citas agrupadas por asistencia del estudiante</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:35%;">Asistencia del estudiante</th>
+                        <th style="width:15%;" class="text-center">Total citas</th>
+                        <th style="width:15%;" class="text-center">% del total</th>
                         <th style="width:35%;">Visual</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach(['asistió','no asistió','pendiente'] as $asis)
                         @if(isset($datos['citas_por_asistencia'][$asis]))
-                            @php $total = $datos['citas_por_asistencia'][$asis]; @endphp
+                            @php $t = $datos['citas_por_asistencia'][$asis]; @endphp
                             <tr>
                                 <td><span class="{{ classAsistenciaBadge($asis) }}">{{ $asis }}</span></td>
-                                <td class="text-center"><strong>{{ $total }}</strong></td>
-                                <td class="text-center">{{ pct($total, $totalCitas) }}</td>
-                                <td>
-                                    <div class="bar-container">
-                                        <div class="bar-fill" style="width: {{ pct($total, $totalCitas) }};"></div>
-                                    </div>
-                                </td>
+                                <td class="text-center"><strong>{{ $t }}</strong></td>
+                                <td class="text-center">{{ pct($t, $total) }}</td>
+                                <td><div class="bar-container"><div class="bar-fill" style="width: {{ pct($t, $total) }};"></div></div></td>
                             </tr>
                         @endif
                     @endforeach
                 </tbody>
             </table>
         </div>
+    @endif
 
-        {{-- Top formadores --}}
-        @if(!empty($datos['top_formadores']) && count($datos['top_formadores']) > 0)
-            <div class="section">
-                <div class="section-title">Formadores con más citas en el periodo</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:10%;" class="text-center">#</th>
-                            <th>Formador</th>
-                            <th style="width:20%;" class="text-center">Citas</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($datos['top_formadores'] as $i => $f)
-                            <tr>
-                                <td class="text-center">
-                                    <span class="medal medal-{{ $i < 3 ? ($i + 1) : 'x' }}">{{ $i + 1 }}</span>
-                                </td>
-                                <td>{{ $f->formador }}</td>
-                                <td class="text-center"><strong>{{ $f->total_citas }}</strong></td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
-
-        {{-- Listado detallado --}}
+    {{-- ============ ESTUDIANTES POR GRADO ============ --}}
+    @if(tieneSeccion($secciones, 'por_grado') && !empty($datos['estudiantes_por_grado']) && count($datos['estudiantes_por_grado']) > 0)
+        @php $totalG = array_sum((array) collect($datos['estudiantes_por_grado'])->pluck('total')->toArray()); @endphp
         <div class="section">
-            <div class="section-title">Listado detallado de citas ({{ count($datos['citas']) }})</div>
+            <div class="section-title">Estudiantes atendidos agrupados por grado</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:30%;">Grado</th>
+                        <th style="width:20%;" class="text-center">Estudiantes atendidos</th>
+                        <th style="width:15%;" class="text-center">% del total</th>
+                        <th style="width:35%;">Visual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($datos['estudiantes_por_grado'] as $item)
+                        <tr>
+                            <td>{{ $item->grado }}</td>
+                            <td class="text-center"><strong>{{ $item->total }}</strong></td>
+                            <td class="text-center">{{ pct($item->total, $totalG) }}</td>
+                            <td><div class="bar-container"><div class="bar-fill bar-blue" style="width: {{ pct($item->total, $totalG) }};"></div></div></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    {{-- ============ ESTUDIANTES POR GRUPO ============ --}}
+    @if(tieneSeccion($secciones, 'por_grupo') && !empty($datos['estudiantes_por_grupo']) && count($datos['estudiantes_por_grupo']) > 0)
+        @php $totalGr = array_sum((array) collect($datos['estudiantes_por_grupo'])->pluck('total')->toArray()); @endphp
+        <div class="section">
+            <div class="section-title">Estudiantes atendidos agrupados por grupo</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:30%;">Grupo</th>
+                        <th style="width:20%;" class="text-center">Estudiantes atendidos</th>
+                        <th style="width:15%;" class="text-center">% del total</th>
+                        <th style="width:35%;">Visual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($datos['estudiantes_por_grupo'] as $item)
+                        <tr>
+                            <td>Grupo {{ $item->grupo }}</td>
+                            <td class="text-center"><strong>{{ $item->total }}</strong></td>
+                            <td class="text-center">{{ pct($item->total, $totalGr) }}</td>
+                            <td><div class="bar-container"><div class="bar-fill bar-green" style="width: {{ pct($item->total, $totalGr) }};"></div></div></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    {{-- ============ TOP FORMADORES ============ --}}
+    @if(tieneSeccion($secciones, 'top_formadores') && !empty($datos['top_formadores']) && count($datos['top_formadores']) > 0)
+        <div class="section">
+            <div class="section-title">Ranking de formadores por cantidad de citas atendidas</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:8%;" class="text-center">Pos.</th>
+                        <th style="width:62%;">Nombre del formador</th>
+                        <th style="width:30%;" class="text-center">Citas atendidas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($datos['top_formadores'] as $i => $f)
+                        <tr>
+                            <td class="text-center"><span class="medal medal-{{ $i < 3 ? ($i + 1) : 'x' }}">{{ $i + 1 }}</span></td>
+                            <td>{{ $f->formador }}</td>
+                            <td class="text-center"><strong>{{ $f->total_citas }}</strong></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    {{-- ============ TOP ESTUDIANTES ============ --}}
+    @if(tieneSeccion($secciones, 'top_estudiantes') && !empty($datos['top_estudiantes']) && count($datos['top_estudiantes']) > 0)
+        <div class="section">
+            <div class="section-title">Ranking de estudiantes por cantidad de citas recibidas</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:8%;" class="text-center">Pos.</th>
+                        <th style="width:62%;">Nombre del estudiante</th>
+                        <th style="width:30%;" class="text-center">Citas recibidas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($datos['top_estudiantes'] as $i => $e)
+                        <tr>
+                            <td class="text-center"><span class="medal medal-{{ $i < 3 ? ($i + 1) : 'x' }}">{{ $i + 1 }}</span></td>
+                            <td>{{ $e->nombre_estudiante }}</td>
+                            <td class="text-center"><strong>{{ $e->total_citas }}</strong></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    {{-- ============ DETALLE POR FORMADOR ============ --}}
+    @if(tieneSeccion($secciones, 'detalle_formador') && !empty($datos['detalles_formador']) && count($datos['detalles_formador']) > 0)
+        <div class="section">
+            <div class="section-title">Desglose de citas por formador (estados y asistencia)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Formador</th>
+                        <th class="text-center" style="width:10%;">Total citas</th>
+                        <th class="text-center" style="width:12%;">Completadas</th>
+                        <th class="text-center" style="width:12%;">Programadas</th>
+                        <th class="text-center" style="width:12%;">Canceladas</th>
+                        <th class="text-center" style="width:12%;">Asistencias</th>
+                        <th class="text-center" style="width:10%;">Faltas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($datos['detalles_formador'] as $d)
+                        <tr>
+                            <td>{{ $d->formador }}</td>
+                            <td class="text-center"><strong>{{ $d->total }}</strong></td>
+                            <td class="text-center" style="color:#065F46;">{{ $d->completadas }}</td>
+                            <td class="text-center" style="color:#92400E;">{{ $d->programadas }}</td>
+                            <td class="text-center" style="color:#991B1B;">{{ $d->canceladas }}</td>
+                            <td class="text-center" style="color:#065F46;">{{ $d->asistencias }}</td>
+                            <td class="text-center" style="color:#991B1B;">{{ $d->faltas }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    {{-- ============ LISTADO DE CITAS ============ --}}
+    @if(tieneSeccion($secciones, 'listado_citas') && !empty($datos['citas']))
+        <div class="section">
+            <div class="section-title">Listado detallado de citas registradas ({{ count($datos['citas']) }} en total)</div>
             <table>
                 <thead>
                     <tr>
@@ -511,282 +630,6 @@
                 </tbody>
             </table>
         </div>
-    @endif
-
-    {{-- =========================================================== --}}
-    {{-- ================= REPORTE DE ESTUDIANTES ================== --}}
-    {{-- =========================================================== --}}
-    @if($tipo == 'estudiantes')
-        @php
-            $totalEst = $datos['total_estudiantes'];
-            $totalCitas = $datos['total_citas'];
-            $promedio = $totalEst > 0 ? round($totalCitas / $totalEst, 1) : 0;
-            $topEstudiante = count($datos['estudiantes']) > 0 ? $datos['estudiantes'][0] : null;
-        @endphp
-
-        <div class="section">
-            <div class="section-title">Resumen ejecutivo</div>
-            <div class="cards">
-                <div class="card">
-                    <div class="value">{{ $totalEst }}</div>
-                    <div class="label">Estudiantes atendidos</div>
-                </div>
-                <div class="card">
-                    <div class="value">{{ $totalCitas }}</div>
-                    <div class="label">Total citas</div>
-                </div>
-                <div class="card">
-                    <div class="value">{{ $promedio }}</div>
-                    <div class="label">Promedio citas / estudiante</div>
-                </div>
-                <div class="card">
-                    <div class="value">{{ count($datos['clasificaciones']) }}</div>
-                    <div class="label">Clasificaciones usadas</div>
-                </div>
-            </div>
-            @if($topEstudiante)
-                <p style="font-size:10px; color:#6B7280;">
-                    <strong>Estudiante con más citas:</strong>
-                    <span style="color:#FF5900; font-weight:bold;">{{ $topEstudiante->nombre_estudiante }}</span>
-                    ({{ $topEstudiante->total_citas }} citas)
-                </p>
-            @endif
-        </div>
-
-        {{-- Por grado --}}
-        @if(!empty($datos['estudiantes_por_grado']) && count($datos['estudiantes_por_grado']) > 0)
-            <div class="section">
-                <div class="section-title">Distribución por grado</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:30%;">Grado</th>
-                            <th style="width:15%;" class="text-center">Total</th>
-                            <th style="width:15%;" class="text-center">%</th>
-                            <th style="width:40%;">Visual</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php $totalAlumnos = array_sum((array) collect($datos['estudiantes_por_grado'])->pluck('total')->toArray()); @endphp
-                        @foreach($datos['estudiantes_por_grado'] as $item)
-                            <tr>
-                                <td>{{ $item->grado }}</td>
-                                <td class="text-center"><strong>{{ $item->total }}</strong></td>
-                                <td class="text-center">{{ pct($item->total, $totalAlumnos) }}</td>
-                                <td>
-                                    <div class="bar-container">
-                                        <div class="bar-fill bar-blue" style="width: {{ pct($item->total, $totalAlumnos) }};"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
-
-        {{-- Por grupo --}}
-        @if(!empty($datos['estudiantes_por_grupo']) && count($datos['estudiantes_por_grupo']) > 0)
-            <div class="section">
-                <div class="section-title">Distribución por grupo</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:30%;">Grupo</th>
-                            <th style="width:15%;" class="text-center">Total</th>
-                            <th style="width:15%;" class="text-center">%</th>
-                            <th style="width:40%;">Visual</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php $totalGrupos = array_sum((array) collect($datos['estudiantes_por_grupo'])->pluck('total')->toArray()); @endphp
-                        @foreach($datos['estudiantes_por_grupo'] as $item)
-                            <tr>
-                                <td>{{ $item->grupo }}</td>
-                                <td class="text-center"><strong>{{ $item->total }}</strong></td>
-                                <td class="text-center">{{ pct($item->total, $totalGrupos) }}</td>
-                                <td>
-                                    <div class="bar-container">
-                                        <div class="bar-fill bar-green" style="width: {{ pct($item->total, $totalGrupos) }};"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
-
-        {{-- Clasificaciones --}}
-        <div class="section">
-            <div class="section-title">Clasificaciones más frecuentes</div>
-            @if(count($datos['clasificaciones']) > 0)
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:40%;">Clasificación</th>
-                            <th style="width:20%;" class="text-center">Total</th>
-                            <th style="width:40%;">Visual</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php $totalClas = array_sum((array) collect($datos['clasificaciones'])->pluck('total')->toArray()); @endphp
-                        @foreach($datos['clasificaciones'] as $clas)
-                            <tr>
-                                <td>
-                                    <span class="{{ classDotClasificacion($clas->clasificacion) }}"></span>
-                                    {{ ucfirst($clas->clasificacion) }}
-                                </td>
-                                <td class="text-center"><strong>{{ $clas->total }}</strong></td>
-                                <td>
-                                    <div class="bar-container">
-                                        <div class="bar-fill" style="width: {{ pct($clas->total, $totalClas) }};"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @else
-                <p class="muted">No hay clasificaciones registradas en el periodo.</p>
-            @endif
-        </div>
-
-        {{-- Top estudiantes --}}
-        <div class="section">
-            <div class="section-title">Estudiantes con más citas</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width:10%;" class="text-center">#</th>
-                        <th>Estudiante</th>
-                        <th style="width:20%;" class="text-center">Total citas</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($datos['estudiantes'] as $i => $est)
-                        <tr>
-                            <td class="text-center">
-                                <span class="medal medal-{{ $i < 3 ? ($i + 1) : 'x' }}">{{ $i + 1 }}</span>
-                            </td>
-                            <td>{{ $est->nombre_estudiante }}</td>
-                            <td class="text-center"><strong>{{ $est->total_citas }}</strong></td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="3" class="text-center muted">No hay datos.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    @endif
-
-    {{-- =========================================================== --}}
-    {{-- ================= REPORTE DE FORMADORES =================== --}}
-    {{-- =========================================================== --}}
-    @if($tipo == 'formadores')
-        @php
-            $topFormador = count($datos['formadores']) > 0 ? $datos['formadores'][0] : null;
-        @endphp
-
-        <div class="section">
-            <div class="section-title">Resumen ejecutivo</div>
-            <div class="cards">
-                <div class="card">
-                    <div class="value">{{ $datos['formadores_activos'] }}</div>
-                    <div class="label">Formadores activos</div>
-                </div>
-                <div class="card">
-                    <div class="value">{{ $datos['total_citas'] }}</div>
-                    <div class="label">Total citas</div>
-                </div>
-                <div class="card">
-                    <div class="value">{{ $datos['promedio'] }}</div>
-                    <div class="label">Promedio citas / formador</div>
-                </div>
-                <div class="card">
-                    <div class="value">{{ $datos['total_formadores'] }}</div>
-                    <div class="label">Formadores registrados</div>
-                </div>
-            </div>
-            @if($topFormador)
-                <p style="font-size:10px; color:#6B7280;">
-                    <strong>Formador más productivo:</strong>
-                    <span style="color:#FF5900; font-weight:bold;">{{ $topFormador->formador }}</span>
-                    ({{ $topFormador->total_citas }} citas)
-                </p>
-            @endif
-        </div>
-
-        {{-- Ranking con barras --}}
-        <div class="section">
-            <div class="section-title">Ranking de productividad</div>
-            @php $maxCitas = count($datos['formadores']) > 0 ? $datos['formadores'][0]->total_citas : 1; @endphp
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width:8%;" class="text-center">#</th>
-                        <th style="width:32%;">Formador</th>
-                        <th style="width:12%;" class="text-center">Citas</th>
-                        <th style="width:12%;" class="text-center">%</th>
-                        <th style="width:36%;">Visual</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($datos['formadores'] as $i => $f)
-                        <tr>
-                            <td class="text-center">
-                                <span class="medal medal-{{ $i < 3 ? ($i + 1) : 'x' }}">{{ $i + 1 }}</span>
-                            </td>
-                            <td>{{ $f->formador }}</td>
-                            <td class="text-center"><strong>{{ $f->total_citas }}</strong></td>
-                            <td class="text-center">{{ pct($f->total_citas, $datos['total_citas']) }}</td>
-                            <td>
-                                <div class="bar-container">
-                                    <div class="bar-fill" style="width: {{ $maxCitas > 0 ? ($f->total_citas / $maxCitas) * 100 : 0 }}%;"></div>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="text-center muted">No hay datos.</td></tr>
-                    @endforelse
-                    <tr class="total-row">
-                        <td colspan="2">TOTAL</td>
-                        <td class="text-center">{{ $datos['total_citas'] }}</td>
-                        <td class="text-center">100%</td>
-                        <td></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        {{-- Detalles por formador --}}
-        @if(!empty($datos['detalles_formador']))
-            <div class="section">
-                <div class="section-title">Detalle por formador</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Formador</th>
-                            <th class="text-center" style="width:12%;">Total</th>
-                            <th class="text-center" style="width:14%;">Completadas</th>
-                            <th class="text-center" style="width:14%;">Canceladas</th>
-                            <th class="text-center" style="width:14%;">Asistencia</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($datos['detalles_formador'] as $d)
-                            <tr>
-                                <td>{{ $d->formador }}</td>
-                                <td class="text-center"><strong>{{ $d->total }}</strong></td>
-                                <td class="text-center" style="color:#065F46;">{{ $d->completadas }}</td>
-                                <td class="text-center" style="color:#991B1B;">{{ $d->canceladas }}</td>
-                                <td class="text-center" style="color:#065F46;">{{ $d->asistencias }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
     @endif
 
     <div class="footer">
