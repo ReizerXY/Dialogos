@@ -56,11 +56,14 @@ return [
     |--------------------------------------------------------------------------
     | HTTPS Only Cookies
     |--------------------------------------------------------------------------
-    | En local (http://) debe ir false. En producción (https://) debe ir true.
-    | Se controla con la variable SESSION_SECURE_COOKIE en .env / Laravel Cloud.
+    | Auto-detecta según el entorno:
+    |   - local      → secure = false (permite http://)
+    |   - production → secure = true  (solo https://)
+    |
+    | Puedes sobreescribir con SESSION_SECURE_COOKIE en el .env si lo necesitas.
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE', true),
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV', 'production') === 'production'),
 
     'http_only' => true,
 

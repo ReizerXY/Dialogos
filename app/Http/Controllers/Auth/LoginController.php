@@ -40,13 +40,16 @@ class LoginController extends Controller
             ]);
         }
 
-        // Guardamos la sesión y regeneramos ID + token CSRF
+        // Guardar usuario en sesión
         Session::put('user', (array) $user);
+
+        // ✅ Guardar timestamp de inicio (para el sistema de inactividad)
+        Session::put('last_activity_at', time());
+
+        // Regenerar ID de sesión + token CSRF
         $request->session()->regenerate();
 
-        // ✅ Inertia::location fuerza un full reload del navegador,
-        //    así el meta tag <meta name="csrf-token"> se actualiza
-        //    con el token nuevo. Sin esto, el siguiente POST daría 419.
+        // Inertia::location fuerza full reload para actualizar el meta tag CSRF
         if ($user->rol === 'Coordinador') {
             return Inertia::location(route('indicadores.index'));
         }
@@ -55,14 +58,14 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        // Limpiar el usuario de nuestra sesión personalizada
+        // Limpiar el usuario y el timestamp de actividad
         Session::forget('user');
+        Session::forget('last_activity_at');
 
         // Invalidar sesión y regenerar token
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // ✅ Full reload para que el meta tag CSRF se actualice.
         return Inertia::location(route('login'));
     }
 }

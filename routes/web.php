@@ -28,17 +28,31 @@ use Illuminate\Support\Facades\Session;
 // =============================================
 
 Route::get('/', function () {
+    // ✅ Si hay sesión activa, redirigir al panel correspondiente
+    if (Session::has('user')) {
+        $user = Session::get('user');
+        $lastActivity = Session::get('last_activity_at');
+        $lifetimeSegundos = ((int) config('session.lifetime', 30)) * 60;
+
+        if ($lastActivity && (time() - (int) $lastActivity) <= $lifetimeSegundos) {
+            $route = ($user['rol'] ?? '') === 'Coordinador' ? 'indicadores.index' : 'horarios.index';
+            return redirect()->route($route);
+        }
+
+        // Sesión expirada → limpiar
+        Session::forget('user');
+        Session::forget('last_activity_at');
+    }
+
     return Inertia::render('Welcome');
 })->name('home');
 
 Route::get('/solicitar-cita', [CitaPublicController::class, 'index'])->name('cita.solicitar');
 
-// Limitar el POST de cita a 3 por minuto (evita spam masivo)
 Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])
     ->middleware('throttle:3,1')
     ->name('cita.store');
 
-// APIs públicas sensibles — 10/min para evitar adivinar matrículas
 Route::middleware('throttle:10,1')->group(function () {
     Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
     Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
@@ -54,7 +68,7 @@ Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // =============================================
-// RUTAS PROTEGIDAS (requieren sesión activa)
+// RUTAS PROTEGIDAS
 // =============================================
 
 Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
@@ -71,7 +85,6 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         ->middleware('check.role:Coordinador')
         ->name('reportes.generar');
 
-    // ✅ Backups: página principal + descargas
     Route::get('/admin/backups', [BackupController::class, 'index'])
         ->middleware('check.role:Coordinador')
         ->name('admin.backups.index');
@@ -84,7 +97,6 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         ->middleware('check.role:Coordinador')
         ->name('admin.backup.completo');
 
-    // Gestión de estudiantes
     Route::prefix('estudiantes')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [EstudianteController::class, 'index'])->name('estudiantes.index');
         Route::post('/', [EstudianteController::class, 'store'])->name('estudiantes.store');
@@ -94,7 +106,6 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         Route::delete('/{id_estudiante}', [EstudianteController::class, 'destroy'])->name('estudiantes.destroy');
     });
 
-    // Gestión de usuarios
     Route::prefix('usuarios')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/', [UsuarioController::class, 'store'])->name('usuarios.store');
@@ -103,7 +114,6 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         Route::delete('/{id_usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
     });
 
-    // Modificar horarios (coordinador)
     Route::prefix('admin/horarios')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [HorarioAdminController::class, 'index'])->name('admin.horarios.index');
         Route::post('/', [HorarioAdminController::class, 'store'])->name('admin.horarios.store');
@@ -111,7 +121,6 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         Route::delete('/{usuario_id}/{dia_semana}/{hora_inicio}', [HorarioAdminController::class, 'destroy'])->name('admin.horarios.destroy');
     });
 
-    // Gestionar mis propios horarios
     Route::prefix('mis-horarios')->middleware('check.role:Formador')->group(function () {
         Route::get('/', [MiHorarioController::class, 'index'])->name('mis-horarios.index');
         Route::post('/', [MiHorarioController::class, 'store'])->name('mis-horarios.store');
