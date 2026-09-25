@@ -30,7 +30,6 @@ export default function AuthenticatedLayout({ children }) {
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-    // Colores del badge según el rol
     const rolBadgeClases = isCoordinador
         ? 'bg-purple-100 text-purple-800 border border-purple-200'
         : isFormador
@@ -142,9 +141,9 @@ export default function AuthenticatedLayout({ children }) {
                             </Link>
                             <Link href={route('admin.backups.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                 </svg>
-                                Copias de seguridad
+                                Descargar copia de datos
                             </Link>
                         </>
                     )}

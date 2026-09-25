@@ -5,10 +5,10 @@ import { Head } from '@inertiajs/react';
 export default function Backups({ user }) {
     return (
         <AuthenticatedLayout>
-            <Head title="Copias de seguridad" />
+            <Head title="Descargar copia de datos" />
             <div className="max-w-4xl mx-auto">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800">Copias de seguridad</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">Descargar copia de datos</h1>
                     <p className="text-gray-500 mt-1">Descarga respaldos de la base de datos en formato .sql</p>
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>

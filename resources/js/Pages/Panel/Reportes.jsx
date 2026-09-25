@@ -18,7 +18,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
     const [fechaFin, setFechaFin] = useState('');
     const [generando, setGenerando] = useState(false);
     const [error, setError] = useState('');
-    // ✅ Estado para tooltip
+    // Tooltip de las secciones
     const [tooltip, setTooltip] = useState(null);
 
     // Secciones seleccionadas por tipo
@@ -116,7 +116,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         setError('');
 
         if (seccionesActuales.length === 0) {
-            setError('Debes seleccionar al menos una sección para generar el reporte.');
+            setError('Debes marcar al menos una sección para poder generar el reporte.');
             return;
         }
 
@@ -155,7 +155,9 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
             <div className="max-w-5xl mx-auto">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Reportes</h1>
-                    <p className="text-gray-500 mt-1">Genera reportes en PDF personalizados con los datos del programa</p>
+                    <p className="text-gray-500 mt-1">
+                        Genera reportes en PDF con los datos del programa. Puedes elegir qué información incluir en cada uno.
+                    </p>
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>
 
@@ -163,7 +165,8 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                     <div className="lg:col-span-2 space-y-6">
                         {/* Tipo de reporte */}
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-                            <label className="block text-sm font-semibold text-gray-800 mb-3">Tipo de reporte</label>
+                            <label className="block text-sm font-semibold text-gray-800 mb-1">¿Qué tipo de reporte quieres generar?</label>
+                            <p className="text-xs text-gray-500 mb-3">Elige el enfoque del reporte. Cada tipo muestra información distinta.</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {Object.entries(catalogo).map(([key, info]) => (
                                     <button
@@ -187,13 +190,14 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
 
                         {/* Periodo */}
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-                            <label className="block text-sm font-semibold text-gray-800 mb-3">Periodo</label>
+                            <label className="block text-sm font-semibold text-gray-800 mb-1">Periodo del reporte</label>
+                            <p className="text-xs text-gray-500 mb-3">¿Qué fechas debe cubrir el reporte?</p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                                 {[
-                                    { value: 'semana', label: 'Semana' },
-                                    { value: 'mes', label: 'Mes' },
-                                    { value: 'anio', label: 'Año' },
-                                    { value: 'libre', label: 'Rango libre' },
+                                    { value: 'semana', label: 'Una semana' },
+                                    { value: 'mes', label: 'Un mes' },
+                                    { value: 'anio', label: 'Un año' },
+                                    { value: 'libre', label: 'Fechas personalizadas' },
                                 ].map(opt => (
                                     <button
                                         key={opt.value}
@@ -234,7 +238,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                 <div>
                                     <label className="block text-xs font-medium text-gray-600 mb-1.5">
                                         Año
-                                        <span className="text-gray-400 ml-1">(solo años con citas registradas)</span>
+                                        <span className="text-gray-400 ml-1">(solo se muestran los años con citas registradas)</span>
                                     </label>
                                     <select
                                         value={anio}
@@ -251,7 +255,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                             {periodo === 'libre' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Fecha inicio</label>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Desde</label>
                                         <input
                                             type="date"
                                             value={fechaInicio}
@@ -260,7 +264,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Fecha fin</label>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Hasta</label>
                                         <input
                                             type="date"
                                             value={fechaFin}
@@ -274,29 +278,29 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
 
                         {/* Contenido del reporte */}
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-                            <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-start justify-between mb-4 gap-3">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-800">
-                                        Contenido del reporte
+                                        ¿Qué información quieres incluir?
                                     </label>
-                                    <p className="text-xs text-gray-500 mt-0.5">
-                                        Selecciona qué secciones quieres incluir en el PDF. Pasa el mouse sobre el ícono <strong>?</strong> para ver los detalles.
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Marca las secciones que aparecerán en el PDF. Pasa el cursor sobre el ícono <strong>?</strong> para ver qué muestra cada una.
                                     </p>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 flex-shrink-0">
                                     <button
                                         type="button"
                                         onClick={seleccionarTodas}
                                         className="text-xs px-3 py-1.5 bg-[#FF5900] text-white rounded-lg hover:bg-[#CC4700] transition"
                                     >
-                                        Todas
+                                        Marcar todas
                                     </button>
                                     <button
                                         type="button"
                                         onClick={deseleccionarTodas}
                                         className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
                                     >
-                                        Ninguna
+                                        Quitar todas
                                     </button>
                                 </div>
                             </div>
@@ -327,7 +331,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                                 {secInfo.label}
                                             </label>
 
-                                            {/* ✅ Ícono de info con tooltip */}
+                                            {/* Ícono de info con tooltip */}
                                             <div
                                                 className="relative"
                                                 onMouseEnter={() => setTooltip(secKey)}
@@ -336,7 +340,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                                 <button
                                                     type="button"
                                                     className="text-gray-400 hover:text-[#FF5900] transition-colors focus:outline-none"
-                                                    aria-label={`Información: ${secInfo.label}`}
+                                                    aria-label={`Más información sobre: ${secInfo.label}`}
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -344,7 +348,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                                 </button>
 
                                                 {tooltip === secKey && secInfo.descripcion && (
-                                                    <div className="absolute right-0 bottom-full mb-3 w-72 z-50">
+                                                    <div className="absolute right-0 bottom-full mb-3 w-80 z-50">
                                                         <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl leading-relaxed">
                                                             <div className="font-semibold text-[#FF5900] mb-1">{secInfo.label}</div>
                                                             <div>{secInfo.descripcion}</div>
@@ -363,7 +367,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                             <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-sm">
                                 <span className="text-gray-500">
                                     <strong className="text-gray-800">{seccionesActuales.length}</strong> de{' '}
-                                    {Object.keys(infoActual.secciones).length} secciones seleccionadas
+                                    {Object.keys(infoActual.secciones).length} secciones marcadas
                                 </span>
                             </div>
                         </div>
@@ -372,11 +376,11 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                     {/* Resumen lateral */}
                     <div className="lg:col-span-1">
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 sticky top-6">
-                            <h3 className="text-base font-semibold text-gray-800 mb-3">Resumen del reporte</h3>
+                            <h3 className="text-base font-semibold text-gray-800 mb-3">Revisa antes de generar</h3>
 
                             <div className="space-y-3 text-sm">
                                 <div>
-                                    <div className="text-xs text-gray-500 uppercase tracking-wide">Tipo</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wide">Tipo de reporte</div>
                                     <div className="text-gray-800 font-medium mt-0.5">{infoActual.titulo}</div>
                                 </div>
 
@@ -388,16 +392,16 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                         {periodo === 'anio' && `Año ${anio}`}
                                         {periodo === 'libre' && (
                                             fechaInicio && fechaFin
-                                                ? `${fechaInicio} → ${fechaFin}`
-                                                : 'Rango por definir'
+                                                ? `Del ${fechaInicio} al ${fechaFin}`
+                                                : 'Fechas por definir'
                                         )}
                                     </div>
                                 </div>
 
                                 <div>
-                                    <div className="text-xs text-gray-500 uppercase tracking-wide">Secciones</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wide">Secciones marcadas</div>
                                     <div className="text-gray-800 font-medium mt-0.5">
-                                        {seccionesActuales.length} seleccionada{seccionesActuales.length === 1 ? '' : 's'}
+                                        {seccionesActuales.length} {seccionesActuales.length === 1 ? 'sección' : 'secciones'}
                                     </div>
                                 </div>
                             </div>
@@ -420,20 +424,20 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Generando...
+                                        Generando PDF...
                                     </>
                                 ) : (
                                     <>
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                        Generar reporte
+                                        Generar reporte PDF
                                     </>
                                 )}
                             </button>
 
                             <p className="mt-3 text-xs text-gray-400 text-center leading-snug">
-                                El PDF se descargará automáticamente con las secciones seleccionadas.
+                                Al hacer clic, el PDF se descargará automáticamente con las secciones que marcaste.
                             </p>
                         </div>
                     </div>

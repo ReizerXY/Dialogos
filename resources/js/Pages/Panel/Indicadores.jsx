@@ -43,14 +43,14 @@ function capitalizar(texto) {
 }
 
 const SECCIONES_INFO = [
-    { key: 'kpis',         label: 'Resumen general',                     default: true },
-    { key: 'distribucion', label: 'Distribución de citas',               default: true },
-    { key: 'tendencias',   label: 'Tendencias',                          default: true },
-    { key: 'destacados',   label: 'Formadores y estudiantes destacados', default: true },
-    { key: 'comparativas', label: 'Comparativas',                        default: true },
-    { key: 'formadores',   label: 'Datos por formador',                  default: true },
-    { key: 'citas',        label: 'Tabla de citas',                      default: true },
-    { key: 'estudiantes',  label: 'Estudiantes por grado/grupo',         default: true },
+    { key: 'kpis',         label: 'Números principales',                    default: true },
+    { key: 'distribucion', label: 'Cómo se distribuyen las citas',          default: true },
+    { key: 'tendencias',   label: 'Cómo cambian las citas en el tiempo',    default: true },
+    { key: 'destacados',   label: 'Formadores y estudiantes con más citas', default: true },
+    { key: 'comparativas', label: 'Comparación con periodos anteriores',    default: true },
+    { key: 'formadores',   label: 'Actividad de cada formador',             default: true },
+    { key: 'citas',        label: 'Listado de citas',                       default: true },
+    { key: 'estudiantes',  label: 'Estudiantes por grado y grupo',          default: true },
 ];
 
 const SECCIONES_KEYS = SECCIONES_INFO.map(s => s.key);
@@ -143,8 +143,10 @@ export default function Indicadores({
         completada:         { pill: 'bg-green-50 border-green-200 text-green-800',     dot: 'bg-green-400' },
     };
     const estadoLabels = {
-        programada: 'Programada', cancelada: 'Cancelada',
-        cancelada_liberada: 'Cancelada (hora liberada)', completada: 'Completada',
+        programada: 'Programada',
+        cancelada: 'Cancelada',
+        cancelada_liberada: 'Cancelada (horario disponible)',
+        completada: 'Completada',
     };
     const asistenciaColores = {
         pendiente:    { pill: 'bg-gray-50 border-gray-200 text-gray-700', dot: 'bg-gray-400' },
@@ -195,9 +197,9 @@ export default function Indicadores({
     })();
 
     const tituloCitas = (() => {
-        if (filtroMes)    return `Listado de citas de ${mesTitulo(filtroMes)}${contextoGradoGrupo}`;
-        if (filtroSemana) return `Listado de citas de la ${semanaTitulo(filtroSemana)}${contextoGradoGrupo}`;
-        if (filtroAnio)   return `Listado de citas del año ${filtroAnio}${contextoGradoGrupo}`;
+        if (filtroMes)    return `Todas las citas de ${mesTitulo(filtroMes)}${contextoGradoGrupo}`;
+        if (filtroSemana) return `Todas las citas de la ${semanaTitulo(filtroSemana)}${contextoGradoGrupo}`;
+        if (filtroAnio)   return `Todas las citas del año ${filtroAnio}${contextoGradoGrupo}`;
         return 'Próximas citas (próximos 7 días)';
     })();
 
@@ -322,18 +324,18 @@ export default function Indicadores({
                     </div>
                 </div>
 
-                {/* 1. KPIs */}
+                {/* 1. Números principales */}
                 {secciones.kpis && (
-                    <SeccionColapsable titulo={`Resumen general de ${periodoTexto}${contextoGradoGrupo}`} abierta={!colapsadas.kpis} onToggle={() => toggleColapsada('kpis')}>
+                    <SeccionColapsable titulo={`Números principales de ${periodoTexto}${contextoGradoGrupo}`} abierta={!colapsadas.kpis} onToggle={() => toggleColapsada('kpis')}>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <KpiCard value={totalFormadores} titulo="Formadores activos" subtitulo="Cuentas habilitadas" />
                             <KpiCard value={totalEstudiantes} titulo="Estudiantes inscritos" subtitulo="Registrados en el sistema" />
                             <KpiCard value={totalCitas} titulo="Citas registradas" subtitulo={`En ${periodoTexto}`} />
                             <KpiCard value={promedioCitasPorFormador} titulo="Citas por formador" subtitulo="Promedio del periodo" />
                             <KpiCard value={estudiantesAtendidos} titulo="Estudiantes atendidos" subtitulo="Con al menos 1 cita" accent="blue" />
-                            <KpiCard value={`${tasaCompletacion}%`} titulo="Citas completadas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
+                            <KpiCard value={`${tasaCompletacion}%`} titulo="Citas ya atendidas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
                             <KpiCard value={`${tasaCancelacion}%`} titulo="Citas canceladas" subtitulo={`${tasaCancelacion}% del total`} accent="red" />
-                            <KpiCard value={`${tasaAsistencia}%`} titulo="Tasa de asistencia" subtitulo="De citas atendidas" accent="orange" />
+                            <KpiCard value={`${tasaAsistencia}%`} titulo="Asistencia de estudiantes" subtitulo="De citas con registro" accent="orange" />
                         </div>
                     </SeccionColapsable>
                 )}
@@ -341,11 +343,11 @@ export default function Indicadores({
                 {/* 2. Distribución */}
                 {secciones.distribucion && (
                     <SeccionColapsable
-                        titulo={`Distribución de citas de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Cómo se distribuyen las citas de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.distribucion}
                         onToggle={() => toggleColapsada('distribucion')}
                     >
-                        <SubDesplegable titulo="Cantidad de citas por estado" abierta={subDist.estado} onToggle={() => toggleSubDist('estado')}>
+                        <SubDesplegable titulo="Citas por situación" abierta={subDist.estado} onToggle={() => toggleSubDist('estado')}>
                             {Object.keys(citasPorEstado).length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {['completada', 'programada', 'cancelada', 'cancelada_liberada'].map(estado => {
@@ -363,8 +365,8 @@ export default function Indicadores({
                             ) : <p className="text-gray-400 text-sm">No hay datos</p>}
                         </SubDesplegable>
 
-                        {/* ✅ Clasificación: solo color + número, tooltip con el nombre */}
-                        <SubDesplegable titulo="Cantidad de citas por tipo de clasificación" abierta={subDist.clasificacion} onToggle={() => toggleSubDist('clasificacion')}>
+                        {/* Clasificación: solo color + número, tooltip con el nombre */}
+                        <SubDesplegable titulo="Citas por tema tratado" abierta={subDist.clasificacion} onToggle={() => toggleSubDist('clasificacion')}>
                             {Object.keys(citasPorClasificacion).length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
@@ -381,7 +383,7 @@ export default function Indicadores({
                             ) : <p className="text-gray-400 text-sm">No hay datos</p>}
                         </SubDesplegable>
 
-                        <SubDesplegable titulo="Cantidad de citas por asistencia del estudiante" abierta={subDist.asistencia} onToggle={() => toggleSubDist('asistencia')}>
+                        <SubDesplegable titulo="Asistencia del estudiante a las citas" abierta={subDist.asistencia} onToggle={() => toggleSubDist('asistencia')}>
                             {Object.keys(citasPorAsistencia).length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {['asistió', 'no asistió', 'pendiente'].map(asis => {
@@ -404,12 +406,12 @@ export default function Indicadores({
                 {/* 3. Tendencias */}
                 {secciones.tendencias && (
                     <SeccionColapsable
-                        titulo={`Tendencias de citas de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Cómo cambian las citas de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.tendencias}
                         onToggle={() => toggleColapsada('tendencias')}
                     >
                         <SubDesplegable
-                            titulo={`Distribución mensual de citas (${periodoTexto})`}
+                            titulo="Citas por mes"
                             abierta={subTend.mes}
                             onToggle={() => toggleSubTend('mes')}
                         >
@@ -428,7 +430,7 @@ export default function Indicadores({
                         </SubDesplegable>
 
                         <SubDesplegable
-                            titulo={`Distribución de citas por día de la semana (${periodoTexto})`}
+                            titulo="Citas por día de la semana"
                             abierta={subTend.dia}
                             onToggle={() => toggleSubTend('dia')}
                         >
@@ -454,7 +456,7 @@ export default function Indicadores({
                         </SubDesplegable>
 
                         <SubDesplegable
-                            titulo={`Distribución de citas por hora del día (${periodoTexto})`}
+                            titulo="Citas por hora del día"
                             abierta={subTend.hora}
                             onToggle={() => toggleSubTend('hora')}
                         >
@@ -481,7 +483,7 @@ export default function Indicadores({
                 {/* 4. Destacados */}
                 {secciones.destacados && (
                     <SeccionColapsable
-                        titulo={`Formadores y estudiantes destacados de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Formadores y estudiantes con más citas de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.destacados}
                         onToggle={() => toggleColapsada('destacados')}
                     >
@@ -495,7 +497,7 @@ export default function Indicadores({
                                                 key={`f-${i}`}
                                                 posicion={i}
                                                 nombre={item.nombre}
-                                                etiqueta={`Formador #${i + 1} en el periodo`}
+                                                etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
                                                 total={item.total}
                                                 unidad="cita"
                                             />
@@ -512,7 +514,7 @@ export default function Indicadores({
                                                 key={`e-${i}`}
                                                 posicion={i}
                                                 nombre={item.nombre_estudiante}
-                                                etiqueta={`Estudiante #${i + 1} en el periodo`}
+                                                etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
                                                 total={item.total}
                                                 unidad="cita"
                                             />
@@ -527,7 +529,7 @@ export default function Indicadores({
                 {/* 5. Comparativas */}
                 {secciones.comparativas && (
                     <SeccionColapsable
-                        titulo={`Comparativas de citas de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Comparación de citas de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.comparativas}
                         onToggle={() => toggleColapsada('comparativas')}
                     >
@@ -560,10 +562,10 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 6. Datos por formador (renombrado) */}
+                {/* 6. Actividad por formador */}
                 {secciones.formadores && detalleFormadores.length > 0 && (
                     <SeccionColapsable
-                        titulo={`Datos por formador de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Actividad de cada formador de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.formadores}
                         onToggle={() => toggleColapsada('formadores')}
                     >
@@ -598,17 +600,16 @@ export default function Indicadores({
                                                     <MiniStat label="Completadas" value={f.completadas} accent="green" />
                                                     <MiniStat label="Programadas" value={f.programadas} accent="yellow" />
                                                     <MiniStat label="Canceladas" value={f.canceladas} accent="red" />
-                                                    <MiniStat label="Tasa de asistencia" value={`${f.tasaAsistencia}%`} accent="orange" />
+                                                    <MiniStat label="% de asistencia" value={`${f.tasaAsistencia}%`} accent="orange" />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3 mb-4">
-                                                    <MiniStat label="Citas con asistencia" value={f.asistencias} />
-                                                    <MiniStat label="Citas sin asistencia" value={f.faltas} />
+                                                    <MiniStat label="Sí asistió" value={f.asistencias} />
+                                                    <MiniStat label="No asistió" value={f.faltas} />
                                                 </div>
                                                 {f.clasificaciones.length > 0 && (
                                                     <div>
-                                                        <div className="text-sm font-medium text-gray-600 mb-2">Tipos de clasificación más usados</div>
+                                                        <div className="text-sm font-medium text-gray-600 mb-2">Temas más tratados</div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {/* ✅ Solo color + número, tooltip con el nombre */}
                                                             {f.clasificaciones.map((c, i) => (
                                                                 <div
                                                                     key={i}
@@ -631,7 +632,7 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 7. Tabla de citas — AHORA ANTES DE ESTUDIANTES */}
+                {/* 7. Listado de citas */}
                 {secciones.citas && (
                     <SeccionColapsable titulo={tituloCitas} abierta={!colapsadas.citas} onToggle={() => toggleColapsada('citas')}>
                         {citasDelPeriodo.length > 0 ? (
@@ -663,7 +664,7 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 8. Estudiantes por grado/grupo — AHORA DESPUÉS DE CITAS */}
+                {/* 8. Estudiantes por grado/grupo */}
                 {secciones.estudiantes && (
                     <SeccionColapsable titulo="Estudiantes registrados por grado y grupo" abierta={!colapsadas.estudiantes} onToggle={() => toggleColapsada('estudiantes')}>
                         <div className="space-y-4">

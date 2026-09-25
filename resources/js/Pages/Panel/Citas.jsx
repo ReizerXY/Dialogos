@@ -7,13 +7,19 @@ import NotasModal from './Modales/NotasModal';
 import ModificarModal from './Modales/ModificarModal';
 import CancelarModal from './Modales/CancelarModal';
 
-// Código de colores por clasificación
 const CLASIFICACION_COLOR = {
     'académica':     'bg-blue-500',
     'familiar':      'bg-green-500',
     'emocional':     'bg-purple-500',
     'espiritual':    'bg-pink-500',
     'institucional': 'bg-amber-500',
+};
+
+const ESTADO_LABELS = {
+    programada:         'Programada',
+    cancelada:          'Cancelada',
+    cancelada_liberada: 'Cancelada (liberada)',
+    completada:         'Completada',
 };
 
 export default function Citas({
@@ -36,7 +42,6 @@ export default function Citas({
     const [gradoFilter, setGradoFilter]       = useState(filtros.grado || '');
     const [grupoFilter, setGrupoFilter]       = useState(filtros.grupo || '');
 
-    // Filtros de fecha (mutuamente excluyentes)
     const [anioFilter, setAnioFilter]                 = useState(filtros.anio || '');
     const [mesFilter, setMesFilter]                   = useState(filtros.mes || '');
     const [semanaValorFilter, setSemanaValorFilter]   = useState(filtros.semana_valor || '');
@@ -47,13 +52,20 @@ export default function Citas({
     // ============================================================
     const [filtrosOpen, setFiltrosOpen] = useState(false);
 
-    // Estados para modales
     const [notasModalOpen, setNotasModalOpen] = useState(false);
     const [modificarModalOpen, setModificarModalOpen] = useState(false);
     const [cancelarModalOpen, setCancelarModalOpen] = useState(false);
     const [citaSeleccionada, setCitaSeleccionada] = useState(null);
 
+    // ✅ Selección de filas (solo Coordinador)
+    const [selectedIds, setSelectedIds] = useState([]);
+
+    // ✅ Modal de confirmación de descarga
+    const [confirmExportOpen, setConfirmExportOpen] = useState(false);
+    const [ordenExport, setOrdenExport] = useState('fecha'); // 'fecha' | 'id'
+
     const esFormador = rol === 'Formador';
+    const esCoordinador = rol === 'Coordinador';
     const mostrarFiltroFormador = rol === 'Coordinador' || (esFormador && soloLectura);
     const mostrarAcciones = esFormador && !soloLectura;
 
@@ -69,53 +81,38 @@ export default function Citas({
     })();
 
     // ============================================================
-    // HANDLERS CON AUTO-LIMPIEZA
+    // HANDLERS DE FECHA
     // ============================================================
     const handleAnioChange = (valor) => {
         setAnioFilter(valor);
-        if (valor) {
-            setMesFilter('');
-            setSemanaValorFilter('');
-            setFechaFilter('');
-        }
+        if (valor) { setMesFilter(''); setSemanaValorFilter(''); setFechaFilter(''); }
     };
-
     const handleMesChange = (valor) => {
         setMesFilter(valor);
-        if (valor) {
-            setAnioFilter('');
-            setSemanaValorFilter('');
-            setFechaFilter('');
-        }
+        if (valor) { setAnioFilter(''); setSemanaValorFilter(''); setFechaFilter(''); }
     };
-
     const handleSemanaChange = (valor) => {
         setSemanaValorFilter(valor);
-        if (valor) {
-            setAnioFilter('');
-            setMesFilter('');
-            setFechaFilter('');
-        }
+        if (valor) { setAnioFilter(''); setMesFilter(''); setFechaFilter(''); }
     };
-
     const handleFechaChange = (valor) => {
         setFechaFilter(valor);
-        if (valor) {
-            setAnioFilter('');
-            setMesFilter('');
-            setSemanaValorFilter('');
-        }
+        if (valor) { setAnioFilter(''); setMesFilter(''); setSemanaValorFilter(''); }
     };
 
-    // ============================================================
-    // VALIDAR GRUPO CUANDO CAMBIA EL GRADO
-    // ============================================================
     useEffect(() => {
         if (gradoFilter && grupoFilter) {
             const disp = gruposPorGrado[gradoFilter] || [];
             if (!disp.includes(grupoFilter)) setGrupoFilter('');
         }
     }, [gradoFilter, gruposPorGrado]);
+
+    // Si cambia la lista de citas visible, limpiar selección de ids que ya no están
+    useEffect(() => {
+        if (!citas) return;
+        const idsVisibles = new Set(citas.map(c => c.id_cita));
+        setSelectedIds(prev => prev.filter(id => idsVisibles.has(id)));
+    }, [citas]);
 
     const formatFecha = (fecha) => {
         if (!fecha) return '';
@@ -124,7 +121,7 @@ export default function Citas({
     };
 
     // ============================================================
-    // APLICAR FILTROS
+    // FILTROS
     // ============================================================
     const applyFilters = () => {
         const params = new URLSearchParams();
@@ -146,44 +143,127 @@ export default function Citas({
     };
 
     const filtrosActivos = [
-        formadorFilter,
-        estadoFilter,
-        gradoFilter,
-        grupoFilter,
-        anioFilter,
-        mesFilter,
-        semanaValorFilter,
-        fechaFilter,
+        formadorFilter, estadoFilter, gradoFilter, grupoFilter,
+        anioFilter, mesFilter, semanaValorFilter, fechaFilter,
         periodoFilter !== 'actual' ? periodoFilter : null,
     ].filter(Boolean).length;
 
-    const abrirNotas = (cita) => {
-        setCitaSeleccionada(cita);
-        setNotasModalOpen(true);
+    // ============================================================
+    // SELECCIÓN DE FILAS
+    // ============================================================
+    const toggleRow = (id) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
     };
 
-    const abrirModificar = (cita) => {
-        setCitaSeleccionada(cita);
-        setModificarModalOpen(true);
+    const idsVisibles = (citas || []).map(c => c.id_cita);
+    const allVisibleSelected = idsVisibles.length > 0 && idsVisibles.every(id => selectedIds.includes(id));
+    const someVisibleSelected = idsVisibles.some(id => selectedIds.includes(id)) && !allVisibleSelected;
+
+    const toggleAll = () => {
+        if (allVisibleSelected) {
+            setSelectedIds(prev => prev.filter(id => !idsVisibles.includes(id)));
+        } else {
+            setSelectedIds(prev => [...new Set([...prev, ...idsVisibles])]);
+        }
     };
 
-    const abrirCancelar = (cita) => {
-        setCitaSeleccionada(cita);
-        setCancelarModalOpen(true);
+    const limpiarSeleccion = () => setSelectedIds([]);
+
+    // ============================================================
+    // RESUMEN DE FILTROS ACTIVOS (para el modal)
+    // ============================================================
+    const resumenFiltros = (() => {
+        const items = [];
+
+        if (formadorFilter) {
+            const f = formadores?.find(x => String(x.id_usuario) === String(formadorFilter));
+            items.push({ label: 'Formador', valor: f?.nombre || `ID ${formadorFilter}` });
+        }
+        if (estadoFilter) {
+            items.push({ label: 'Estado', valor: ESTADO_LABELS[estadoFilter] || estadoFilter });
+        }
+        if (gradoFilter) {
+            items.push({ label: 'Grado', valor: gradoFilter });
+        }
+        if (grupoFilter) {
+            items.push({ label: 'Grupo', valor: grupoFilter });
+        }
+        if (anioFilter) {
+            items.push({ label: 'Año', valor: anioFilter });
+        }
+        if (mesFilter) {
+            items.push({ label: 'Mes', valor: mesFilter });
+        }
+        if (semanaValorFilter) {
+            items.push({ label: 'Semana', valor: semanaValorFilter });
+        }
+        if (fechaFilter) {
+            items.push({ label: 'Fecha específica', valor: formatFecha(fechaFilter) });
+        }
+
+        // Vista rápida (si no hay filtros de fecha)
+        if (!anioFilter && !mesFilter && !semanaValorFilter && !fechaFilter) {
+            if (periodoFilter === 'actual') {
+                items.push({ label: 'Vista rápida', valor: 'Semana actual (próximos 7 días)' });
+            } else if (periodoFilter === 'todas') {
+                items.push({ label: 'Vista rápida', valor: 'Todas las fechas' });
+            }
+        }
+
+        return items;
+    })();
+
+    const haySeleccion = selectedIds.length > 0;
+    const totalADescargar = haySeleccion ? selectedIds.length : (citas?.length || 0);
+
+    // ============================================================
+    // DESCARGA
+    // ============================================================
+    const abrirConfirmExport = () => {
+        if (!citas || citas.length === 0) return;
+        setConfirmExportOpen(true);
     };
+
+    const ejecutarDescarga = () => {
+        const params = new URLSearchParams();
+
+        params.append('orden', ordenExport);
+
+        if (haySeleccion) {
+            selectedIds.forEach(id => params.append('ids[]', id));
+        } else {
+            if (filtros.formador)     params.append('formador', filtros.formador);
+            if (filtros.estado)       params.append('estado', filtros.estado);
+            if (filtros.grado)        params.append('grado', filtros.grado);
+            if (filtros.grupo)        params.append('grupo', filtros.grupo);
+            if (filtros.anio)         params.append('anio', filtros.anio);
+            if (filtros.mes)          params.append('mes', filtros.mes);
+            if (filtros.semana_valor) params.append('semana_valor', filtros.semana_valor);
+            if (filtros.fecha)        params.append('fecha', filtros.fecha);
+            if (filtros.semana)       params.append('semana', filtros.semana);
+        }
+
+        setConfirmExportOpen(false);
+        window.location.href = `/citas/exportar-excel?${params.toString()}`;
+    };
+
+    // ============================================================
+    // MODALES
+    // ============================================================
+    const abrirNotas = (cita) => { setCitaSeleccionada(cita); setNotasModalOpen(true); };
+    const abrirModificar = (cita) => { setCitaSeleccionada(cita); setModificarModalOpen(true); };
+    const abrirCancelar = (cita) => { setCitaSeleccionada(cita); setCancelarModalOpen(true); };
 
     const gruposDisponibles = gradoFilter ? (gruposPorGrado[gradoFilter] || []) : [];
 
-    // Clase condicional para resaltar el filtro de fecha activo
     const claseFiltroFecha = (activo) =>
         `w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 transition-all text-gray-700 ${
             activo
                 ? 'border-[#FF5900] bg-[#FF5900]/5 ring-2 ring-[#FF5900]/20'
                 : 'border-gray-300 bg-white'
         }`;
-
-    const claseFiltroFechaDisabled = (disabled) =>
-        disabled ? 'opacity-40 cursor-not-allowed bg-gray-50' : '';
 
     return (
         <AuthenticatedLayout>
@@ -202,17 +282,60 @@ export default function Citas({
                         </p>
                         <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                     </div>
-                    {soloLectura && (
-                        <Link
-                            href={route('citas.index')}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF5900] text-white text-sm font-medium rounded-xl hover:bg-[#CC4700] transition-all duration-200"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                            </svg>
-                            Ir a mis citas
-                        </Link>
-                    )}
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* Chip de selección activa */}
+                        {esCoordinador && haySeleccion && (
+                            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FF5900]/10 text-[#CC4700] text-xs font-medium rounded-full">
+                                {selectedIds.length} seleccionada{selectedIds.length === 1 ? '' : 's'}
+                                <button
+                                    type="button"
+                                    onClick={limpiarSeleccion}
+                                    className="text-[#CC4700] hover:text-[#FF5900]"
+                                    title="Limpiar selección"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </span>
+                        )}
+
+                        {/* Botón de descarga Excel — solo Coordinador */}
+                        {esCoordinador && (
+                            <button
+                                onClick={abrirConfirmExport}
+                                disabled={!citas || citas.length === 0}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    haySeleccion
+                                        ? 'bg-green-700 text-white hover:bg-green-800 hover:shadow-lg hover:shadow-green-700/25'
+                                        : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/25'
+                                }`}
+                                title={haySeleccion
+                                    ? `Descargar en Excel las ${selectedIds.length} citas seleccionadas`
+                                    : 'Descargar en Excel todas las citas que se muestran'}
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                {haySeleccion
+                                    ? `Descargar ${selectedIds.length} seleccionada${selectedIds.length === 1 ? '' : 's'}`
+                                    : 'Descargar en Excel'}
+                            </button>
+                        )}
+
+                        {soloLectura && (
+                            <Link
+                                href={route('citas.index')}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF5900] text-white text-sm font-medium rounded-xl hover:bg-[#CC4700] transition-all duration-200"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                </svg>
+                                Ir a mis citas
+                            </Link>
+                        )}
+                    </div>
                 </div>
 
                 {/* Banner solo lectura */}
@@ -231,7 +354,7 @@ export default function Citas({
                 )}
 
                 {/* ============================================================ */}
-                {/* Filtros (colapsables) */}
+                {/* Filtros */}
                 {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md mb-8 border border-gray-100 overflow-hidden">
                     <button
@@ -256,7 +379,6 @@ export default function Citas({
 
                     <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6">
-                            {/* Fila 1: Formador, Estado, Grado, Grupo */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                                 {mostrarFiltroFormador && (
                                     <div>
@@ -322,9 +444,6 @@ export default function Citas({
                                 </div>
                             </div>
 
-                            {/* ============================================================ */}
-                            {/* Fila 2: Filtros de fecha (mutuamente excluyentes) */}
-                            {/* ============================================================ */}
                             <div className="bg-gray-50/60 rounded-xl p-4 mb-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <svg className="w-4 h-4 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,7 +464,6 @@ export default function Citas({
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {/* Año */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-600 mb-1.5">
                                             Año
@@ -363,7 +481,6 @@ export default function Citas({
                                         </select>
                                     </div>
 
-                                    {/* Mes */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-600 mb-1.5">
                                             Mes
@@ -377,7 +494,6 @@ export default function Citas({
                                         />
                                     </div>
 
-                                    {/* Semana */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-600 mb-1.5">
                                             Semana específica
@@ -390,7 +506,6 @@ export default function Citas({
                                         />
                                     </div>
 
-                                    {/* Fecha específica */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-600 mb-1.5">
                                             Fecha específica
@@ -405,7 +520,6 @@ export default function Citas({
                                     </div>
                                 </div>
 
-                                {/* Botón para limpiar el filtro de fecha activo */}
                                 {fechaActiva && (
                                     <div className="mt-3 flex items-center gap-2">
                                         <button
@@ -424,7 +538,6 @@ export default function Citas({
                                 )}
                             </div>
 
-                            {/* Fila 3: Vista rápida + Botones */}
                             <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-gray-100">
                                 <div className="flex items-center gap-2">
                                     <label className="text-sm font-medium text-gray-700">Vista rápida:</label>
@@ -438,9 +551,7 @@ export default function Citas({
                                         <option value="todas">Todas</option>
                                     </select>
                                     {fechaActiva && (
-                                        <span className="text-xs text-gray-500">
-                                            (desactivada por filtro de fecha)
-                                        </span>
+                                        <span className="text-xs text-gray-500">(desactivada por filtro de fecha)</span>
                                     )}
                                 </div>
 
@@ -465,7 +576,6 @@ export default function Citas({
                                 </div>
                             </div>
 
-                            {/* Nota de contexto */}
                             {!fechaActiva && periodoFilter === 'actual' && (
                                 <p className="text-xs text-[#FF5900] flex items-center mt-3">
                                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -493,6 +603,20 @@ export default function Citas({
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                        {esCoordinador && (
+                                            <th className="px-4 py-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={allVisibleSelected}
+                                                    ref={el => {
+                                                        if (el) el.indeterminate = someVisibleSelected;
+                                                    }}
+                                                    onChange={toggleAll}
+                                                    className="w-4 h-4 text-[#FF5900] border-gray-300 rounded focus:ring-[#FF5900] cursor-pointer"
+                                                    title={allVisibleSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                                                />
+                                            </th>
+                                        )}
                                         <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estudiante</th>
                                         <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Formador</th>
                                         <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
@@ -506,99 +630,122 @@ export default function Citas({
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-100">
-                                    {citas.map(c => (
-                                        <tr key={c.id_cita} className="hover:bg-[#FF5900]/5 transition-colors duration-150 group">
-                                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-800">{c.nombre_estudiante}</td>
-                                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {mostrarFiltroFormador ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${c.id_usuario === user?.id_usuario ? 'bg-[#FF5900]' : 'bg-gray-300'}`}></div>
-                                                        <span className={c.id_usuario === user?.id_usuario ? 'font-medium text-[#FF5900]' : ''}>
-                                                            {c.nombre_formador}
-                                                            {c.id_usuario === user?.id_usuario && ' (tú)'}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    c.nombre_formador
+                                    {citas.map(c => {
+                                        const estaSeleccionada = selectedIds.includes(c.id_cita);
+                                        return (
+                                            <tr
+                                                key={c.id_cita}
+                                                className={`transition-colors duration-150 group ${
+                                                    estaSeleccionada ? 'bg-[#FF5900]/5' : 'hover:bg-[#FF5900]/5'
+                                                }`}
+                                            >
+                                                {esCoordinador && (
+                                                    <td className="px-4 py-4 w-10">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={estaSeleccionada}
+                                                            onChange={() => toggleRow(c.id_cita)}
+                                                            className="w-4 h-4 text-[#FF5900] border-gray-300 rounded focus:ring-[#FF5900] cursor-pointer"
+                                                        />
+                                                    </td>
                                                 )}
-                                            </td>
-                                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{formatFecha(c.fecha)}</td>
-                                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{c.hora?.substring(0, 5) || c.hora}</td>
-
-                                            <td className="px-4 py-4 whitespace-nowrap text-center">
-                                                {c.clasificacion ? (
-                                                    <div
-                                                        className={`inline-block w-7 h-7 rounded-lg ${CLASIFICACION_COLOR[c.clasificacion] || 'bg-gray-400'} shadow-sm`}
-                                                        title={c.clasificacion}
-                                                        aria-label={`Clasificación: ${c.clasificacion}`}
-                                                    />
-                                                ) : (
-                                                    <div className="inline-block w-7 h-7 rounded-lg bg-gray-100 border border-gray-200" title="Sin clasificar" aria-label="Sin clasificar" />
-                                                )}
-                                            </td>
-
-                                            <td className="px-4 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                    c.estado === 'programada' ? 'bg-yellow-100 text-yellow-800' :
-                                                    c.estado === 'cancelada' ? 'bg-red-100 text-red-800' :
-                                                    c.estado === 'cancelada_liberada' ? 'bg-orange-100 text-orange-800' :
-                                                    'bg-green-100 text-green-800'
-                                                }`}>
-                                                    {c.estado === 'cancelada_liberada' ? 'Cancelada (liberada)' : c.estado}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                    c.asistencia === 'pendiente' ? 'bg-gray-100 text-gray-600' :
-                                                    c.asistencia === 'asistió' ? 'bg-green-100 text-green-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
-                                                    {c.asistencia || 'pendiente'}
-                                                </span>
-                                            </td>
-                                            {mostrarAcciones && (
-                                                <td className="px-4 py-4 whitespace-nowrap">
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        <button
-                                                            onClick={() => abrirNotas(c)}
-                                                            className="inline-flex items-center px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-all duration-200 hover:shadow-md active:scale-95"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                            </svg>
-                                                            Notas
-                                                        </button>
-                                                        <button
-                                                            onClick={() => abrirModificar(c)}
-                                                            className="inline-flex items-center px-3 py-1.5 bg-[#FF5900] text-white text-xs font-medium rounded-lg hover:bg-[#CC4700] transition-all duration-200 hover:shadow-md active:scale-95"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                            </svg>
-                                                            Modificar
-                                                        </button>
-                                                        <button
-                                                            onClick={() => abrirCancelar(c)}
-                                                            className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-all duration-200 hover:shadow-md active:scale-95"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                            Cancelar
-                                                        </button>
-                                                    </div>
+                                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-800">{c.nombre_estudiante}</td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                    {mostrarFiltroFormador ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-2 h-2 rounded-full ${c.id_usuario === user?.id_usuario ? 'bg-[#FF5900]' : 'bg-gray-300'}`}></div>
+                                                            <span className={c.id_usuario === user?.id_usuario ? 'font-medium text-[#FF5900]' : ''}>
+                                                                {c.nombre_formador}
+                                                                {c.id_usuario === user?.id_usuario && ' (tú)'}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        c.nombre_formador
+                                                    )}
                                                 </td>
-                                            )}
-                                        </tr>
-                                    ))}
+                                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{formatFecha(c.fecha)}</td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{c.hora?.substring(0, 5) || c.hora}</td>
+
+                                                <td className="px-4 py-4 whitespace-nowrap text-center">
+                                                    {c.clasificacion ? (
+                                                        <div
+                                                            className={`inline-block w-7 h-7 rounded-lg ${CLASIFICACION_COLOR[c.clasificacion] || 'bg-gray-400'} shadow-sm`}
+                                                            title={c.clasificacion}
+                                                            aria-label={`Clasificación: ${c.clasificacion}`}
+                                                        />
+                                                    ) : (
+                                                        <div className="inline-block w-7 h-7 rounded-lg bg-gray-100 border border-gray-200" title="Sin clasificar" aria-label="Sin clasificar" />
+                                                    )}
+                                                </td>
+
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                                                        c.estado === 'programada' ? 'bg-yellow-100 text-yellow-800' :
+                                                        c.estado === 'cancelada' ? 'bg-red-100 text-red-800' :
+                                                        c.estado === 'cancelada_liberada' ? 'bg-orange-100 text-orange-800' :
+                                                        'bg-green-100 text-green-800'
+                                                    }`}>
+                                                        {c.estado === 'cancelada_liberada' ? 'Cancelada (liberada)' : c.estado}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                                                        c.asistencia === 'pendiente' ? 'bg-gray-100 text-gray-600' :
+                                                        c.asistencia === 'asistió' ? 'bg-green-100 text-green-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }`}>
+                                                        {c.asistencia || 'pendiente'}
+                                                    </span>
+                                                </td>
+                                                {mostrarAcciones && (
+                                                    <td className="px-4 py-4 whitespace-nowrap">
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            <button
+                                                                onClick={() => abrirNotas(c)}
+                                                                className="inline-flex items-center px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-all duration-200 hover:shadow-md active:scale-95"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                </svg>
+                                                                Notas
+                                                            </button>
+                                                            <button
+                                                                onClick={() => abrirModificar(c)}
+                                                                className="inline-flex items-center px-3 py-1.5 bg-[#FF5900] text-white text-xs font-medium rounded-lg hover:bg-[#CC4700] transition-all duration-200 hover:shadow-md active:scale-95"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                                Modificar
+                                                            </button>
+                                                            <button
+                                                                onClick={() => abrirCancelar(c)}
+                                                                className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-all duration-200 hover:shadow-md active:scale-95"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                                Cancelar
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     )}
 
                     {citas && citas.length > 0 && (
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-wrap justify-between items-center gap-2 text-sm text-gray-500">
                             <span>Total: {citas.length} citas</span>
+                            {haySeleccion && (
+                                <span className="text-green-700 font-medium">
+                                    {selectedIds.length} seleccionada{selectedIds.length === 1 ? '' : 's'} para exportar
+                                </span>
+                            )}
                             <span className="text-[#FF5900]">
                                 {!fechaActiva && periodoFilter === 'actual'
                                     ? 'Mostrando semana actual'
@@ -608,6 +755,157 @@ export default function Citas({
                     )}
                 </div>
             </div>
+
+            {/* ============================================================ */}
+            {/* Modal de confirmación de descarga */}
+            {/* ============================================================ */}
+            {confirmExportOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={() => setConfirmExportOpen(false)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-6 pb-4 border-b border-gray-100">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800">Confirmar descarga</h3>
+                                        <p className="text-sm text-gray-500 mt-0.5">Se descargará un archivo Excel (.xlsx)</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setConfirmExportOpen(false)}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                                    aria-label="Cerrar"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                            {/* Modo: seleccionadas o todas las filtradas */}
+                            {haySeleccion ? (
+                                <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                                    <div className="flex items-start gap-3">
+                                        <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <div>
+                                            <p className="text-sm font-medium text-green-800">
+                                                Descarga por selección manual
+                                            </p>
+                                            <p className="text-sm text-green-700 mt-1">
+                                                Se descargarán <strong>{selectedIds.length}</strong> {selectedIds.length === 1 ? 'cita' : 'citas'} que marcaste con el checkbox.
+                                                Los filtros <strong>no se aplican</strong> en este modo.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-gray-50 rounded-xl">
+                                    <p className="text-sm text-gray-700">
+                                        Se descargarán <strong className="text-[#FF5900]">{totalADescargar}</strong> {totalADescargar === 1 ? 'cita' : 'citas'} con {resumenFiltros.length === 0 ? 'todos los datos del sistema' : 'los siguientes filtros'}:
+                                    </p>
+
+                                    {resumenFiltros.length > 0 && (
+                                        <ul className="mt-3 space-y-1.5">
+                                            {resumenFiltros.map((f, i) => (
+                                                <li key={i} className="flex items-center gap-2 text-sm">
+                                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#FF5900]"></span>
+                                                    <span className="text-gray-500">{f.label}:</span>
+                                                    <span className="font-medium text-gray-800">{f.valor}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+
+                                    {resumenFiltros.length === 0 && (
+                                        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
+                                            ⚠️ No hay filtros aplicados. Se incluirán <strong>todas las citas registradas</strong>.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Selector de orden */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Ordenar las citas en el Excel por:
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOrdenExport('fecha')}
+                                        className={`px-4 py-3 rounded-xl border text-sm font-medium transition flex items-center justify-center gap-2 ${
+                                            ordenExport === 'fecha'
+                                                ? 'bg-[#FF5900] border-[#FF5900] text-white shadow-sm'
+                                                : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        Por fecha
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOrdenExport('id')}
+                                        className={`px-4 py-3 rounded-xl border text-sm font-medium transition flex items-center justify-center gap-2 ${
+                                            ordenExport === 'id'
+                                                ? 'bg-[#FF5900] border-[#FF5900] text-white shadow-sm'
+                                                : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                                        </svg>
+                                        Por ID de cita
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    {ordenExport === 'fecha'
+                                        ? 'Más antigua primero (fecha → hora → ID)'
+                                        : 'Número de cita ascendente (1, 2, 3, …)'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-wrap justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setConfirmExportOpen(false)}
+                                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-100 transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={ejecutarDescarga}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/25 transition-all duration-200 active:scale-95"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Sí, descargar Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {mostrarAcciones && (
                 <>

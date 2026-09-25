@@ -4,7 +4,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Panel\IndicadoresController;
 use App\Http\Controllers\Panel\HorarioController;
-use App\Http\Controllers\Panel\CitaController as CitaPanelController;
+use App\Http\Controllers\Panel\CitasController as CitasPanelController;   // ← renombrado
 use App\Http\Controllers\Panel\ExpedienteController;
 use App\Http\Controllers\Panel\UsuarioController;
 use App\Http\Controllers\Panel\HorarioAdminController;
@@ -12,7 +12,7 @@ use App\Http\Controllers\Panel\EstudianteController;
 use App\Http\Controllers\Panel\ReporteController;
 use App\Http\Controllers\Panel\MiHorarioController;
 use App\Http\Controllers\Panel\BackupController;
-use App\Http\Controllers\CitaController as CitaPublicController;
+use App\Http\Controllers\CitaController as CitaPublicController;         // ← público, NO tocar
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Session;
@@ -24,9 +24,8 @@ use Illuminate\Support\Facades\Session;
 */
 
 // =============================================
-// RUTAS PÚBLICAS (sin autenticación)
+// RUTAS PÚBLICAS
 // =============================================
-
 Route::get('/', function () {
     if (Session::has('user')) {
         $user = Session::get('user');
@@ -48,30 +47,26 @@ Route::get('/', function () {
 Route::get('/solicitar-cita', [CitaPublicController::class, 'index'])->name('cita.solicitar');
 
 Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])
-    ->middleware('throttle:solicitar-cita')
+    ->middleware('throttle:3,1')
     ->name('cita.store');
 
-Route::middleware('throttle:api-publica')->group(function () {
+Route::middleware('throttle:10,1')->group(function () {
     Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
     Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
     Route::get('/api/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
 });
 
 // =============================================
-// AUTENTICACIÓN PERSONALIZADA
+// AUTENTICACIÓN
 // =============================================
-
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login'])
-    ->middleware('throttle:login')
-    ->name('login.post');
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1')->name('login.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // =============================================
 // RUTAS PROTEGIDAS
 // =============================================
-
-Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
+Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
 
     // ---------- COORDINADOR ----------
     Route::get('/indicadores', [IndicadoresController::class, 'index'])
@@ -132,15 +127,21 @@ Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
     Route::get('/horarios', [HorarioController::class, 'index'])->name('horarios.index');
 
     Route::prefix('citas')->group(function () {
-        Route::get('/', [CitaPanelController::class, 'index'])->name('citas.index');
-        Route::get('/{id}', [CitaPanelController::class, 'show'])->name('citas.show');
-        Route::put('/{id}/notas', [CitaPanelController::class, 'actualizarNotas'])->name('citas.notas');
-        Route::put('/{id}/modificar', [CitaPanelController::class, 'modificarCita'])->name('citas.modificar');
-        Route::delete('/{id}/cancelar', [CitaPanelController::class, 'cancelarCita'])->name('citas.cancelar');
-        Route::put('/{id}', [CitaPanelController::class, 'update'])->name('citas.update');
+        Route::get('/', [CitasPanelController::class, 'index'])->name('citas.index');
+
+        // ✅ Exportar Excel — DEBE ir antes de /{id}
+        Route::get('/exportar-excel', [CitasPanelController::class, 'exportarExcel'])
+            ->middleware('check.role:Coordinador')
+            ->name('citas.exportarExcel');
+
+        Route::get('/{id}', [CitasPanelController::class, 'show'])->name('citas.show');
+        Route::put('/{id}/notas', [CitasPanelController::class, 'actualizarNotas'])->name('citas.notas');
+        Route::put('/{id}/modificar', [CitasPanelController::class, 'modificarCita'])->name('citas.modificar');
+        Route::delete('/{id}/cancelar', [CitasPanelController::class, 'cancelarCita'])->name('citas.cancelar');
+        Route::put('/{id}', [CitasPanelController::class, 'update'])->name('citas.update');
     });
 
-    Route::get('/api/disponibilidad-para-modificar', [CitaPanelController::class, 'disponibilidadParaModificar'])
+    Route::get('/api/disponibilidad-para-modificar', [CitasPanelController::class, 'disponibilidadParaModificar'])
         ->name('api.disponibilidad.modificar');
 
     Route::get('/expediente', function () {

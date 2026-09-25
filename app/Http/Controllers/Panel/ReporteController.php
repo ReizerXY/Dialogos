@@ -11,165 +11,165 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReporteController extends Controller
 {
-        public static function catalogo(): array
+    public static function catalogo(): array
     {
         return [
             'ejecutivo' => [
-                'titulo'      => 'Reporte ejecutivo general',
-                'descripcion' => 'Resumen completo del programa con las métricas clave: citas, estudiantes, formadores, asistencia y rankings.',
+                'titulo'      => 'Reporte general del programa',
+                'descripcion' => 'Vista completa del programa Diálogos en el periodo: cuántas citas hubo, quiénes las atendieron, quiénes las recibieron y cómo fue la asistencia.',
                 'secciones'   => [
                     'resumen' => [
-                        'label'       => 'Resumen ejecutivo (KPIs generales)',
-                        'descripcion' => 'Muestra los KPIs generales del programa: total de citas registradas, completadas, programadas, canceladas, estudiantes atendidos y las tasas de completación, cancelación y asistencia.',
+                        'label'       => 'Resumen general (números principales)',
+                        'descripcion' => 'Los números clave del periodo: total de citas, cuántas se completaron, cuántas están programadas, cuántas se cancelaron, cuántos estudiantes fueron atendidos y los porcentajes de cumplimiento, cancelación y asistencia.',
                         'default'     => true,
                     ],
                     'por_estado' => [
-                        'label'       => 'Citas por estado (agrupado)',
-                        'descripcion' => 'Desglose de las citas según su estado actual: completada, programada, cancelada o cancelada con horario liberado. Incluye cantidad y porcentaje del total.',
+                        'label'       => 'Citas por situación',
+                        'descripcion' => 'Cuántas citas están en cada situación: completadas (ya atendidas), programadas (por atender), canceladas o canceladas con horario disponible. Muestra cantidad y porcentaje.',
                         'default'     => true,
                     ],
                     'por_clasificacion' => [
-                        'label'       => 'Citas por tipo de clasificación',
-                        'descripcion' => 'Cantidad de citas agrupadas por el tipo de tema tratado: académica, familiar, emocional, espiritual o institucional.',
+                        'label'       => 'Citas por tema tratado',
+                        'descripcion' => 'Cuántas citas se registraron en cada tema: académico, familiar, emocional, espiritual o institucional. Útil para saber qué tipo de apoyo se está dando más.',
                         'default'     => true,
                     ],
                     'por_asistencia' => [
-                        'label'       => 'Citas por tipo de asistencia',
-                        'descripcion' => 'Cantidad de citas según si el estudiante asistió, no asistió o quedó pendiente de confirmar.',
+                        'label'       => 'Citas por asistencia del estudiante',
+                        'descripcion' => 'Cuántas citas tuvieron al estudiante presente, cuántas no llegó y cuántas quedaron pendientes de registrar. Sirve para medir el compromiso de los estudiantes.',
                         'default'     => true,
                     ],
                     'por_grado' => [
-                        'label'       => 'Estudiantes atendidos por grado',
-                        'descripcion' => 'Cantidad de estudiantes que recibieron al menos una cita, agrupados por grado (4to, 5to, 6to).',
+                        'label'       => 'Estudiantes atendidos por grado escolar',
+                        'descripcion' => 'Cuántos estudiantes de cada grado (1ro, 2do, 3ro, 4to, 5to, 6to) recibieron al menos una cita en el periodo.',
                         'default'     => true,
                     ],
                     'por_grupo' => [
                         'label'       => 'Estudiantes atendidos por grupo',
-                        'descripcion' => 'Cantidad de estudiantes que recibieron al menos una cita, agrupados por grupo (A, B, C).',
+                        'descripcion' => 'Cuántos estudiantes de cada grupo (A, B, C, D) recibieron al menos una cita en el periodo.',
                         'default'     => true,
                     ],
                     'top_formadores' => [
                         'label'       => 'Formadores con más citas atendidas',
-                        'descripcion' => 'Ranking de los formadores ordenado por la cantidad de citas que atendieron en el periodo, con medallas para los primeros lugares.',
+                        'descripcion' => 'Lista ordenada de los formadores según cuántas citas atendieron en el periodo. Los primeros tres aparecen con medalla.',
                         'default'     => true,
                     ],
                     'top_estudiantes' => [
                         'label'       => 'Estudiantes con más citas recibidas',
-                        'descripcion' => 'Ranking de los estudiantes ordenado por la cantidad de citas que recibieron en el periodo, con medallas para los primeros lugares.',
+                        'descripcion' => 'Lista ordenada de los estudiantes según cuántas citas recibieron en el periodo. Los primeros tres aparecen con medalla.',
                         'default'     => true,
                     ],
                 ],
             ],
             'citas' => [
-                'titulo'      => 'Reporte de citas registradas',
-                'descripcion' => 'Detalle de todas las citas del periodo: estados, clasificaciones, asistencia y listado completo.',
+                'titulo'      => 'Reporte de citas del periodo',
+                'descripcion' => 'Todas las citas registradas en el periodo: su situación, el tema que se trató, si el estudiante asistió y el listado completo una por una.',
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen del periodo',
-                        'descripcion' => 'Totales del periodo: citas registradas, completadas, programadas, canceladas, estudiantes atendidos y tasas porcentuales.',
+                        'descripcion' => 'Totales del periodo: cuántas citas se registraron, cuántas se completaron, cuántas están programadas, cuántas se cancelaron, cuántos estudiantes fueron atendidos y los porcentajes correspondientes.',
                         'default'     => true,
                     ],
                     'por_estado' => [
-                        'label'       => 'Citas por estado',
-                        'descripcion' => 'Cantidad de citas en cada estado (completada, programada, cancelada, cancelada liberada) con su porcentaje del total.',
+                        'label'       => 'Citas por situación',
+                        'descripcion' => 'Cuántas citas están completadas, programadas, canceladas o canceladas con horario disponible, con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'por_clasificacion' => [
-                        'label'       => 'Citas por tipo de clasificación',
-                        'descripcion' => 'Cantidad de citas por tipo de clasificación: académica, familiar, emocional, espiritual o institucional.',
+                        'label'       => 'Citas por tema tratado',
+                        'descripcion' => 'Cuántas citas se registraron en cada tema: académico, familiar, emocional, espiritual o institucional.',
                         'default'     => true,
                     ],
                     'por_asistencia' => [
-                        'label'       => 'Citas por tipo de asistencia',
-                        'descripcion' => 'Cantidad de citas según la asistencia del estudiante: asistió, no asistió o pendiente.',
+                        'label'       => 'Citas por asistencia del estudiante',
+                        'descripcion' => 'Cuántas citas tuvieron al estudiante presente, cuántas no llegó y cuántas quedaron pendientes.',
                         'default'     => true,
                     ],
                     'top_formadores' => [
                         'label'       => 'Formadores con más citas atendidas',
-                        'descripcion' => 'Ranking de formadores ordenado por cantidad de citas atendidas en el periodo.',
+                        'descripcion' => 'Lista ordenada de formadores según cuántas citas atendieron en el periodo.',
                         'default'     => true,
                     ],
                     'listado_citas' => [
-                        'label'       => 'Listado completo de citas',
-                        'descripcion' => 'Tabla detallada con todas las citas del periodo: estudiante, formador, fecha, hora, estado y asistencia.',
+                        'label'       => 'Listado detallado de cada cita',
+                        'descripcion' => 'Tabla con todas las citas del periodo: estudiante, formador, fecha, hora, situación y asistencia. Una fila por cada cita.',
                         'default'     => true,
                     ],
                 ],
             ],
             'estudiantes' => [
                 'titulo'      => 'Reporte de estudiantes atendidos',
-                'descripcion' => 'Estudiantes que recibieron al menos una cita en el periodo. Incluye distribución por grado, grupo y ranking.',
+                'descripcion' => 'Estudiantes que recibieron al menos una cita en el periodo. Muestra cómo se distribuyen por grado y grupo, y quiénes recibieron más citas.',
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen del periodo',
-                        'descripcion' => 'Totales del periodo: estudiantes atendidos, total de citas, promedio de citas por estudiante y clasificaciones usadas.',
+                        'descripcion' => 'Cuántos estudiantes fueron atendidos, cuántas citas recibieron en total, el promedio de citas por estudiante y los temas más frecuentes.',
                         'default'     => true,
                     ],
                     'por_grado' => [
-                        'label'       => 'Estudiantes atendidos por grado',
-                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por grado (4to, 5to, 6to), con su porcentaje del total.',
+                        'label'       => 'Estudiantes atendidos por grado escolar',
+                        'descripcion' => 'Cuántos estudiantes de cada grado (1ro a 6to) recibieron al menos una cita, con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'por_grupo' => [
                         'label'       => 'Estudiantes atendidos por grupo',
-                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por grupo (A, B, C), con su porcentaje del total.',
+                        'descripcion' => 'Cuántos estudiantes de cada grupo (A, B, C, D) recibieron al menos una cita, con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'por_clasificacion' => [
-                        'label'       => 'Clasificaciones más frecuentes',
-                        'descripcion' => 'Tipos de clasificación más usados en las citas de los estudiantes atendidos en el periodo.',
+                        'label'       => 'Temas más tratados en las citas',
+                        'descripcion' => 'Los temas que más se trataron en las citas de estos estudiantes: académico, familiar, emocional, espiritual o institucional.',
                         'default'     => true,
                     ],
                     'top_estudiantes' => [
                         'label'       => 'Estudiantes con más citas recibidas',
-                        'descripcion' => 'Ranking de estudiantes ordenado por cantidad de citas recibidas en el periodo.',
+                        'descripcion' => 'Lista ordenada de estudiantes según cuántas citas recibieron en el periodo.',
                         'default'     => true,
                     ],
                 ],
             ],
             'formadores' => [
-                'titulo'      => 'Reporte de productividad por formador',
-                'descripcion' => 'Actividad de cada formador en el periodo: cuántas citas atendió, cuántas completó y cuántas canceló.',
+                'titulo'      => 'Reporte de actividad de los formadores',
+                'descripcion' => 'Cuántas citas atendió cada formador en el periodo, cuántas completó, cuántas canceló y cuántas siguen programadas.',
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen del periodo',
-                        'descripcion' => 'Totales del periodo: formadores activos, total de citas registradas y promedio de citas por formador.',
+                        'descripcion' => 'Cuántos formadores estuvieron activos, cuántas citas se registraron en total y el promedio de citas por formador.',
                         'default'     => true,
                     ],
                     'top_formadores' => [
-                        'label'       => 'Ranking por citas atendidas',
-                        'descripcion' => 'Ranking de formadores ordenado por cantidad de citas atendidas en el periodo, con medallas para los primeros lugares.',
+                        'label'       => 'Formadores con más citas atendidas',
+                        'descripcion' => 'Lista ordenada de formadores según cuántas citas atendieron en el periodo, con medalla para los tres primeros lugares.',
                         'default'     => true,
                     ],
                     'detalle_formador' => [
-                        'label'       => 'Detalle completo por formador',
-                        'descripcion' => 'Desglose por formador: total de citas, completadas, programadas, canceladas, asistencias y faltas.',
+                        'label'       => 'Desglose de citas por formador',
+                        'descripcion' => 'Tabla con cada formador y el detalle de sus citas: total, completadas, programadas, canceladas, asistencias y faltas.',
                         'default'     => true,
                     ],
                 ],
             ],
             'asistencia' => [
-                'titulo'      => 'Reporte de asistencia a citas',
-                'descripcion' => 'Análisis de asistencia: cuántas citas se atendieron, faltas y pendientes, y desglose por formador.',
+                'titulo'      => 'Reporte de asistencia a las citas',
+                'descripcion' => 'Cuántas citas se atendieron realmente, cuántas no, y cómo se comportó la asistencia por formador.',
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen del periodo',
-                        'descripcion' => 'Totales del periodo con foco en la asistencia: total de citas, tasa de asistencia, asistencias y faltas.',
+                        'descripcion' => 'Totales del periodo con foco en la asistencia: total de citas, porcentaje de asistencia, cuántas veces sí asistió el estudiante y cuántas faltó.',
                         'default'     => true,
                     ],
                     'por_asistencia' => [
-                        'label'       => 'Citas por tipo de asistencia',
-                        'descripcion' => 'Cantidad de citas según la asistencia del estudiante: asistió, no asistió o pendiente, con su porcentaje.',
+                        'label'       => 'Citas por asistencia del estudiante',
+                        'descripcion' => 'Cuántas citas tuvieron al estudiante presente, cuántas no llegó y cuántas quedaron pendientes, con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'detalle_formador' => [
                         'label'       => 'Asistencia desglosada por formador',
-                        'descripcion' => 'Tabla por formador que muestra cuántas citas tuvieron asistencia, faltas y pendientes.',
+                        'descripcion' => 'Tabla por formador: cuántas citas tuvieron asistencia, cuántas fueron faltas y cuántas siguen pendientes.',
                         'default'     => true,
                     ],
                     'listado_citas' => [
                         'label'       => 'Listado de citas con su asistencia',
-                        'descripcion' => 'Tabla con todas las citas del periodo y su estado de asistencia (asistió / no asistió / pendiente).',
+                        'descripcion' => 'Tabla con todas las citas del periodo y si el estudiante asistió, no asistió o quedó pendiente.',
                         'default'     => true,
                     ],
                 ],
@@ -185,7 +185,7 @@ class ReporteController extends Controller
             abort(403, 'No autorizado.');
         }
 
-        // ✅ Solo años con datos en la tabla citas
+        // Solo años con datos en la tabla citas
         $aniosDisponibles = DB::table('citas')
             ->select(DB::raw('DISTINCT YEAR(fecha) as anio'))
             ->orderBy('anio', 'desc')
@@ -241,7 +241,7 @@ class ReporteController extends Controller
                     $week = substr($semana, 6, 2);
                     $fechaInicio = (new \DateTime())->setISODate($year, $week, 1)->format('Y-m-d');
                     $fechaFin    = (new \DateTime())->setISODate($year, $week, 7)->format('Y-m-d');
-                    $periodoLabel = "Semana {$week} de {$year}";
+                    $periodoLabel = "Semana {$week} del año {$year}";
                 } else {
                     $fechaInicio = now()->subWeek()->startOfWeek()->toDateString();
                     $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
@@ -280,7 +280,7 @@ class ReporteController extends Controller
                     $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
                     $periodoLabel = 'Semana anterior (por defecto)';
                 } else {
-                    $periodoLabel = 'Rango personalizado';
+                    $periodoLabel = 'Fechas personalizadas';
                 }
                 break;
         }
@@ -324,7 +324,7 @@ class ReporteController extends Controller
 
     private function recopilarDatos($fechaInicio, $fechaFin): array
     {
-        // ---- KPIs generales ----
+        // ---- Números principales ----
         $totalCitas = DB::table('citas')->whereBetween('fecha', [$fechaInicio, $fechaFin])->count();
 
         $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->where('activo', 1)->count();
@@ -335,7 +335,7 @@ class ReporteController extends Controller
             ->distinct('nombre_estudiante')
             ->count('nombre_estudiante');
 
-        // ---- Citas por estado ----
+        // ---- Citas por situación ----
         $citasPorEstado = DB::table('citas')
             ->select('estado', DB::raw('count(*) as total'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -349,7 +349,7 @@ class ReporteController extends Controller
         $tasaCompletacion = $totalCitas > 0 ? round(($completadas / $totalCitas) * 100, 1) : 0;
         $tasaCancelacion  = $totalCitas > 0 ? round(($canceladas  / $totalCitas) * 100, 1) : 0;
 
-        // ---- Citas por clasificación ----
+        // ---- Citas por tema tratado ----
         $citasPorClasificacion = DB::table('citas')
             ->select('clasificacion', DB::raw('count(*) as total'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -379,7 +379,7 @@ class ReporteController extends Controller
             ->orderBy('hora', 'asc')
             ->get();
 
-        // ---- Top formadores ----
+        // ---- Formadores con más citas atendidas ----
         $topFormadores = DB::table('citas')
             ->select('nombre_formador as formador', DB::raw('count(*) as total_citas'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -389,7 +389,7 @@ class ReporteController extends Controller
             ->limit(10)
             ->get();
 
-        // ---- Detalle por formador ----
+        // ---- Desglose por formador ----
         $detallesFormador = DB::table('citas')
             ->select(
                 'nombre_formador as formador',
@@ -409,7 +409,7 @@ class ReporteController extends Controller
         $formadoresActivos = $detallesFormador->count();
         $promedio = $formadoresActivos > 0 ? round($totalCitas / $formadoresActivos, 1) : 0;
 
-        // ---- Top estudiantes ----
+        // ---- Estudiantes con más citas recibidas ----
         $topEstudiantes = DB::table('citas')
             ->select('nombre_estudiante', DB::raw('count(*) as total_citas'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
