@@ -28,7 +28,6 @@ use Illuminate\Support\Facades\Session;
 // =============================================
 
 Route::get('/', function () {
-    // ✅ Si hay sesión activa, redirigir al panel correspondiente
     if (Session::has('user')) {
         $user = Session::get('user');
         $lastActivity = Session::get('last_activity_at');
@@ -39,7 +38,6 @@ Route::get('/', function () {
             return redirect()->route($route);
         }
 
-        // Sesión expirada → limpiar
         Session::forget('user');
         Session::forget('last_activity_at');
     }
@@ -50,10 +48,10 @@ Route::get('/', function () {
 Route::get('/solicitar-cita', [CitaPublicController::class, 'index'])->name('cita.solicitar');
 
 Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])
-    ->middleware('throttle:3,1')
+    ->middleware('throttle:solicitar-cita')
     ->name('cita.store');
 
-Route::middleware('throttle:10,1')->group(function () {
+Route::middleware('throttle:api-publica')->group(function () {
     Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
     Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
     Route::get('/api/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
@@ -64,14 +62,16 @@ Route::middleware('throttle:10,1')->group(function () {
 // =============================================
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1')->name('login.post');
+Route::post('/login', [LoginController::class, 'login'])
+    ->middleware('throttle:login')
+    ->name('login.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // =============================================
 // RUTAS PROTEGIDAS
 // =============================================
 
-Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
+Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
 
     // ---------- COORDINADOR ----------
     Route::get('/indicadores', [IndicadoresController::class, 'index'])
