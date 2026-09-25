@@ -14,6 +14,9 @@ use App\Imports\EstudiantesExcelImport;
 
 class EstudianteController extends Controller
 {
+    // Grados permitidos (lista blanca)
+    private const GRADOS_VALIDOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
+
     public function index()
     {
         $user = Session::get('user');
@@ -171,7 +174,7 @@ class EstudianteController extends Controller
         $request->validate([
             'id_estudiante' => 'required|string|max:10|unique:estudiantes,id_estudiante',
             'nombre'        => 'required|string|max:100',
-            'grado'         => 'required|string|max:10',
+            'grado'         => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'         => 'required|string|max:5',
             'telefono_estudiante' => 'nullable|string|max:10',
             'telefono_padre'      => 'nullable|string|max:10',
@@ -181,7 +184,7 @@ class EstudianteController extends Controller
             'id_estudiante' => $request->id_estudiante,
             'nombre'        => $request->nombre,
             'grado'         => $request->grado,
-            'grupo'         => $request->grupo,
+            'grupo'         => strtoupper(trim($request->grupo)), // ← normalizado a mayúsculas
             'telefono_estudiante' => $request->telefono_estudiante,
             'telefono_padre'      => $request->telefono_padre,
         ]);
@@ -202,7 +205,7 @@ class EstudianteController extends Controller
 
         $request->validate([
             'nombre'    => 'required|string|max:100',
-            'grado'     => 'required|string|max:10',
+            'grado'     => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'     => 'required|string|max:5',
             'telefono_estudiante' => 'nullable|string|max:10',
             'telefono_padre'      => 'nullable|string|max:10',
@@ -218,7 +221,7 @@ class EstudianteController extends Controller
             ->update([
                 'nombre'    => $request->nombre,
                 'grado'     => $request->grado,
-                'grupo'     => $request->grupo,
+                'grupo'     => strtoupper(trim($request->grupo)), // ← normalizado a mayúsculas
                 'telefono_estudiante' => $request->telefono_estudiante,
                 'telefono_padre'      => $request->telefono_padre,
             ]);

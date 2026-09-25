@@ -22,15 +22,22 @@ class CitaController extends Controller
         $verTodas = ($rol === 'Formador') && ($request->get('todas') == 1);
         $soloLectura = $verTodas;
 
-        $filtroFormador = $request->get('formador');
-        $filtroEstado = $request->get('estado');
-        $filtroFecha = $request->get('fecha');
-        $semana = $request->get('semana', 'actual');
+        // ============================================================
+        // PARÁMETROS DE FILTRO
+        // ============================================================
+        $filtroFormador   = $request->get('formador');
+        $filtroEstado     = $request->get('estado');
+        $filtroFecha      = $request->get('fecha');
+        $periodo          = $request->get('semana', 'actual'); // actual | todas
+        $filtroAnio       = $request->get('anio');
+        $filtroMes        = $request->get('mes');
+        $semanaValor      = $request->get('semana_valor'); // ej. 2026-W38
+        $filtroGrado      = $request->get('grado');
+        $filtroGrupo      = $request->get('grupo');
 
-        // ✅ Ya no se necesita el JOIN a usuarios: nombre_formador
-        // ahora vive directamente en la tabla citas (snapshot histórico).
         $query = DB::table('citas')->select('citas.*');
 
+        // Filtro por rol/formador
         if ($rol == 'Formador' && !$verTodas) {
             $query->where('citas.id_usuario', $usuarioId);
         } else {
@@ -39,44 +46,107 @@ class CitaController extends Controller
             }
         }
 
+        // Filtro por estado
         if ($filtroEstado) {
             $query->where('citas.estado', $filtroEstado);
         }
 
-        if ($semana == 'actual') {
+        // ============================================================
+        // FILTRO POR GRADO / GRUPO
+        // ============================================================
+        if ($filtroGrado || $filtroGrupo) {
+            $qEst = DB::table('estudiantes')->select('id_estudiante');
+            if ($filtroGrado) $qEst->where('grado', $filtroGrado);
+            if ($filtroGrupo) $qEst->where('grupo', $filtroGrupo);
+            $idsEstudiantes = $qEst->pluck('id_estudiante')->toArray();
+
+            $query->whereIn('citas.id_estudiante', $idsEstudiantes ?: [0]);
+        }
+
+        // ============================================================
+        // FILTRO POR FECHA
+        // Prioridad: semana_valor > fecha > mes > anio > periodo
+        // ============================================================
+        if ($semanaValor) {
+            $year = substr($semanaValor, 0, 4);
+            $week = substr($semanaValor, 6, 2);
+            $fechaLunes   = (new \DateTime())->setISODate($year, $week, 1)->format('Y-m-d');
+            $fechaDomingo = (new \DateTime())->setISODate($year, $week, 7)->format('Y-m-d');
+            $query->whereBetween('citas.fecha', [$fechaLunes, $fechaDomingo]);
+        } elseif ($filtroFecha) {
+            $query->whereDate('citas.fecha', $filtroFecha);
+        } elseif ($filtroMes) {
+            $parts = explode('-', $filtroMes);
+            $query->whereYear('citas.fecha', (int) $parts[0])
+                  ->whereMonth('citas.fecha', (int) $parts[1]);
+        } elseif ($filtroAnio) {
+            $query->whereYear('citas.fecha', (int) $filtroAnio);
+        } elseif ($periodo === 'actual') {
             $hoy = now()->toDateString();
             $fechaLimite = now()->addDays(7)->toDateString();
             $query->where('citas.fecha', '>=', $hoy)
                   ->where('citas.fecha', '<=', $fechaLimite);
-        } else {
-            if ($filtroFecha) {
-                $query->whereDate('citas.fecha', $filtroFecha);
-            }
         }
+        // Si periodo === 'todas' sin otros filtros → sin restricción
 
-        // ✅ Orden ASCENDENTE: la cita más próxima primero (por fecha y luego por hora).
+        // Orden ascendente por fecha/hora
         $citas = $query->orderBy('citas.fecha', 'asc')
                        ->orderBy('citas.hora', 'asc')
                        ->get();
 
+        // ============================================================
+        // DATOS PARA LOS SELECTORES DE FILTRO
+        // ============================================================
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
             ->where('activo', 1)
             ->select('id_usuario', 'nombre')
             ->get();
 
+        $aniosDisponibles = DB::table('citas')
+            ->select(DB::raw('DISTINCT YEAR(fecha) as anio'))
+            ->orderBy('anio', 'desc')
+            ->pluck('anio')
+            ->toArray();
+
+        $gradosActivos = DB::table('estudiantes')
+            ->select('grado')
+            ->distinct()
+            ->orderBy('grado')
+            ->pluck('grado')
+            ->toArray();
+
+        $gruposPorGrado = [];
+        foreach ($gradosActivos as $g) {
+            $gruposPorGrado[$g] = DB::table('estudiantes')
+                ->where('grado', $g)
+                ->select('grupo')
+                ->distinct()
+                ->orderBy('grupo')
+                ->pluck('grupo')
+                ->toArray();
+        }
+
         return inertia('Panel/Citas', [
-            'citas' => $citas,
-            'formadores' => $formadores,
-            'filtros' => [
-                'formador' => $filtroFormador,
-                'estado' => $filtroEstado,
-                'fecha' => $filtroFecha,
-                'semana' => $semana,
+            'citas'            => $citas,
+            'formadores'       => $formadores,
+            'aniosDisponibles' => $aniosDisponibles,
+            'gradosActivos'    => $gradosActivos,
+            'gruposPorGrado'   => $gruposPorGrado,
+            'filtros'          => [
+                'formador'     => $filtroFormador,
+                'estado'       => $filtroEstado,
+                'fecha'        => $filtroFecha,
+                'semana'       => $periodo,
+                'anio'         => $filtroAnio,
+                'mes'          => $filtroMes,
+                'semana_valor' => $semanaValor,
+                'grado'        => $filtroGrado,
+                'grupo'        => $filtroGrupo,
             ],
-            'rol' => $rol,
+            'rol'         => $rol,
             'soloLectura' => $soloLectura,
-            'user' => $user,
+            'user'        => $user,
         ]);
     }
 

@@ -16,14 +16,32 @@ class HorarioAdminController extends Controller
             abort(403, 'No autorizado.');
         }
 
-        $filtroFormador = $request->get('formador');
+        $filtroFormador  = $request->get('formador');
+        $filtroDia       = $request->get('dia');
+        $filtroHoraDesde = $request->get('hora_desde');
+        $filtroHoraHasta = $request->get('hora_hasta');
 
         $query = DB::table('horarios')
             ->join('usuarios', 'horarios.id_usuario', '=', 'usuarios.id_usuario')
+            ->where('usuarios.rol', 'Formador')
             ->select('horarios.*', 'usuarios.nombre as nombre_formador');
 
+        // Filtro por formador
         if ($filtroFormador) {
             $query->where('horarios.id_usuario', $filtroFormador);
+        }
+
+        // Filtro por día
+        if ($filtroDia) {
+            $query->where('horarios.dia_semana', $filtroDia);
+        }
+
+        // Filtro por rango horario
+        if ($filtroHoraDesde) {
+            $query->where('horarios.hora_inicio', '>=', $filtroHoraDesde);
+        }
+        if ($filtroHoraHasta) {
+            $query->where('horarios.hora_fin', '<=', $filtroHoraHasta);
         }
 
         $horarios = $query
@@ -32,18 +50,22 @@ class HorarioAdminController extends Controller
             ->orderBy('horarios.hora_inicio')
             ->get();
 
-        // ✅ Solo formadores ACTIVOS para el selector
+        // Solo formadores ACTIVOS para el selector
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
             ->where('activo', 1)
             ->select('id_usuario', 'nombre')
+            ->orderBy('nombre')
             ->get();
 
         return inertia('Panel/ModificarHorarios', [
-            'horarios' => $horarios,
-            'formadores' => $formadores,
-            'filtroFormador' => $filtroFormador,
-            'user' => $user,
+            'horarios'        => $horarios,
+            'formadores'      => $formadores,
+            'filtroFormador'  => $filtroFormador,
+            'filtroDia'       => $filtroDia,
+            'filtroHoraDesde' => $filtroHoraDesde,
+            'filtroHoraHasta' => $filtroHoraHasta,
+            'user'            => $user,
         ]);
     }
 
@@ -62,7 +84,7 @@ class HorarioAdminController extends Controller
         ]);
 
         $horaInicio = $validated['hora_inicio'];
-        $horaFin = $validated['hora_fin'];
+        $horaFin    = $validated['hora_fin'];
 
         $existe = DB::table('horarios')
             ->where('id_usuario', $validated['id_usuario'])
@@ -76,10 +98,10 @@ class HorarioAdminController extends Controller
         }
 
         DB::table('horarios')->insert([
-            'id_usuario' => $validated['id_usuario'],
-            'dia_semana' => $validated['dia_semana'],
+            'id_usuario'  => $validated['id_usuario'],
+            'dia_semana'  => $validated['dia_semana'],
             'hora_inicio' => $horaInicio,
-            'hora_fin' => $horaFin,
+            'hora_fin'    => $horaFin,
         ]);
 
         return redirect()->route('admin.horarios.index')
@@ -101,7 +123,7 @@ class HorarioAdminController extends Controller
         ]);
 
         $nuevoHoraInicio = $validated['hora_inicio'];
-        $nuevoHoraFin = $validated['hora_fin'];
+        $nuevoHoraFin    = $validated['hora_fin'];
 
         $existe = DB::table('horarios')
             ->where('id_usuario', $validated['id_usuario'])
@@ -124,10 +146,10 @@ class HorarioAdminController extends Controller
             ->where('dia_semana', $dia_semana)
             ->where('hora_inicio', $hora_inicio)
             ->update([
-                'id_usuario' => $validated['id_usuario'],
-                'dia_semana' => $validated['dia_semana'],
+                'id_usuario'  => $validated['id_usuario'],
+                'dia_semana'  => $validated['dia_semana'],
                 'hora_inicio' => $nuevoHoraInicio,
-                'hora_fin' => $nuevoHoraFin,
+                'hora_fin'    => $nuevoHoraFin,
             ]);
 
         return redirect()->route('admin.horarios.index')

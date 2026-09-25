@@ -1,20 +1,36 @@
 // resources/js/Pages/Panel/Estudiantes.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 
+// Grados permitidos (mismo orden que el backend)
+const GRADOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
+
 export default function Estudiantes({ estudiantes, user }) {
+    // ===== IMPORTACIÓN =====
     const [archivo, setArchivo] = useState(null);
     const [cargando, setCargando] = useState(false);
     const [mensaje, setMensaje] = useState(null);
+    const [importarOpen, setImportarOpen] = useState(false);
+    const inputFileRef = useRef(null);
+
+    // ===== LISTA Y ORDEN =====
     const [listaEstudiantes, setListaEstudiantes] = useState(estudiantes);
     const [orden, setOrden] = useState('id_estudiante');
 
-    // ✅ Estado para colapsar la sección de importación
-    const [importarOpen, setImportarOpen] = useState(false);
+    // ===== FILTROS =====
+    // "Input" = lo que el usuario está escribiendo (borrador)
+    // "Filter" = lo que ya se aplicó a la tabla (al presionar "Filtrar")
+    const [busquedaInput, setBusquedaInput] = useState('');
+    const [gradoInput, setGradoInput]       = useState('');
+    const [grupoInput, setGrupoInput]       = useState('');
 
-    const inputFileRef = useRef(null);
+    const [busqueda, setBusqueda]           = useState('');
+    const [gradoFilter, setGradoFilter]     = useState('');
+    const [grupoFilter, setGrupoFilter]     = useState('');
+
+    const [filtrosOpen, setFiltrosOpen]     = useState(false);
 
     // ===== MODAL AGREGAR / EDITAR =====
     const [modalAbierto, setModalAbierto] = useState(false);
@@ -33,6 +49,104 @@ export default function Estudiantes({ estudiantes, user }) {
     const [confirmEliminar, setConfirmEliminar] = useState({ open: false, estudiante: null, loading: false });
     const [confirmEliminarTodos, setConfirmEliminarTodos] = useState({ open: false, loading: false });
 
+    // ============================================================
+    // GRADOS Y GRUPOS DISPONIBLES (derivados de la lista actual)
+    // ============================================================
+    const gradosDisponibles = useMemo(() => {
+        const set = new Set(listaEstudiantes.map(e => e.grado).filter(Boolean));
+        return [...set].sort((a, b) => {
+            const na = parseInt(a, 10) || 0;
+            const nb = parseInt(b, 10) || 0;
+            return na - nb;
+        });
+    }, [listaEstudiantes]);
+
+    // Grupos: dependen del grado que se está escribiendo en el borrador
+    const gruposDisponiblesInput = useMemo(() => {
+        const base = gradoInput
+            ? listaEstudiantes.filter(e => e.grado === gradoInput)
+            : listaEstudiantes;
+        const set = new Set(base.map(e => e.grupo).filter(Boolean));
+        return [...set].sort();
+    }, [listaEstudiantes, gradoInput]);
+
+    // Si cambio el grado en el borrador y el grupo ya no existe → limpiar grupo
+    useEffect(() => {
+        if (grupoInput && !gruposDisponiblesInput.includes(grupoInput)) {
+            setGrupoInput('');
+        }
+    }, [gruposDisponiblesInput, grupoInput]);
+
+    // ============================================================
+    // APLICAR / LIMPIAR FILTROS
+    // ============================================================
+    const aplicarFiltros = () => {
+        // Validación: si hay grupo pero no grado, ignorar grupo
+        const gradoFinal = gradoInput;
+        const grupoFinal = (gradoInput && grupoInput && gruposDisponiblesInput.includes(grupoInput))
+            ? grupoInput
+            : '';
+
+        setBusqueda(busquedaInput.trim());
+        setGradoFilter(gradoFinal);
+        setGrupoFilter(grupoFinal);
+    };
+
+    const limpiarFiltros = () => {
+        setBusquedaInput('');
+        setGradoInput('');
+        setGrupoInput('');
+        setBusqueda('');
+        setGradoFilter('');
+        setGrupoFilter('');
+    };
+
+    // ============================================================
+    // LISTA FILTRADA + ORDENADA (usa los filtros YA APLICADOS)
+    // ============================================================
+    const listaFiltradaYOrdenada = useMemo(() => {
+        let lista = [...listaEstudiantes];
+
+        // Filtro por búsqueda (nombre o ID)
+        if (busqueda !== '') {
+            const q = busqueda.toLowerCase();
+            lista = lista.filter(e =>
+                (e.nombre || '').toLowerCase().includes(q) ||
+                String(e.id_estudiante).toLowerCase().includes(q)
+            );
+        }
+
+        // Filtro por grado
+        if (gradoFilter) {
+            lista = lista.filter(e => e.grado === gradoFilter);
+        }
+
+        // Filtro por grupo
+        if (grupoFilter) {
+            lista = lista.filter(e => e.grupo === grupoFilter);
+        }
+
+        // Orden
+        if (orden === 'grado') {
+            return lista.sort((a, b) => {
+                const gradoA = parseInt(a.grado, 10) || 0;
+                const gradoB = parseInt(b.grado, 10) || 0;
+                if (gradoA !== gradoB) return gradoA - gradoB;
+                return (a.grupo || '').localeCompare(b.grupo || '');
+            });
+        } else {
+            return lista.sort((a, b) =>
+                String(a.id_estudiante).localeCompare(String(b.id_estudiante), undefined, { numeric: true })
+            );
+        }
+    }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, orden]);
+
+    // Contador de filtros YA APLICADOS
+    const filtrosActivos = [busqueda, gradoFilter, grupoFilter].filter(Boolean).length;
+
+    // ============================================================
+    // MODAL
+    // ============================================================
     const abrirModalAgregar = () => {
         setModoEdicion(false);
         setFormData({
@@ -52,7 +166,7 @@ export default function Estudiantes({ estudiantes, user }) {
             id_estudiante: estudiante.id_estudiante,
             nombre: estudiante.nombre,
             grado: estudiante.grado,
-            grupo: estudiante.grupo,
+            grupo: (estudiante.grupo || '').toUpperCase(),
             telefono_estudiante: estudiante.telefono_estudiante || '',
             telefono_padre: estudiante.telefono_padre || '',
         });
@@ -74,6 +188,11 @@ export default function Estudiantes({ estudiantes, user }) {
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    // Cambio del grupo: siempre a MAYÚSCULAS
+    const handleGrupoChange = (e) => {
+        setFormData({ ...formData, grupo: e.target.value.toUpperCase() });
     };
 
     const handleSubmitModal = async (e) => {
@@ -126,7 +245,7 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     };
 
-    // ===== IMPORTAR EXCEL/CSV =====
+    // ===== IMPORTAR =====
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -256,27 +375,11 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     };
 
-    // ===== ORDENAMIENTO =====
-    const listaOrdenada = useMemo(() => {
-        const lista = [...listaEstudiantes];
-        if (orden === 'grado') {
-            return lista.sort((a, b) => {
-                const gradoA = parseInt(a.grado) || 0;
-                const gradoB = parseInt(b.grado) || 0;
-                if (gradoA !== gradoB) return gradoA - gradoB;
-                return a.grupo.localeCompare(b.grupo);
-            });
-        } else {
-            return lista.sort((a, b) =>
-                String(a.id_estudiante).localeCompare(String(b.id_estudiante), undefined, { numeric: true })
-            );
-        }
-    }, [listaEstudiantes, orden]);
-
     return (
         <AuthenticatedLayout>
             <Head title="Gestión de estudiantes" />
             <div className="max-w-7xl mx-auto">
+                {/* Encabezado */}
                 <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800">Gestión de estudiantes</h1>
@@ -313,7 +416,7 @@ export default function Estudiantes({ estudiantes, user }) {
                 )}
 
                 {/* ============================================================ */}
-                {/* Sección de importación (COLAPSABLE) */}
+                {/* Importación (COLAPSABLE) */}
                 {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 overflow-hidden">
                     <button
@@ -336,7 +439,6 @@ export default function Estudiantes({ estudiantes, user }) {
 
                     <div className={`transition-all duration-300 ease-in-out ${importarOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6 border-t border-gray-100">
-                            {/* Mensaje informativo */}
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 mt-4 flex items-start gap-2 text-sm text-amber-800">
                                 <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -396,12 +498,123 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 </div>
 
+                {/* ============================================================ */}
+                {/* Filtros (colapsables, se aplican con el botón) */}
+                {/* ============================================================ */}
+                <div className="bg-white rounded-2xl shadow-md mb-6 border border-gray-100 overflow-hidden">
+                    <button
+                        onClick={() => setFiltrosOpen(!filtrosOpen)}
+                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition text-left"
+                    >
+                        <div className="flex items-center gap-3">
+                            <svg className="w-5 h-5 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                            </svg>
+                            <span className="text-base font-semibold text-gray-800">Filtros de búsqueda</span>
+                            {filtrosActivos > 0 && (
+                                <span className="text-sm text-[#CC4700] bg-[#FF5900]/10 rounded-full px-2.5 py-0.5">
+                                    {filtrosActivos} activo{filtrosActivos === 1 ? '' : 's'}
+                                </span>
+                            )}
+                        </div>
+                        <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${filtrosOpen ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                        <div className="px-6 pb-6 border-t border-gray-100 pt-5">
+                            {/* Fila 1: Búsqueda + Grado + Grupo */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre o ID</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={busquedaInput}
+                                            onChange={(e) => setBusquedaInput(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aplicarFiltros(); } }}
+                                            placeholder="Ej. Daniela o 800001"
+                                            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Grado</label>
+                                    <select
+                                        value={gradoInput}
+                                        onChange={(e) => setGradoInput(e.target.value)}
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    >
+                                        <option value="">Todos los grados</option>
+                                        {gradosDisponibles.map(g => (
+                                            <option key={g} value={g}>{g}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        Grupo
+                                        {!gradoInput && <span className="text-gray-400 ml-1">(elige grado)</span>}
+                                    </label>
+                                    <select
+                                        value={grupoInput}
+                                        onChange={(e) => setGrupoInput(e.target.value)}
+                                        disabled={!gradoInput}
+                                        className={`w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700 ${!gradoInput ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
+                                    >
+                                        <option value="">Todos los grupos</option>
+                                        {gruposDisponiblesInput.map(g => (
+                                            <option key={g} value={g}>Grupo {g}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Fila 2: Botones */}
+                            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
+                                <button
+                                    onClick={aplicarFiltros}
+                                    className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                        </svg>
+                                        Filtrar
+                                    </span>
+                                </button>
+                                <button
+                                    onClick={limpiarFiltros}
+                                    className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 active:scale-95"
+                                >
+                                    Limpiar filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ============================================================ */}
                 {/* Tabla */}
+                {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                     <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-bold text-gray-800">Lista de estudiantes</h2>
-                            <span className="text-sm text-gray-500">Total: {listaEstudiantes.length}</span>
+                            <span className="text-sm text-gray-500">
+                                {filtrosActivos > 0
+                                    ? <>Mostrando <strong className="text-gray-700">{listaFiltradaYOrdenada.length}</strong> de {listaEstudiantes.length}</>
+                                    : <>Total: {listaEstudiantes.length}</>
+                                }
+                            </span>
                         </div>
 
                         <div className="flex gap-2">
@@ -442,7 +655,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
-                                {listaOrdenada.map(e => (
+                                {listaFiltradaYOrdenada.map(e => (
                                     <tr key={e.id_estudiante} className="hover:bg-[#FF5900]/5 transition-colors">
                                         <td className="px-4 py-3 text-sm font-medium text-gray-800 font-mono">{e.id_estudiante}</td>
                                         <td className="px-4 py-3 text-sm text-gray-700">{e.nombre}</td>
@@ -474,10 +687,12 @@ export default function Estudiantes({ estudiantes, user }) {
                                         </td>
                                     </tr>
                                 ))}
-                                {listaOrdenada.length === 0 && (
+                                {listaFiltradaYOrdenada.length === 0 && (
                                     <tr>
                                         <td colSpan="7" className="py-12 text-center text-gray-500">
-                                            No hay estudiantes registrados.
+                                            {filtrosActivos > 0
+                                                ? 'No hay estudiantes que coincidan con los filtros.'
+                                                : 'No hay estudiantes registrados.'}
                                         </td>
                                     </tr>
                                 )}
@@ -487,7 +702,9 @@ export default function Estudiantes({ estudiantes, user }) {
                 </div>
             </div>
 
+            {/* ============================================================ */}
             {/* Modal agregar/editar */}
+            {/* ============================================================ */}
             {modalAbierto && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
@@ -531,23 +748,32 @@ export default function Estudiantes({ estudiantes, user }) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Grado *</label>
-                                    <input
-                                        type="text"
+                                    <select
                                         name="grado"
                                         value={formData.grado}
                                         onChange={handleChange}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
                                         required
-                                    />
+                                    >
+                                        <option value="">Seleccionar</option>
+                                        {GRADOS.map(g => (
+                                            <option key={g} value={g}>{g}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Grupo *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Grupo *
+                                        <span className="text-gray-400 font-normal ml-1">(A-Z)</span>
+                                    </label>
                                     <input
                                         type="text"
                                         name="grupo"
                                         value={formData.grupo}
-                                        onChange={handleChange}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
+                                        onChange={handleGrupoChange}
+                                        maxLength={5}
+                                        placeholder="A"
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 uppercase focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
                                         required
                                     />
                                 </div>

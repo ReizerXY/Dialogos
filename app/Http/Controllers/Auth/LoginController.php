@@ -12,8 +12,16 @@ use Inertia\Inertia;
 
 class LoginController extends Controller
 {
+    /**
+     * Muestra el formulario de login.
+     * Si ya hay una sesión activa (y no expirada), redirige al panel del usuario.
+     */
     public function showLoginForm()
     {
+        if ($this->tieneSesionActiva()) {
+            return $this->redirectAlPanel();
+        }
+
         return inertia('Auth/LoginCustom');
     }
 
@@ -40,16 +48,11 @@ class LoginController extends Controller
             ]);
         }
 
-        // Guardar usuario en sesión
         Session::put('user', (array) $user);
-
-        // ✅ Guardar timestamp de inicio (para el sistema de inactividad)
         Session::put('last_activity_at', time());
 
-        // Regenerar ID de sesión + token CSRF
         $request->session()->regenerate();
 
-        // Inertia::location fuerza full reload para actualizar el meta tag CSRF
         if ($user->rol === 'Coordinador') {
             return Inertia::location(route('indicadores.index'));
         }
@@ -58,14 +61,58 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        // Limpiar el usuario y el timestamp de actividad
         Session::forget('user');
         Session::forget('last_activity_at');
 
-        // Invalidar sesión y regenerar token
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return Inertia::location(route('login'));
+    }
+
+    // ==================================================================
+    // Helpers
+    // ==================================================================
+
+    /**
+     * Devuelve true si hay un usuario en sesión Y su última actividad
+     * está dentro del tiempo permitido (SESSION_LIFETIME minutos).
+     */
+    private function tieneSesionActiva(): bool
+    {
+        if (!Session::has('user')) {
+            return false;
+        }
+
+        $lastActivity = Session::get('last_activity_at');
+        if (!$lastActivity) {
+            // Sesión sin timestamp (de versiones viejas) → considerar inactiva
+            Session::forget('user');
+            return false;
+        }
+
+        $lifetimeSegundos = ((int) config('session.lifetime', 30)) * 60;
+        $dentroDeTiempo = (time() - (int) $lastActivity) <= $lifetimeSegundos;
+
+        if (!$dentroDeTiempo) {
+            // Expiró por inactividad → limpiar
+            Session::forget('user');
+            Session::forget('last_activity_at');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Redirige al panel correspondiente según el rol del usuario.
+     */
+    private function redirectAlPanel()
+    {
+        $user = Session::get('user');
+        $rol = $user['rol'] ?? '';
+
+        $route = ($rol === 'Coordinador') ? 'indicadores.index' : 'horarios.index';
+        return redirect()->route($route);
     }
 }

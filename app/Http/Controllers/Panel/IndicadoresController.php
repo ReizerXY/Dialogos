@@ -119,10 +119,15 @@ class IndicadoresController extends Controller
         $tasaAsistencia = $totalConAsis > 0 ? round(($asistio / $totalConAsis) * 100, 1) : 0;
 
         // ============================================================
-        // ESTUDIANTES AGRUPADOS
+        // ESTUDIANTES AGRUPADOS (respeta filtro de grado/grupo)
         // ============================================================
-        $estudiantesAgrupados = DB::table('estudiantes')
-            ->select('id_estudiante', 'nombre', 'grado', 'grupo')
+        $queryEstudiantesAgrupados = DB::table('estudiantes')
+            ->select('id_estudiante', 'nombre', 'grado', 'grupo');
+
+        if ($grado) $queryEstudiantesAgrupados->where('grado', $grado);
+        if ($grupo) $queryEstudiantesAgrupados->where('grupo', $grupo);
+
+        $estudiantesAgrupados = $queryEstudiantesAgrupados
             ->orderBy('grado')->orderBy('grupo')->orderBy('nombre')
             ->get()
             ->groupBy('grado')

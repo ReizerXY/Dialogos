@@ -3,10 +3,31 @@ import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 
-export default function ModificarHorarios({ horarios, formadores, filtroFormador, user }) {
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editHorario, setEditHorario] = useState(null);
-    const [filtro, setFiltro] = useState(filtroFormador || '');
+const DIAS_SEMANA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+export default function ModificarHorarios({
+    horarios,
+    formadores,
+    filtroFormador,
+    filtroDia,
+    filtroHoraDesde,
+    filtroHoraHasta,
+    user,
+}) {
+    // ============================================================
+    // ESTADOS DE FILTROS
+    // ============================================================
+    const [filtro, setFiltro]           = useState(filtroFormador || '');
+    const [diaFilter, setDiaFilter]     = useState(filtroDia || '');
+    const [horaDesde, setHoraDesde]     = useState(filtroHoraDesde || '');
+    const [horaHasta, setHoraHasta]     = useState(filtroHoraHasta || '');
+    const [filtrosOpen, setFiltrosOpen] = useState(false);
+
+    // ============================================================
+    // ESTADOS DE MODAL / CONFIRMACIÓN
+    // ============================================================
+    const [modalOpen, setModalOpen]         = useState(false);
+    const [editHorario, setEditHorario]     = useState(null);
     const [confirmDelete, setConfirmDelete] = useState({ open: false, horario: null, loading: false });
 
     const { data, setData, post, put, delete: destroy, processing, errors, reset } = useForm({
@@ -16,8 +37,9 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
         hora_fin: '',
     });
 
-    const diasSemana = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
-
+    // ============================================================
+    // MODAL CREAR / EDITAR
+    // ============================================================
     const openCreateModal = () => {
         setEditHorario(null);
         reset();
@@ -27,10 +49,10 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
     const openEditModal = (horario) => {
         setEditHorario(horario);
         setData({
-            id_usuario: horario.id_usuario,
-            dia_semana: horario.dia_semana,
+            id_usuario:  horario.id_usuario,
+            dia_semana:  horario.dia_semana,
             hora_inicio: horario.hora_inicio ? horario.hora_inicio.substring(0, 5) : '',
-            hora_fin: horario.hora_fin ? horario.hora_fin.substring(0, 5) : '',
+            hora_fin:    horario.hora_fin    ? horario.hora_fin.substring(0, 5)    : '',
         });
         setModalOpen(true);
     };
@@ -63,12 +85,13 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
         }
     };
 
-    // ✅ Abrir modal de confirmación
+    // ============================================================
+    // ELIMINAR (con modal de confirmación)
+    // ============================================================
     const handleDelete = (horario) => {
         setConfirmDelete({ open: true, horario, loading: false });
     };
 
-    // ✅ Ejecutar eliminación
     const confirmarEliminar = () => {
         const horario = confirmDelete.horario;
         if (!horario) return;
@@ -88,13 +111,28 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
         });
     };
 
-    const applyFilter = () => {
-        window.location.href = `/admin/horarios?formador=${filtro}`;
+    // ============================================================
+    // APLICAR / LIMPIAR FILTROS
+    // ============================================================
+    const applyFilters = () => {
+        const params = new URLSearchParams();
+        if (filtro)    params.append('formador', filtro);
+        if (diaFilter) params.append('dia', diaFilter);
+        if (horaDesde) params.append('hora_desde', horaDesde);
+        if (horaHasta) params.append('hora_hasta', horaHasta);
+        window.location.href = `/admin/horarios?${params.toString()}`;
     };
 
-    const clearFilter = () => {
+    const clearFilters = () => {
         window.location.href = '/admin/horarios';
     };
+
+    // Contador de filtros activos (para el badge)
+    const filtrosActivos = [filtro, diaFilter, horaDesde, horaHasta].filter(Boolean).length;
+
+    const formadorFiltradoNombre = filtro
+        ? formadores.find(f => String(f.id_usuario) === String(filtro))?.nombre
+        : null;
 
     return (
         <AuthenticatedLayout>
@@ -106,31 +144,37 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-md p-6 mb-8 border border-gray-100">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                            <div className="flex-1">
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Seleccionar por formador</label>
-                                <select
-                                    value={filtro}
-                                    onChange={(e) => setFiltro(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                >
-                                    <option value="">Seleccionar un formador</option>
-                                    {formadores.map(f => (
-                                        <option key={f.id_usuario} value={f.id_usuario}>{f.nombre}</option>
-                                    ))}
-                                </select>
+                {/* ============================================================ */}
+                {/* Filtros (colapsables) + botón Nuevo horario siempre visible */}
+                {/* ============================================================ */}
+                <div className="bg-white rounded-2xl shadow-md mb-8 border border-gray-100 overflow-hidden">
+                    <div className="flex items-stretch">
+                        <button
+                            onClick={() => setFiltrosOpen(!filtrosOpen)}
+                            className="flex-1 flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition text-left"
+                        >
+                            <div className="flex items-center gap-3">
+                                <svg className="w-5 h-5 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                </svg>
+                                <span className="text-base font-semibold text-gray-800">Filtros de búsqueda</span>
+                                {filtrosActivos > 0 && (
+                                    <span className="text-sm text-[#CC4700] bg-[#FF5900]/10 rounded-full px-2.5 py-0.5">
+                                        {filtrosActivos} activo{filtrosActivos === 1 ? '' : 's'}
+                                    </span>
+                                )}
                             </div>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0 mt-4 sm:mt-0">
-                            <button onClick={applyFilter} className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95">
-                                Filtrar
-                            </button>
-                            <button onClick={clearFilter} className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 active:scale-95">
-                                Limpiar filtro
-                            </button>
-                            <button onClick={openCreateModal} className="px-6 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/25 transition-all duration-200 active:scale-95 flex items-center gap-2">
+                            <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${filtrosOpen ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {/* Botón "Nuevo horario" fuera del colapsable, siempre visible */}
+                        <div className="flex items-center pr-6">
+                            <button
+                                onClick={openCreateModal}
+                                className="px-5 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/25 transition-all duration-200 active:scale-95 flex items-center gap-2 whitespace-nowrap"
+                            >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
@@ -138,16 +182,101 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
                             </button>
                         </div>
                     </div>
+
+                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                        <div className="px-6 pb-6 border-t border-gray-100 pt-5">
+                            {/* Fila 1: Formador, Día, Hora desde, Hora hasta */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Formador</label>
+                                    <select
+                                        value={filtro}
+                                        onChange={(e) => setFiltro(e.target.value)}
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    >
+                                        <option value="">Todos los formadores</option>
+                                        {formadores.map(f => (
+                                            <option key={f.id_usuario} value={f.id_usuario}>{f.nombre}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Día de la semana</label>
+                                    <select
+                                        value={diaFilter}
+                                        onChange={(e) => setDiaFilter(e.target.value)}
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    >
+                                        <option value="">Todos los días</option>
+                                        {DIAS_SEMANA.map(d => (
+                                            <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Hora desde</label>
+                                    <input
+                                        type="time"
+                                        value={horaDesde}
+                                        onChange={(e) => setHoraDesde(e.target.value)}
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Hora hasta</label>
+                                    <input
+                                        type="time"
+                                        value={horaHasta}
+                                        onChange={(e) => setHoraHasta(e.target.value)}
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Fila 2: Botones */}
+                            <div className="flex flex-wrap items-center gap-2 pt-4 mt-4 border-t border-gray-100">
+                                <button
+                                    onClick={applyFilters}
+                                    className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                        </svg>
+                                        Aplicar filtros
+                                    </span>
+                                </button>
+                                <button
+                                    onClick={clearFilters}
+                                    className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 active:scale-95"
+                                >
+                                    Limpiar filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
+                {/* ============================================================ */}
+                {/* Tabla de horarios */}
+                {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                     {horarios.length === 0 ? (
                         <div className="py-16 text-center">
                             <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <p className="text-gray-500 text-lg">No hay horarios registrados</p>
-                            <p className="text-gray-400 text-sm mt-1">Crea un nuevo horario para empezar.</p>
+                            <p className="text-gray-500 text-lg">
+                                {filtrosActivos > 0 ? 'No hay horarios con esos filtros' : 'No hay horarios registrados'}
+                            </p>
+                            <p className="text-gray-400 text-sm mt-1">
+                                {filtrosActivos > 0
+                                    ? 'Prueba quitando algún filtro o crea uno nuevo.'
+                                    : 'Crea un nuevo horario para empezar.'}
+                            </p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -175,11 +304,11 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#FF5900]/10 text-[#CC4700] font-mono">
-                                                    {h.hora_inicio}
+                                                    {h.hora_inicio?.substring(0, 5)}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-700 font-mono">{h.hora_fin}</span>
+                                                <span className="text-sm text-gray-700 font-mono">{h.hora_fin?.substring(0, 5)}</span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex gap-2">
@@ -209,17 +338,23 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
                             </table>
                         </div>
                     )}
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
-                        <span>Total: {horarios.length} horarios</span>
-                        {filtro && (
+
+                    {/* Footer con resumen */}
+                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-wrap justify-between items-center gap-2 text-sm text-gray-500">
+                        <span>Total: <strong className="text-gray-700">{horarios.length}</strong> {horarios.length === 1 ? 'bloque' : 'bloques'}</span>
+                        {filtrosActivos > 0 && (
                             <span className="text-[#FF5900]">
-                                Mostrando filtro por: {formadores.find(f => f.id_usuario == filtro)?.nombre}
+                                Filtros activos: {filtrosActivos}
+                                {formadorFiltradoNombre && ` · ${formadorFiltradoNombre}`}
                             </span>
                         )}
                     </div>
                 </div>
             </div>
 
+            {/* ============================================================ */}
+            {/* Modal crear / editar */}
+            {/* ============================================================ */}
             {modalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
@@ -252,7 +387,7 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
                                     required
                                 >
                                     <option value="">Seleccionar día</option>
-                                    {diasSemana.map(d => (
+                                    {DIAS_SEMANA.map(d => (
                                         <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
                                     ))}
                                 </select>
@@ -307,6 +442,7 @@ export default function ModificarHorarios({ horarios, formadores, filtroFormador
                 </div>
             )}
 
+            {/* Modal confirmar eliminación */}
             <ConfirmModal
                 isOpen={confirmDelete.open}
                 onClose={() => setConfirmDelete({ open: false, horario: null, loading: false })}

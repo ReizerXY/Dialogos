@@ -26,7 +26,6 @@ function semanaTitulo(semanaISO) {
     return `semana ${parseInt(weekPart, 10)} de ${year}`;
 }
 
-// Convierte "09:00" → "9:00 am"
 function formatHora12(hora24) {
     if (!hora24) return '';
     const [h, m] = hora24.split(':');
@@ -37,16 +36,21 @@ function formatHora12(hora24) {
     return `${hNum}:${m} ${ampm}`;
 }
 
-// ✅ Todas las secciones activas por defecto
+// Helper para capitalizar (para el tooltip)
+function capitalizar(texto) {
+    if (!texto) return '';
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 const SECCIONES_INFO = [
     { key: 'kpis',         label: 'Resumen general',                     default: true },
     { key: 'distribucion', label: 'Distribución de citas',               default: true },
     { key: 'tendencias',   label: 'Tendencias',                          default: true },
     { key: 'destacados',   label: 'Formadores y estudiantes destacados', default: true },
     { key: 'comparativas', label: 'Comparativas',                        default: true },
-    { key: 'formadores',   label: 'Detalle por formador',                default: true },
-    { key: 'estudiantes',  label: 'Estudiantes por grado/grupo',         default: true },
+    { key: 'formadores',   label: 'Datos por formador',                  default: true },
     { key: 'citas',        label: 'Tabla de citas',                      default: true },
+    { key: 'estudiantes',  label: 'Estudiantes por grado/grupo',         default: true },
 ];
 
 const SECCIONES_KEYS = SECCIONES_INFO.map(s => s.key);
@@ -72,12 +76,12 @@ export default function Indicadores({
     const [grupo,  setGrupo]  = useState(filtroGrupo  || '');
 
     const [personalizadorOpen, setPersonalizadorOpen] = useState(false);
-    const [filtrosOpen, setFiltrosOpen] = useState(true);
+    const [filtrosOpen, setFiltrosOpen] = useState(false);
 
     const [secciones, setSecciones] = useState(() => {
         if (typeof window === 'undefined') return Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default]));
         try {
-            const g = localStorage.getItem('indicadores_secciones_v10');
+            const g = localStorage.getItem('indicadores_secciones_v11');
             if (g) return { ...Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default])), ...JSON.parse(g) };
         } catch {}
         return Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default]));
@@ -91,7 +95,7 @@ export default function Indicadores({
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            localStorage.setItem('indicadores_secciones_v10', JSON.stringify(secciones));
+            localStorage.setItem('indicadores_secciones_v11', JSON.stringify(secciones));
         }
     }, [secciones]);
 
@@ -359,13 +363,17 @@ export default function Indicadores({
                             ) : <p className="text-gray-400 text-sm">No hay datos</p>}
                         </SubDesplegable>
 
+                        {/* ✅ Clasificación: solo color + número, tooltip con el nombre */}
                         <SubDesplegable titulo="Cantidad de citas por tipo de clasificación" abierta={subDist.clasificacion} onToggle={() => toggleSubDist('clasificacion')}>
                             {Object.keys(citasPorClasificacion).length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
-                                        <div key={`c-${clasif}`} className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                                            <div className={`w-3.5 h-3.5 rounded ${CLASIFICACION_COLOR_BLOCK[clasif] || 'bg-gray-400'}`}></div>
-                                            <span className="text-sm font-medium text-gray-700 capitalize">{clasif}</span>
+                                        <div
+                                            key={`c-${clasif}`}
+                                            className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 cursor-help"
+                                            title={capitalizar(clasif)}
+                                        >
+                                            <div className={`w-4 h-4 rounded ${CLASIFICACION_COLOR_BLOCK[clasif] || 'bg-gray-400'}`}></div>
                                             <span className="text-base font-bold text-gray-800">{total}</span>
                                         </div>
                                     ))}
@@ -393,7 +401,7 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 3. Tendencias (SIN BARRAS) */}
+                {/* 3. Tendencias */}
                 {secciones.tendencias && (
                     <SeccionColapsable
                         titulo={`Tendencias de citas de ${periodoTexto}${contextoGradoGrupo}`}
@@ -470,7 +478,7 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                 {/* 4. Destacados */}
+                {/* 4. Destacados */}
                 {secciones.destacados && (
                     <SeccionColapsable
                         titulo={`Formadores y estudiantes destacados de ${periodoTexto}${contextoGradoGrupo}`}
@@ -478,7 +486,6 @@ export default function Indicadores({
                         onToggle={() => toggleColapsada('destacados')}
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Formadores destacados */}
                             <div>
                                 <h3 className="text-base font-medium text-gray-500 mb-3">Formadores con más citas atendidas</h3>
                                 {formadoresTop.length > 0 ? (
@@ -496,8 +503,6 @@ export default function Indicadores({
                                     </div>
                                 ) : <p className="text-gray-400 text-sm">No hay datos</p>}
                             </div>
-
-                            {/* Estudiantes destacados */}
                             <div>
                                 <h3 className="text-base font-medium text-gray-500 mb-3">Estudiantes con más citas recibidas</h3>
                                 {estudiantesTop.length > 0 ? (
@@ -519,7 +524,7 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                                {/* 5. Comparativas */}
+                {/* 5. Comparativas */}
                 {secciones.comparativas && (
                     <SeccionColapsable
                         titulo={`Comparativas de citas de ${periodoTexto}${contextoGradoGrupo}`}
@@ -555,10 +560,10 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 6. Detalle por formador */}
+                {/* 6. Datos por formador (renombrado) */}
                 {secciones.formadores && detalleFormadores.length > 0 && (
                     <SeccionColapsable
-                        titulo={`Detalle por formador de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Datos por formador de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.formadores}
                         onToggle={() => toggleColapsada('formadores')}
                     >
@@ -603,10 +608,14 @@ export default function Indicadores({
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-600 mb-2">Tipos de clasificación más usados</div>
                                                         <div className="flex flex-wrap gap-2">
+                                                            {/* ✅ Solo color + número, tooltip con el nombre */}
                                                             {f.clasificaciones.map((c, i) => (
-                                                                <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-                                                                    <div className={`w-3.5 h-3.5 rounded ${CLASIFICACION_COLOR_BLOCK[c.clasificacion] || 'bg-gray-400'}`}></div>
-                                                                    <span className="text-sm text-gray-700 capitalize">{c.clasificacion}</span>
+                                                                <div
+                                                                    key={i}
+                                                                    className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 cursor-help"
+                                                                    title={capitalizar(c.clasificacion)}
+                                                                >
+                                                                    <div className={`w-4 h-4 rounded ${CLASIFICACION_COLOR_BLOCK[c.clasificacion] || 'bg-gray-400'}`}></div>
                                                                     <span className="text-base font-bold text-gray-800">{c.total}</span>
                                                                 </div>
                                                             ))}
@@ -622,7 +631,39 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 7. Estudiantes por grado/grupo */}
+                {/* 7. Tabla de citas — AHORA ANTES DE ESTUDIANTES */}
+                {secciones.citas && (
+                    <SeccionColapsable titulo={tituloCitas} abierta={!colapsadas.citas} onToggle={() => toggleColapsada('citas')}>
+                        {citasDelPeriodo.length > 0 ? (
+                            <div className="overflow-x-auto -mx-6 -mb-6">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Estudiante</th>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Formador</th>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hora</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-100">
+                                        {citasDelPeriodo.map(c => (
+                                            <tr key={`cita-${c.id_cita}`} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_estudiante}</td>
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_formador}</td>
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{formatFecha(c.fecha)}</td>
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.hora?.substring(0,5)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center"><p className="text-gray-500 text-base">{mensajeSinCitas}</p></div>
+                        )}
+                    </SeccionColapsable>
+                )}
+
+                {/* 8. Estudiantes por grado/grupo — AHORA DESPUÉS DE CITAS */}
                 {secciones.estudiantes && (
                     <SeccionColapsable titulo="Estudiantes registrados por grado y grupo" abierta={!colapsadas.estudiantes} onToggle={() => toggleColapsada('estudiantes')}>
                         <div className="space-y-4">
@@ -664,41 +705,11 @@ export default function Indicadores({
                                 </div>
                             ))}
                             {Object.keys(estudiantesAgrupados).length === 0 && (
-                                <p className="text-gray-400 text-sm text-center py-4">No hay estudiantes registrados</p>
+                                <p className="text-gray-400 text-sm text-center py-4">
+                                    No hay estudiantes para el filtro seleccionado.
+                                </p>
                             )}
                         </div>
-                    </SeccionColapsable>
-                )}
-
-                {/* 8. Tabla de citas */}
-                {secciones.citas && (
-                    <SeccionColapsable titulo={tituloCitas} abierta={!colapsadas.citas} onToggle={() => toggleColapsada('citas')}>
-                        {citasDelPeriodo.length > 0 ? (
-                            <div className="overflow-x-auto -mx-6 -mb-6">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Estudiante</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Formador</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hora</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-100">
-                                        {citasDelPeriodo.map(c => (
-                                            <tr key={`cita-${c.id_cita}`} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_estudiante}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_formador}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{formatFecha(c.fecha)}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.hora?.substring(0,5)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="py-12 text-center"><p className="text-gray-500 text-base">{mensajeSinCitas}</p></div>
-                        )}
                     </SeccionColapsable>
                 )}
             </div>
@@ -745,7 +756,6 @@ function SubDesplegable({ titulo, abierta, onToggle, children }) {
     );
 }
 
-/* ✅ TrendItem sin barra de progreso — solo datos */
 function TrendItem({ titulo, descripcion, total }) {
     return (
         <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow flex items-center justify-between gap-4">
@@ -758,7 +768,6 @@ function TrendItem({ titulo, descripcion, total }) {
     );
 }
 
-/* ✅ NUEVO COMPONENTE: item de ranking con el mismo estilo que TrendItem */
 function RankingItem({ posicion, nombre, etiqueta, total, unidad = 'cita' }) {
     const colores = ['bg-yellow-400', 'bg-gray-400', 'bg-orange-400'];
     const colorMedalla = posicion < 3 ? colores[posicion] : 'bg-gray-300';
