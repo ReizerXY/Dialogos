@@ -1,7 +1,9 @@
 <?php
+// app/Console/Commands/ActualizarCitasVencidas.php
 
 namespace App\Console\Commands;
 
+use App\Services\CacheInvalidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -15,8 +17,10 @@ class ActualizarCitasVencidas extends Command
     {
         $ahora = now();
 
-        // Obtener citas programadas cuya fecha y hora ya pasaron
-        $citas = DB::table('citas')
+        // ✅ CORRECCIÓN: se usa una sola query UPDATE en lugar de un foreach.
+        //    Además, antes se filtraba por la columna 'id' (inexistente);
+        //    ahora se hace por 'id_cita'. El comando no funcionaba antes.
+        $count = DB::table('citas')
             ->where('estado', 'programada')
             ->where(function ($query) use ($ahora) {
                 $query->where('fecha', '<', $ahora->toDateString())
@@ -25,17 +29,16 @@ class ActualizarCitasVencidas extends Command
                             ->where('hora', '<=', $ahora->toTimeString());
                       });
             })
-            ->get();
+            ->update(['estado' => 'completada']);
 
-        $count = 0;
-        foreach ($citas as $cita) {
-            DB::table('citas')
-                ->where('id', $cita->id)
-                ->update(['estado' => 'completada']);
-            $count++;
+        if ($count > 0) {
+            // ✅ Invalidar el caché de Indicadores solo si algo cambió
+            CacheInvalidator::indicadores();
+
+            Log::info("Citas vencidas actualizadas automáticamente: {$count} citas completadas.");
+            $this->info("Se completaron {$count} citas vencidas.");
+        } else {
+            $this->info("No había citas vencidas pendientes.");
         }
-
-        Log::info("Citas vencidas actualizadas automáticamente: {$count} citas completadas.");
-        $this->info("Se completaron {$count} citas vencidas.");
     }
 }

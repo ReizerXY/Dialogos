@@ -12,9 +12,6 @@ use Illuminate\Support\Facades\Session;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    /**
-     * Ruta a la que se redirige tras login (la usamos vía Inertia, pero por si acaso).
-     */
     public const HOME = '/';
 
     public function boot(): void
@@ -30,36 +27,39 @@ class RouteServiceProvider extends ServiceProvider
     protected function configureRateLimiting(): void
     {
         // ------------------------------------------------------------
-        // Login público — 15 intentos por minuto POR IP
-        // (suficiente para reintentos legítimos, sigue bloqueando fuerza bruta)
+        // LOGIN — 30 intentos por minuto por IP
+        //
+        // Es alto a propósito: la gente legítima puede cerrar y abrir
+        // sesión varias veces seguidas (probar roles, cambiar de cuenta,
+        // dejar sesión abierta y volver). Sigue bloqueando fuerza bruta
+        // automatizada, que hace cientos/miles de intentos por minuto.
         // ------------------------------------------------------------
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(15)->by($request->ip());
-        });
-
-        // ------------------------------------------------------------
-        // Solicitar cita (público) — 5 por minuto por IP
-        // ------------------------------------------------------------
-        RateLimiter::for('solicitar-cita', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
-        });
-
-        // ------------------------------------------------------------
-        // APIs públicas (verificar estudiante, disponibilidad) — 30/min por IP
-        // ------------------------------------------------------------
-        RateLimiter::for('api-publica', function (Request $request) {
             return Limit::perMinute(30)->by($request->ip());
         });
 
         // ------------------------------------------------------------
-        // Rutas autenticadas — 500 por minuto POR USUARIO
+        // SOLICITAR CITA (público) — 10 por minuto por IP
+        // ------------------------------------------------------------
+        RateLimiter::for('solicitar-cita', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
+
+        // ------------------------------------------------------------
+        // APIs PÚBLICAS — 60/min por IP
+        // ------------------------------------------------------------
+        RateLimiter::for('api-publica', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
+        // ------------------------------------------------------------
+        // RUTAS AUTENTICADAS — 500/min POR USUARIO
         //
-        // Clave: usar id_usuario en vez de IP para que:
+        // Usamos id_usuario como clave, no la IP, para que:
         //   - Cada usuario tenga su propio cupo.
-        //   - Usuarios detrás del mismo proxy/NAT no se bloqueen entre sí.
-        //   - Cambiar de pestaña / cerrar sesión / volver a entrar no te agote.
-        //
-        // Fallback a IP si no hay sesión (p. ej. durante logout).
+        //   - Varios usuarios detrás del mismo proxy/NAT no se bloqueen.
+        //   - Navegar entre pestañas/apartados no agote nada.
+        // Fallback a IP si no hay sesión (por ejemplo durante logout).
         // ------------------------------------------------------------
         RateLimiter::for('autenticado', function (Request $request) {
             $user = Session::get('user');

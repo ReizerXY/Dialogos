@@ -1,3 +1,4 @@
+// resources/js/Pages/Panel/ModificarHorarios.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
@@ -14,18 +15,12 @@ export default function ModificarHorarios({
     filtroHoraHasta,
     user,
 }) {
-    // ============================================================
-    // ESTADOS DE FILTROS
-    // ============================================================
     const [filtro, setFiltro]           = useState(filtroFormador || '');
     const [diaFilter, setDiaFilter]     = useState(filtroDia || '');
     const [horaDesde, setHoraDesde]     = useState(filtroHoraDesde || '');
     const [horaHasta, setHoraHasta]     = useState(filtroHoraHasta || '');
     const [filtrosOpen, setFiltrosOpen] = useState(false);
 
-    // ============================================================
-    // ESTADOS DE MODAL / CONFIRMACIÓN
-    // ============================================================
     const [modalOpen, setModalOpen]         = useState(false);
     const [editHorario, setEditHorario]     = useState(null);
     const [confirmDelete, setConfirmDelete] = useState({ open: false, horario: null, loading: false });
@@ -37,9 +32,6 @@ export default function ModificarHorarios({
         hora_fin: '',
     });
 
-    // ============================================================
-    // MODAL CREAR / EDITAR
-    // ============================================================
     const openCreateModal = () => {
         setEditHorario(null);
         reset();
@@ -71,7 +63,7 @@ export default function ModificarHorarios({
                 preserveScroll: true,
                 onSuccess: () => {
                     closeModal();
-                    window.location.reload();
+                    // ✅ Inertia ya refrescó la página con el redirect del controller
                 },
             });
         } else {
@@ -79,15 +71,12 @@ export default function ModificarHorarios({
                 preserveScroll: true,
                 onSuccess: () => {
                     closeModal();
-                    window.location.reload();
+                    // ✅ Inertia ya refrescó la página con el redirect del controller
                 },
             });
         }
     };
 
-    // ============================================================
-    // ELIMINAR (con modal de confirmación)
-    // ============================================================
     const handleDelete = (horario) => {
         setConfirmDelete({ open: true, horario, loading: false });
     };
@@ -103,7 +92,7 @@ export default function ModificarHorarios({
             preserveScroll: true,
             onSuccess: () => {
                 setConfirmDelete({ open: false, horario: null, loading: false });
-                window.location.reload();
+                // ✅ Inertia ya refrescó la página con el redirect del controller
             },
             onError: () => {
                 setConfirmDelete(prev => ({ ...prev, loading: false }));
@@ -111,9 +100,6 @@ export default function ModificarHorarios({
         });
     };
 
-    // ============================================================
-    // APLICAR / LIMPIAR FILTROS
-    // ============================================================
     const applyFilters = () => {
         const params = new URLSearchParams();
         if (filtro)    params.append('formador', filtro);
@@ -127,7 +113,6 @@ export default function ModificarHorarios({
         window.location.href = '/admin/horarios';
     };
 
-    // Contador de filtros activos (para el badge)
     const filtrosActivos = [filtro, diaFilter, horaDesde, horaHasta].filter(Boolean).length;
 
     const formadorFiltradoNombre = filtro
@@ -144,9 +129,6 @@ export default function ModificarHorarios({
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>
 
-                {/* ============================================================ */}
-                {/* Filtros (colapsables) + botón Nuevo horario siempre visible */}
-                {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md mb-8 border border-gray-100 overflow-hidden">
                     <div className="flex items-stretch">
                         <button
@@ -169,7 +151,6 @@ export default function ModificarHorarios({
                             </svg>
                         </button>
 
-                        {/* Botón "Nuevo horario" fuera del colapsable, siempre visible */}
                         <div className="flex items-center pr-6">
                             <button
                                 onClick={openCreateModal}
@@ -185,7 +166,6 @@ export default function ModificarHorarios({
 
                     <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6 border-t border-gray-100 pt-5">
-                            {/* Fila 1: Formador, Día, Hora desde, Hora hasta */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Formador</label>
@@ -236,7 +216,6 @@ export default function ModificarHorarios({
                                 </div>
                             </div>
 
-                            {/* Fila 2: Botones */}
                             <div className="flex flex-wrap items-center gap-2 pt-4 mt-4 border-t border-gray-100">
                                 <button
                                     onClick={applyFilters}
@@ -260,9 +239,6 @@ export default function ModificarHorarios({
                     </div>
                 </div>
 
-                {/* ============================================================ */}
-                {/* Tabla de horarios */}
-                {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                     {horarios.length === 0 ? (
                         <div className="py-16 text-center">
@@ -339,7 +315,6 @@ export default function ModificarHorarios({
                         </div>
                     )}
 
-                    {/* Footer con resumen */}
                     <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-wrap justify-between items-center gap-2 text-sm text-gray-500">
                         <span>Total: <strong className="text-gray-700">{horarios.length}</strong> {horarios.length === 1 ? 'bloque' : 'bloques'}</span>
                         {filtrosActivos > 0 && (
@@ -352,9 +327,6 @@ export default function ModificarHorarios({
                 </div>
             </div>
 
-            {/* ============================================================ */}
-            {/* Modal crear / editar */}
-            {/* ============================================================ */}
             {modalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
@@ -442,7 +414,6 @@ export default function ModificarHorarios({
                 </div>
             )}
 
-            {/* Modal confirmar eliminación */}
             <ConfirmModal
                 isOpen={confirmDelete.open}
                 onClose={() => setConfirmDelete({ open: false, horario: null, loading: false })}

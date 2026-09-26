@@ -1,3 +1,4 @@
+// resources/js/Pages/Panel/MisHorarios.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
@@ -46,7 +47,7 @@ export default function MisHorarios({ horarios, user }) {
                 preserveScroll: true,
                 onSuccess: () => {
                     closeModal();
-                    window.location.reload();
+                    // ✅ Inertia ya refrescó la página con el redirect del controller
                 },
             });
         } else {
@@ -54,18 +55,16 @@ export default function MisHorarios({ horarios, user }) {
                 preserveScroll: true,
                 onSuccess: () => {
                     closeModal();
-                    window.location.reload();
+                    // ✅ Inertia ya refrescó la página con el redirect del controller
                 },
             });
         }
     };
 
-    // ✅ Abrir modal de confirmación
     const handleDelete = (horario) => {
         setConfirmDelete({ open: true, horario, loading: false });
     };
 
-    // ✅ Ejecutar eliminación
     const confirmarEliminar = () => {
         const horario = confirmDelete.horario;
         if (!horario) return;
@@ -77,7 +76,7 @@ export default function MisHorarios({ horarios, user }) {
             preserveScroll: true,
             onSuccess: () => {
                 setConfirmDelete({ open: false, horario: null, loading: false });
-                window.location.reload();
+                // ✅ Inertia ya refrescó la página con el redirect del controller
             },
             onError: () => {
                 setConfirmDelete(prev => ({ ...prev, loading: false }));
@@ -245,7 +244,6 @@ export default function MisHorarios({ horarios, user }) {
                 </div>
             )}
 
-            {/* ✅ Modal de confirmación de eliminación */}
             <ConfirmModal
                 isOpen={confirmDelete.open}
                 onClose={() => setConfirmDelete({ open: false, horario: null, loading: false })}

@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Panel/EstudianteController.php
 
 namespace App\Http\Controllers\Panel;
 
@@ -11,6 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use App\Imports\EstudiantesCsvImport;
 use App\Imports\EstudiantesExcelImport;
+use App\Services\CacheInvalidator;
 
 class EstudianteController extends Controller
 {
@@ -36,16 +38,6 @@ class EstudianteController extends Controller
         ]);
     }
 
-    /**
-     * Importar estudiantes.
-     *
-     * Detección por magic bytes:
-     *   PK..   → XLSX (ZIP)
-     *   D0CF11 → XLS (OLE)
-     *   Otros  → Texto (CSV / TXT / TSV)
-     *
-     * Soporta cualquier encoding y delimitador.
-     */
     public function import(Request $request)
     {
         $user = Session::get('user');
@@ -54,13 +46,12 @@ class EstudianteController extends Controller
         }
 
         $request->validate([
-            'archivo' => 'required|file|max:20480', // 20 MB, sin restringir mimes
+            'archivo' => 'required|file|max:20480',
         ]);
 
         $file = $request->file('archivo');
 
         try {
-            // Limpiar caché de Laravel Excel
             $cacheDir = storage_path('framework/cache/laravel-excel');
             if (is_dir($cacheDir)) {
                 foreach (glob($cacheDir . '/*') as $cached) {
@@ -68,7 +59,6 @@ class EstudianteController extends Controller
                 }
             }
 
-            // Detectar el tipo REAL por los primeros bytes
             $path = $file->getRealPath();
             $handle = fopen($path, 'rb');
             $magicBytes = fread($handle, 8);
@@ -83,10 +73,11 @@ class EstudianteController extends Controller
                 'tipo_detectado' => $tipo,
             ]);
 
-            // ---------- XLSX ----------
             if ($tipo === 'xlsx') {
                 $import = new EstudiantesExcelImport();
                 Excel::import($import, $file, null, ExcelFormat::XLSX);
+
+                CacheInvalidator::indicadores();
 
                 return response()->json([
                     'success' => true,
@@ -95,10 +86,11 @@ class EstudianteController extends Controller
                 ]);
             }
 
-            // ---------- XLS (OLE binario real) ----------
             if ($tipo === 'xls') {
                 $import = new EstudiantesExcelImport();
                 Excel::import($import, $file, null, ExcelFormat::XLS);
+
+                CacheInvalidator::indicadores();
 
                 return response()->json([
                     'success' => true,
@@ -107,9 +99,10 @@ class EstudianteController extends Controller
                 ]);
             }
 
-            // ---------- Cualquier otro → tratar como texto ----------
             $import = new EstudiantesCsvImport();
             $import->import($path);
+
+            CacheInvalidator::indicadores();
 
             return response()->json([
                 'success' => true,
@@ -143,24 +136,18 @@ class EstudianteController extends Controller
         }
     }
 
-    /**
-     * Detecta el tipo de archivo por sus primeros bytes
-     */
     private function detectarTipo($magicBytes)
     {
         $hex = bin2hex(substr($magicBytes, 0, 4));
 
-        // PK.. → ZIP (XLSX es un ZIP)
         if (substr($hex, 0, 4) === '504b') {
             return 'xlsx';
         }
 
-        // D0 CF 11 E0 → OLE Compound (XLS, DOC, PPT clásicos)
         if (substr($hex, 0, 8) === 'd0cf11e0') {
             return 'xls';
         }
 
-        // Todo lo demás → texto (CSV, TXT, TSV)
         return 'texto';
     }
 
@@ -184,10 +171,12 @@ class EstudianteController extends Controller
             'id_estudiante' => $request->id_estudiante,
             'nombre'        => $request->nombre,
             'grado'         => $request->grado,
-            'grupo'         => strtoupper(trim($request->grupo)), // ← normalizado a mayúsculas
+            'grupo'         => strtoupper(trim($request->grupo)),
             'telefono_estudiante' => $request->telefono_estudiante,
             'telefono_padre'      => $request->telefono_padre,
         ]);
+
+        CacheInvalidator::indicadores();
 
         return response()->json([
             'success' => true,
@@ -221,10 +210,12 @@ class EstudianteController extends Controller
             ->update([
                 'nombre'    => $request->nombre,
                 'grado'     => $request->grado,
-                'grupo'     => strtoupper(trim($request->grupo)), // ← normalizado a mayúsculas
+                'grupo'     => strtoupper(trim($request->grupo)),
                 'telefono_estudiante' => $request->telefono_estudiante,
                 'telefono_padre'      => $request->telefono_padre,
             ]);
+
+        CacheInvalidator::indicadores();
 
         return response()->json([
             'success' => true,
@@ -246,6 +237,8 @@ class EstudianteController extends Controller
         }
 
         DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->delete();
+
+        CacheInvalidator::indicadores();
 
         return response()->json([
             'success' => true,
@@ -270,6 +263,8 @@ class EstudianteController extends Controller
         }
 
         DB::table('estudiantes')->delete();
+
+        CacheInvalidator::indicadores();
 
         return response()->json([
             'success' => true,

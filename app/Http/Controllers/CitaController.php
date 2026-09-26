@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\WhatsAppService;
+use App\Services\CacheInvalidator;
 
 class CitaController extends Controller
 {
@@ -123,23 +124,11 @@ class CitaController extends Controller
         return response()->json($disponible);
     }
 
-    /**
-     * Guardar la cita y enviar notificación por WhatsApp.
-     * Se guarda un snapshot del nombre del formador (nombre_formador)
-     * al momento de la solicitud, igual que ya se hace con nombre_estudiante.
-     * Así, si el nombre del usuario cambia después, esta cita conserva
-     * el nombre con el que se agendó (el id_usuario sigue disponible
-     * para saber quién es realmente el formador actual).
-     *
-     * El ID se deja a MySQL (AUTO_INCREMENT) para evitar race conditions
-     * cuando dos personas agendan cita al mismo tiempo.
-     */
     public function store(Request $request)
     {
         try {
             $validated = $request->validate([
                 'nombre_estudiante' => 'required|string|max:100',
-                // ✅ Solo permite formadores que existen Y están activos
                 'usuario_id'        => 'required|integer|exists:usuarios,id_usuario,activo,1',
                 'fecha'             => 'required|date',
                 'hora'              => 'required|date_format:H:i',
@@ -155,7 +144,6 @@ class CitaController extends Controller
 
             $horaConSegundos = $validated['hora'] . ':00';
 
-            // ✅ insertGetId: MySQL asigna el id_cita por AUTO_INCREMENT (thread-safe)
             $newId = DB::table('citas')->insertGetId([
                 'id_estudiante'     => $estudiante ? $estudiante->id_estudiante : null,
                 'nombre_estudiante' => $validated['nombre_estudiante'],
@@ -168,7 +156,6 @@ class CitaController extends Controller
                 'estado'            => 'programada',
             ]);
 
-            // ✅ Enviar notificación por WhatsApp (no bloquea la respuesta si falla)
             try {
                 $cita = DB::table('citas')->where('id_cita', $newId)->first();
                 $whatsapp = new WhatsAppService();
@@ -176,6 +163,9 @@ class CitaController extends Controller
             } catch (\Exception $e) {
                 Log::warning('Error al enviar WhatsApp de confirmación: ' . $e->getMessage());
             }
+
+            // ✅ Invalidar caché de indicadores (cambió el conteo de citas)
+            CacheInvalidator::indicadores();
 
             return response()->json([
                 'success' => true,

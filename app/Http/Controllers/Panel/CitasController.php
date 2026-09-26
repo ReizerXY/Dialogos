@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Services\WhatsAppService;
+use App\Services\CacheInvalidator;
 
 class CitasController extends Controller
 {
@@ -75,7 +76,6 @@ class CitasController extends Controller
                   ->where('citas.fecha', '<=', now()->addDays(7)->toDateString());
         }
 
-        // ✅ Orden determinista: fecha → hora → id_cita
         $citas = $query->orderBy('citas.fecha', 'asc')
                        ->orderBy('citas.hora', 'asc')
                        ->orderBy('citas.id_cita', 'asc')
@@ -128,14 +128,6 @@ class CitasController extends Controller
         ]);
     }
 
-    /**
-     * Exportar citas a Excel.
-     *
-     * Parámetros:
-     *   - ids[]   (opcional)  → si viene, exporta SOLO esas citas
-     *   - orden   (opcional)  → 'fecha' (default) | 'id'
-     *   - filtros (opcional)  → formador, estado, grado, grupo, anio, mes, semana_valor, fecha, semana
-     */
     public function exportarExcel(Request $request)
     {
         $user = Session::get('user');
@@ -149,15 +141,13 @@ class CitasController extends Controller
         }
         $ids = array_values(array_filter(array_map('intval', $ids)));
 
-        $orden = $request->get('orden', 'fecha'); // 'fecha' | 'id'
+        $orden = $request->get('orden', 'fecha');
 
         $query = DB::table('citas')->select('citas.*');
 
         if (!empty($ids)) {
-            // Selección explícita → ignora filtros
             $query->whereIn('citas.id_cita', $ids);
         } else {
-            // Sin selección → aplica filtros
             $filtroFormador = $request->get('formador');
             $filtroEstado   = $request->get('estado');
             $filtroFecha    = $request->get('fecha');
@@ -199,7 +189,6 @@ class CitasController extends Controller
             }
         }
 
-        // Orden según lo elegido en el modal
         if ($orden === 'id') {
             $query->orderBy('citas.id_cita', 'asc');
         } else {
@@ -278,6 +267,8 @@ class CitasController extends Controller
                     'asistencia'    => $asistencia,
                     'estado'        => $nuevoEstado,
                 ]);
+
+            CacheInvalidator::indicadores();
 
             return response()->json([
                 'success' => true,
@@ -359,6 +350,8 @@ class CitasController extends Controller
                 Log::warning('Error al enviar WhatsApp de modificación: ' . $e->getMessage());
             }
 
+            CacheInvalidator::indicadores();
+
             return response()->json(['success' => true, 'message' => 'Cita modificada correctamente.']);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al modificar: ' . $e->getMessage()], 500);
@@ -409,6 +402,8 @@ class CitasController extends Controller
             } catch (\Exception $e) {
                 Log::warning('Error al enviar WhatsApp de cancelación: ' . $e->getMessage());
             }
+
+            CacheInvalidator::indicadores();
 
             return response()->json([
                 'success' => true,
@@ -501,6 +496,8 @@ class CitasController extends Controller
                 Log::warning('Error al enviar WhatsApp de cancelación: ' . $e->getMessage());
             }
         }
+
+        CacheInvalidator::indicadores();
 
         return redirect()->route('citas.index')->with('success', 'Cita actualizada exitosamente.');
     }

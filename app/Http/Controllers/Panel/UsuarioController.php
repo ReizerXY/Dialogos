@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
+use App\Services\CacheInvalidator;
 
 class UsuarioController extends Controller
 {
@@ -44,9 +45,6 @@ class UsuarioController extends Controller
             'rol'     => 'required|in:Coordinador,Formador',
         ]);
 
-        // ✅ MySQL asigna el id_usuario por AUTO_INCREMENT (thread-safe).
-        //    No calculamos max(id) + 1 porque puede colisionar si dos
-        //    coordinadores crean usuarios al mismo tiempo.
         DB::table('usuarios')->insert([
             'usuario' => $validated['usuario'],
             'clave'   => Hash::make($validated['clave']),
@@ -54,6 +52,8 @@ class UsuarioController extends Controller
             'rol'     => $validated['rol'],
             'activo'  => 1,
         ]);
+
+        CacheInvalidator::indicadores();
 
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario creado exitosamente.');
@@ -87,15 +87,12 @@ class UsuarioController extends Controller
             ->where('id_usuario', $id_usuario)
             ->update($data);
 
+        CacheInvalidator::indicadores();
+
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario actualizado exitosamente.');
     }
 
-    /**
-     * Dar de baja o reactivar un usuario.
-     * activo = 0 → no puede iniciar sesión, pero sus citas se conservan.
-     * activo = 1 → puede iniciar sesión normalmente.
-     */
     public function toggleActivo($id_usuario)
     {
         $user = Session::get('user');
@@ -103,7 +100,6 @@ class UsuarioController extends Controller
             return response()->json(['error' => 'No autorizado'], 403);
         }
 
-        // No permitir darse de baja a sí mismo
         if ((int) $id_usuario === (int) $user['id_usuario']) {
             return redirect()->route('usuarios.index')
                 ->with('error', 'No puedes darte de baja a ti mismo.');
@@ -121,6 +117,8 @@ class UsuarioController extends Controller
             ->where('id_usuario', $id_usuario)
             ->update(['activo' => $nuevoEstado]);
 
+        CacheInvalidator::indicadores();
+
         $mensaje = $nuevoEstado == 1
             ? 'Usuario reactivado correctamente.'
             : 'Usuario dado de baja. Sus datos históricos se conservan.';
@@ -128,16 +126,6 @@ class UsuarioController extends Controller
         return redirect()->route('usuarios.index')->with('success', $mensaje);
     }
 
-    /**
-     * Eliminar un usuario definitivamente de la base de datos.
-     *
-     * Antes de borrarlo:
-     * - Sus citas históricas conservan `nombre_formador` (snapshot), pero
-     *   `id_usuario` se pone en NULL porque el usuario ya no existirá.
-     * - Se eliminan sus horarios (no tiene sentido dejarlos huérfanos).
-     *
-     * No se permite eliminar al propio usuario en sesión, ni al usuario 'admin'.
-     */
     public function destroy($id_usuario)
     {
         $user = Session::get('user');
@@ -162,22 +150,20 @@ class UsuarioController extends Controller
         }
 
         DB::transaction(function () use ($id_usuario) {
-            // Conservar el histórico de citas: nombre_formador ya quedó guardado
-            // al crear cada cita, así que solo desvinculamos el id.
             DB::table('citas')
                 ->where('id_usuario', $id_usuario)
                 ->update(['id_usuario' => null]);
 
-            // Eliminar horarios del usuario (admin y propios usan la misma tabla)
             DB::table('horarios')
                 ->where('id_usuario', $id_usuario)
                 ->delete();
 
-            // Eliminar el usuario
             DB::table('usuarios')
                 ->where('id_usuario', $id_usuario)
                 ->delete();
         });
+
+        CacheInvalidator::indicadores();
 
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario eliminado permanentemente. Su historial de citas se conserva.');

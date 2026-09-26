@@ -1,11 +1,47 @@
 // resources/js/Pages/Panel/Estudiantes.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { useState, useRef, useMemo, useEffect, useCallback, memo } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 
 // Grados permitidos (mismo orden que el backend)
 const GRADOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
+
+// ✅ Fila memoizada: solo se re-renderiza si el estudiante o los handlers cambian
+const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEliminar }) {
+    return (
+        <tr className="hover:bg-[#FF5900]/5 transition-colors">
+            <td className="px-4 py-3 text-sm font-medium text-gray-800 font-mono">{estudiante.id_estudiante}</td>
+            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.nombre}</td>
+            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grado}</td>
+            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grupo}</td>
+            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_estudiante || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_padre || '-'}</td>
+            <td className="px-4 py-3">
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => onEditar(estudiante)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-all duration-200 hover:shadow-md active:scale-95"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Modificar
+                    </button>
+                    <button
+                        onClick={() => onEliminar(estudiante)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-all duration-200 hover:shadow-md active:scale-95"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Eliminar
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+});
 
 export default function Estudiantes({ estudiantes, user }) {
     // ===== IMPORTACIÓN =====
@@ -19,9 +55,12 @@ export default function Estudiantes({ estudiantes, user }) {
     const [listaEstudiantes, setListaEstudiantes] = useState(estudiantes);
     const [orden, setOrden] = useState('id_estudiante');
 
+    // ✅ Sincronizar la lista local cuando el prop cambia (después de un router.reload)
+    useEffect(() => {
+        setListaEstudiantes(estudiantes);
+    }, [estudiantes]);
+
     // ===== FILTROS =====
-    // "Input" = lo que el usuario está escribiendo (borrador)
-    // "Filter" = lo que ya se aplicó a la tabla (al presionar "Filtrar")
     const [busquedaInput, setBusquedaInput] = useState('');
     const [gradoInput, setGradoInput]       = useState('');
     const [grupoInput, setGrupoInput]       = useState('');
@@ -50,7 +89,7 @@ export default function Estudiantes({ estudiantes, user }) {
     const [confirmEliminarTodos, setConfirmEliminarTodos] = useState({ open: false, loading: false });
 
     // ============================================================
-    // GRADOS Y GRUPOS DISPONIBLES (derivados de la lista actual)
+    // GRADOS Y GRUPOS DISPONIBLES
     // ============================================================
     const gradosDisponibles = useMemo(() => {
         const set = new Set(listaEstudiantes.map(e => e.grado).filter(Boolean));
@@ -61,7 +100,6 @@ export default function Estudiantes({ estudiantes, user }) {
         });
     }, [listaEstudiantes]);
 
-    // Grupos: dependen del grado que se está escribiendo en el borrador
     const gruposDisponiblesInput = useMemo(() => {
         const base = gradoInput
             ? listaEstudiantes.filter(e => e.grado === gradoInput)
@@ -70,7 +108,6 @@ export default function Estudiantes({ estudiantes, user }) {
         return [...set].sort();
     }, [listaEstudiantes, gradoInput]);
 
-    // Si cambio el grado en el borrador y el grupo ya no existe → limpiar grupo
     useEffect(() => {
         if (grupoInput && !gruposDisponiblesInput.includes(grupoInput)) {
             setGrupoInput('');
@@ -80,8 +117,7 @@ export default function Estudiantes({ estudiantes, user }) {
     // ============================================================
     // APLICAR / LIMPIAR FILTROS
     // ============================================================
-    const aplicarFiltros = () => {
-        // Validación: si hay grupo pero no grado, ignorar grupo
+    const aplicarFiltros = useCallback(() => {
         const gradoFinal = gradoInput;
         const grupoFinal = (gradoInput && grupoInput && gruposDisponiblesInput.includes(grupoInput))
             ? grupoInput
@@ -90,24 +126,23 @@ export default function Estudiantes({ estudiantes, user }) {
         setBusqueda(busquedaInput.trim());
         setGradoFilter(gradoFinal);
         setGrupoFilter(grupoFinal);
-    };
+    }, [gradoInput, grupoInput, gruposDisponiblesInput, busquedaInput]);
 
-    const limpiarFiltros = () => {
+    const limpiarFiltros = useCallback(() => {
         setBusquedaInput('');
         setGradoInput('');
         setGrupoInput('');
         setBusqueda('');
         setGradoFilter('');
         setGrupoFilter('');
-    };
+    }, []);
 
     // ============================================================
-    // LISTA FILTRADA + ORDENADA (usa los filtros YA APLICADOS)
+    // LISTA FILTRADA + ORDENADA
     // ============================================================
     const listaFiltradaYOrdenada = useMemo(() => {
         let lista = [...listaEstudiantes];
 
-        // Filtro por búsqueda (nombre o ID)
         if (busqueda !== '') {
             const q = busqueda.toLowerCase();
             lista = lista.filter(e =>
@@ -116,17 +151,14 @@ export default function Estudiantes({ estudiantes, user }) {
             );
         }
 
-        // Filtro por grado
         if (gradoFilter) {
             lista = lista.filter(e => e.grado === gradoFilter);
         }
 
-        // Filtro por grupo
         if (grupoFilter) {
             lista = lista.filter(e => e.grupo === grupoFilter);
         }
 
-        // Orden
         if (orden === 'grado') {
             return lista.sort((a, b) => {
                 const gradoA = parseInt(a.grado, 10) || 0;
@@ -141,8 +173,27 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, orden]);
 
-    // Contador de filtros YA APLICADOS
     const filtrosActivos = [busqueda, gradoFilter, grupoFilter].filter(Boolean).length;
+
+    // ============================================================
+    // HANDLERS ESTABLES (para React.memo)
+    // ============================================================
+    const abrirModalEditar = useCallback((estudiante) => {
+        setModoEdicion(true);
+        setFormData({
+            id_estudiante: estudiante.id_estudiante,
+            nombre: estudiante.nombre,
+            grado: estudiante.grado,
+            grupo: (estudiante.grupo || '').toUpperCase(),
+            telefono_estudiante: estudiante.telefono_estudiante || '',
+            telefono_padre: estudiante.telefono_padre || '',
+        });
+        setModalAbierto(true);
+    }, []);
+
+    const handleDelete = useCallback((estudiante) => {
+        setConfirmEliminar({ open: true, estudiante, loading: false });
+    }, []);
 
     // ============================================================
     // MODAL
@@ -156,19 +207,6 @@ export default function Estudiantes({ estudiantes, user }) {
             grupo: '',
             telefono_estudiante: '',
             telefono_padre: '',
-        });
-        setModalAbierto(true);
-    };
-
-    const abrirModalEditar = (estudiante) => {
-        setModoEdicion(true);
-        setFormData({
-            id_estudiante: estudiante.id_estudiante,
-            nombre: estudiante.nombre,
-            grado: estudiante.grado,
-            grupo: (estudiante.grupo || '').toUpperCase(),
-            telefono_estudiante: estudiante.telefono_estudiante || '',
-            telefono_padre: estudiante.telefono_padre || '',
         });
         setModalAbierto(true);
     };
@@ -190,7 +228,6 @@ export default function Estudiantes({ estudiantes, user }) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Cambio del grupo: siempre a MAYÚSCULAS
     const handleGrupoChange = (e) => {
         setFormData({ ...formData, grupo: e.target.value.toUpperCase() });
     };
@@ -206,9 +243,7 @@ export default function Estudiantes({ estudiantes, user }) {
             return;
         }
 
-        const url = modoEdicion
-            ? `/estudiantes/${formData.id_estudiante}`
-            : '/estudiantes';
+        const url = modoEdicion ? `/estudiantes/${formData.id_estudiante}` : '/estudiantes';
         const method = modoEdicion ? 'PUT' : 'POST';
 
         try {
@@ -291,7 +326,7 @@ export default function Estudiantes({ estudiantes, user }) {
 
             if (data.success) {
                 setMensaje({ tipo: 'success', texto: data.message });
-                setTimeout(() => window.location.reload(), 800);
+                setTimeout(() => router.reload({ only: ['estudiantes'] }), 800);
             } else {
                 setMensaje({ tipo: 'error', texto: data.message || 'Error al importar.' });
             }
@@ -306,10 +341,6 @@ export default function Estudiantes({ estudiantes, user }) {
     };
 
     // ===== ELIMINAR UNO =====
-    const handleDelete = (estudiante) => {
-        setConfirmEliminar({ open: true, estudiante, loading: false });
-    };
-
     const confirmarEliminarUno = async () => {
         const estudiante = confirmEliminar.estudiante;
         if (!estudiante) return;
@@ -415,9 +446,7 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 )}
 
-                {/* ============================================================ */}
                 {/* Importación (COLAPSABLE) */}
-                {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 overflow-hidden">
                     <button
                         onClick={() => setImportarOpen(!importarOpen)}
@@ -498,9 +527,7 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 </div>
 
-                {/* ============================================================ */}
-                {/* Filtros (colapsables, se aplican con el botón) */}
-                {/* ============================================================ */}
+                {/* Filtros */}
                 <div className="bg-white rounded-2xl shadow-md mb-6 border border-gray-100 overflow-hidden">
                     <button
                         onClick={() => setFiltrosOpen(!filtrosOpen)}
@@ -524,7 +551,6 @@ export default function Estudiantes({ estudiantes, user }) {
 
                     <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6 border-t border-gray-100 pt-5">
-                            {/* Fila 1: Búsqueda + Grado + Grupo */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre o ID</label>
@@ -578,7 +604,6 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
-                            {/* Fila 2: Botones */}
                             <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
                                 <button
                                     onClick={aplicarFiltros}
@@ -602,9 +627,7 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 </div>
 
-                {/* ============================================================ */}
                 {/* Tabla */}
-                {/* ============================================================ */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                     <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
@@ -656,36 +679,12 @@ export default function Estudiantes({ estudiantes, user }) {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
                                 {listaFiltradaYOrdenada.map(e => (
-                                    <tr key={e.id_estudiante} className="hover:bg-[#FF5900]/5 transition-colors">
-                                        <td className="px-4 py-3 text-sm font-medium text-gray-800 font-mono">{e.id_estudiante}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-700">{e.nombre}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-700">{e.grado}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-700">{e.grupo}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-700 font-mono">{e.telefono_estudiante || '-'}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-700 font-mono">{e.telefono_padre || '-'}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex flex-wrap gap-2">
-                                                <button
-                                                    onClick={() => abrirModalEditar(e)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-all duration-200 hover:shadow-md active:scale-95"
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                    Modificar
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(e)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-all duration-200 hover:shadow-md active:scale-95"
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                    Eliminar
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    <FilaEstudiante
+                                        key={e.id_estudiante}
+                                        estudiante={e}
+                                        onEditar={abrirModalEditar}
+                                        onEliminar={handleDelete}
+                                    />
                                 ))}
                                 {listaFiltradaYOrdenada.length === 0 && (
                                     <tr>
@@ -702,9 +701,7 @@ export default function Estudiantes({ estudiantes, user }) {
                 </div>
             </div>
 
-            {/* ============================================================ */}
             {/* Modal agregar/editar */}
-            {/* ============================================================ */}
             {modalAbierto && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
@@ -824,7 +821,6 @@ export default function Estudiantes({ estudiantes, user }) {
                 </div>
             )}
 
-            {/* Confirmar eliminar uno */}
             <ConfirmModal
                 isOpen={confirmEliminar.open}
                 onClose={() => setConfirmEliminar({ open: false, estudiante: null, loading: false })}
@@ -840,7 +836,6 @@ export default function Estudiantes({ estudiantes, user }) {
                 loading={confirmEliminar.loading}
             />
 
-            {/* Confirmar eliminar todos */}
             <ConfirmModal
                 isOpen={confirmEliminarTodos.open}
                 onClose={() => setConfirmEliminarTodos({ open: false, loading: false })}

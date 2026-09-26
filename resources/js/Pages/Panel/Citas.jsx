@@ -1,11 +1,12 @@
 // resources/js/Pages/Panel/Citas.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import SelectorSemana from '@/Components/SelectorSemana';
-import NotasModal from './Modales/NotasModal';
-import ModificarModal from './Modales/ModificarModal';
-import CancelarModal from './Modales/CancelarModal';
+const NotasModal     = lazy(() => import('./Modales/NotasModal'));
+const ModificarModal = lazy(() => import('./Modales/ModificarModal'));
+const CancelarModal  = lazy(() => import('./Modales/CancelarModal'));
+
 
 const CLASIFICACION_COLOR = {
     'académica':     'bg-blue-500',
@@ -255,6 +256,9 @@ export default function Citas({
     const abrirNotas = (cita) => { setCitaSeleccionada(cita); setNotasModalOpen(true); };
     const abrirModificar = (cita) => { setCitaSeleccionada(cita); setModificarModalOpen(true); };
     const abrirCancelar = (cita) => { setCitaSeleccionada(cita); setCancelarModalOpen(true); };
+
+    // ✅ Callback único: recarga SOLO la lista de citas (no toda la página)
+    const recargarCitas = () => router.reload({ only: ['citas'] });
 
     const gruposDisponibles = gradoFilter ? (gruposPorGrado[gradoFilter] || []) : [];
 
@@ -908,26 +912,26 @@ export default function Citas({
             )}
 
             {mostrarAcciones && (
-                <>
+                <Suspense fallback={null}>
                     <NotasModal
                         isOpen={notasModalOpen}
                         onClose={() => setNotasModalOpen(false)}
                         cita={citaSeleccionada}
-                        onSuccess={() => window.location.reload()}
+                        onSuccess={recargarCitas}
                     />
                     <ModificarModal
                         isOpen={modificarModalOpen}
                         onClose={() => setModificarModalOpen(false)}
                         cita={citaSeleccionada}
-                        onSuccess={() => window.location.reload()}
+                        onSuccess={recargarCitas}
                     />
                     <CancelarModal
                         isOpen={cancelarModalOpen}
                         onClose={() => setCancelarModalOpen(false)}
                         cita={citaSeleccionada}
-                        onSuccess={() => window.location.reload()}
+                        onSuccess={recargarCitas}
                     />
-                </>
+                </Suspense>
             )}
         </AuthenticatedLayout>
     );
