@@ -20,108 +20,138 @@ class ReporteController extends Controller
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen general (números principales)',
-                        'descripcion' => 'Los números clave del periodo: total de citas, cuántas se completaron, cuántas están programadas, cuántas se cancelaron, cuántos estudiantes fueron atendidos y los porcentajes de cumplimiento, cancelación y asistencia.',
+                        'descripcion' => 'Números clave del periodo: citas registradas, completadas, programadas, canceladas, estudiantes atendidos, edad promedio, citas por estudiante y tasas de cumplimiento, cancelación y asistencia.',
                         'default'     => true,
                     ],
                     'por_estado' => [
-                        'label'       => 'Citas por situación',
-                        'descripcion' => 'Cuántas citas están en cada situación: completadas (ya atendidas), programadas (por atender), canceladas o canceladas con horario disponible. Muestra cantidad y porcentaje.',
+                        'label'       => 'Cantidad de citas agrupadas por estado',
+                        'descripcion' => 'Distribución de las citas según su estado actual: completadas (ya atendidas), programadas (por atender), canceladas y canceladas con horario liberado. Muestra cantidad y porcentaje del total.',
                         'default'     => true,
                     ],
                     'por_clasificacion' => [
-                        'label'       => 'Citas por tema tratado',
-                        'descripcion' => 'Cuántas citas se registraron en cada tema: académico, familiar, emocional, espiritual o institucional. Útil para saber qué tipo de apoyo se está dando más.',
+                        'label'       => 'Cantidad de citas agrupadas por tipo de clasificación',
+                        'descripcion' => 'Distribución de las citas según el tema tratado en cada sesión: académica, familiar, emocional, espiritual o institucional.',
                         'default'     => true,
                     ],
                     'por_asistencia' => [
-                        'label'       => 'Citas por asistencia del estudiante',
-                        'descripcion' => 'Cuántas citas tuvieron al estudiante presente, cuántas no llegó y cuántas quedaron pendientes de registrar. Sirve para medir el compromiso de los estudiantes.',
+                        'label'       => 'Cantidad de citas agrupadas por asistencia del estudiante',
+                        'descripcion' => 'Distribución de las citas según si el estudiante asistió, no asistió o quedó pendiente de registrar su asistencia.',
                         'default'     => true,
                     ],
                     'por_grado' => [
-                        'label'       => 'Estudiantes atendidos por grado escolar',
-                        'descripcion' => 'Cuántos estudiantes de cada grado (1ro, 2do, 3ro, 4to, 5to, 6to) recibieron al menos una cita en el periodo.',
+                        'label'       => 'Estudiantes atendidos agrupados por grado',
+                        'descripcion' => 'Cantidad de estudiantes que recibieron al menos una cita en el periodo, agrupados por grado escolar (1ro a 6to).',
                         'default'     => true,
                     ],
                     'por_grupo' => [
-                        'label'       => 'Estudiantes atendidos por grupo',
-                        'descripcion' => 'Cuántos estudiantes de cada grupo (A, B, C, D) recibieron al menos una cita en el periodo.',
+                        'label'       => 'Estudiantes atendidos agrupados por grupo',
+                        'descripcion' => 'Cantidad de estudiantes que recibieron al menos una cita en el periodo, agrupados por grupo (A, B, C, D).',
+                        'default'     => true,
+                    ],
+                    'por_sexo' => [
+                        'label'       => 'Estudiantes atendidos por sexo',
+                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por su sexo registrado (Hombre, Mujer, Prefiere no decirlo, Otro).',
+                        'default'     => true,
+                    ],
+                    'por_edad' => [
+                        'label'       => 'Estudiantes atendidos por rango de edad',
+                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por su rango de edad actual (14 años o menos, 15-16, 17-18, 19 años o más).',
                         'default'     => true,
                     ],
                     'top_formadores' => [
-                        'label'       => 'Formadores con más citas atendidas',
-                        'descripcion' => 'Lista ordenada de los formadores según cuántas citas atendieron en el periodo. Los primeros tres aparecen con medalla.',
+                        'label'       => 'Ranking de formadores por cantidad de citas atendidas',
+                        'descripcion' => 'Lista ordenada de formadores según cuántas citas atendieron en el periodo. Los primeros tres aparecen con medalla.',
                         'default'     => true,
                     ],
                     'top_estudiantes' => [
-                        'label'       => 'Estudiantes con más citas recibidas',
-                        'descripcion' => 'Lista ordenada de los estudiantes según cuántas citas recibieron en el periodo. Los primeros tres aparecen con medalla.',
+                        'label'       => 'Ranking de estudiantes por cantidad de citas recibidas',
+                        'descripcion' => 'Lista ordenada de estudiantes según cuántas citas recibieron en el periodo. Los primeros tres aparecen con medalla.',
                         'default'     => true,
                     ],
                 ],
             ],
             'citas' => [
                 'titulo'      => 'Reporte de citas del periodo',
-                'descripcion' => 'Todas las citas registradas en el periodo: su situación, el tema que se trató, si el estudiante asistió y el listado completo una por una.',
+                'descripcion' => 'Todas las citas registradas en el periodo: su estado, el tema tratado, si el estudiante asistió y el listado completo una por una.',
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen del periodo',
-                        'descripcion' => 'Totales del periodo: cuántas citas se registraron, cuántas se completaron, cuántas están programadas, cuántas se cancelaron, cuántos estudiantes fueron atendidos y los porcentajes correspondientes.',
+                        'descripcion' => 'Totales del periodo: citas registradas, completadas, programadas, canceladas, estudiantes atendidos y sus porcentajes correspondientes.',
                         'default'     => true,
                     ],
                     'por_estado' => [
-                        'label'       => 'Citas por situación',
-                        'descripcion' => 'Cuántas citas están completadas, programadas, canceladas o canceladas con horario disponible, con su porcentaje del total.',
+                        'label'       => 'Cantidad de citas agrupadas por estado',
+                        'descripcion' => 'Distribución de las citas según su estado: completadas, programadas, canceladas y canceladas con horario liberado, con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'por_clasificacion' => [
-                        'label'       => 'Citas por tema tratado',
-                        'descripcion' => 'Cuántas citas se registraron en cada tema: académico, familiar, emocional, espiritual o institucional.',
+                        'label'       => 'Cantidad de citas agrupadas por tipo de clasificación',
+                        'descripcion' => 'Distribución de las citas según el tema tratado: académica, familiar, emocional, espiritual o institucional.',
                         'default'     => true,
                     ],
                     'por_asistencia' => [
-                        'label'       => 'Citas por asistencia del estudiante',
-                        'descripcion' => 'Cuántas citas tuvieron al estudiante presente, cuántas no llegó y cuántas quedaron pendientes.',
+                        'label'       => 'Cantidad de citas agrupadas por asistencia del estudiante',
+                        'descripcion' => 'Distribución de las citas según si el estudiante asistió, no asistió o quedó pendiente.',
+                        'default'     => true,
+                    ],
+                    'por_sexo' => [
+                        'label'       => 'Cantidad de citas agrupadas por sexo del estudiante',
+                        'descripcion' => 'Cantidad de citas registradas en el periodo, agrupadas según el sexo del estudiante que las recibió.',
+                        'default'     => true,
+                    ],
+                    'por_edad' => [
+                        'label'       => 'Cantidad de citas agrupadas por rango de edad del estudiante',
+                        'descripcion' => 'Cantidad de citas registradas en el periodo, agrupadas según el rango de edad del estudiante que las recibió.',
                         'default'     => true,
                     ],
                     'top_formadores' => [
-                        'label'       => 'Formadores con más citas atendidas',
+                        'label'       => 'Ranking de formadores por cantidad de citas atendidas',
                         'descripcion' => 'Lista ordenada de formadores según cuántas citas atendieron en el periodo.',
                         'default'     => true,
                     ],
                     'listado_citas' => [
-                        'label'       => 'Listado detallado de cada cita',
-                        'descripcion' => 'Tabla con todas las citas del periodo: estudiante, formador, fecha, hora, situación y asistencia. Una fila por cada cita.',
+                        'label'       => 'Listado detallado de citas registradas',
+                        'descripcion' => 'Tabla con cada cita registrada en el periodo: estudiante, formador, fecha, hora, estado y asistencia.',
                         'default'     => true,
                     ],
                 ],
             ],
             'estudiantes' => [
                 'titulo'      => 'Reporte de estudiantes atendidos',
-                'descripcion' => 'Estudiantes que recibieron al menos una cita en el periodo. Muestra cómo se distribuyen por grado y grupo, y quiénes recibieron más citas.',
+                'descripcion' => 'Estudiantes que recibieron al menos una cita en el periodo. Muestra su distribución por grado, grupo, sexo y rango de edad.',
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen del periodo',
-                        'descripcion' => 'Cuántos estudiantes fueron atendidos, cuántas citas recibieron en total, el promedio de citas por estudiante y los temas más frecuentes.',
+                        'descripcion' => 'Cuántos estudiantes fueron atendidos, cuántas citas recibieron, el promedio de citas por estudiante, la edad promedio y los temas más frecuentes.',
                         'default'     => true,
                     ],
                     'por_grado' => [
-                        'label'       => 'Estudiantes atendidos por grado escolar',
-                        'descripcion' => 'Cuántos estudiantes de cada grado (1ro a 6to) recibieron al menos una cita, con su porcentaje del total.',
+                        'label'       => 'Estudiantes atendidos agrupados por grado',
+                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por grado escolar (1ro a 6to), con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'por_grupo' => [
-                        'label'       => 'Estudiantes atendidos por grupo',
-                        'descripcion' => 'Cuántos estudiantes de cada grupo (A, B, C, D) recibieron al menos una cita, con su porcentaje del total.',
+                        'label'       => 'Estudiantes atendidos agrupados por grupo',
+                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por grupo (A, B, C, D), con su porcentaje del total.',
+                        'default'     => true,
+                    ],
+                    'por_sexo' => [
+                        'label'       => 'Estudiantes atendidos por sexo',
+                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por su sexo registrado, con su porcentaje del total.',
+                        'default'     => true,
+                    ],
+                    'por_edad' => [
+                        'label'       => 'Estudiantes atendidos por rango de edad',
+                        'descripcion' => 'Cantidad de estudiantes atendidos agrupados por su rango de edad, con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'por_clasificacion' => [
                         'label'       => 'Temas más tratados en las citas',
-                        'descripcion' => 'Los temas que más se trataron en las citas de estos estudiantes: académico, familiar, emocional, espiritual o institucional.',
+                        'descripcion' => 'Distribución de las citas según el tema tratado: académica, familiar, emocional, espiritual o institucional.',
                         'default'     => true,
                     ],
                     'top_estudiantes' => [
-                        'label'       => 'Estudiantes con más citas recibidas',
+                        'label'       => 'Ranking de estudiantes por cantidad de citas recibidas',
                         'descripcion' => 'Lista ordenada de estudiantes según cuántas citas recibieron en el periodo.',
                         'default'     => true,
                     ],
@@ -137,12 +167,12 @@ class ReporteController extends Controller
                         'default'     => true,
                     ],
                     'top_formadores' => [
-                        'label'       => 'Formadores con más citas atendidas',
+                        'label'       => 'Ranking de formadores por cantidad de citas atendidas',
                         'descripcion' => 'Lista ordenada de formadores según cuántas citas atendieron en el periodo, con medalla para los tres primeros lugares.',
                         'default'     => true,
                     ],
                     'detalle_formador' => [
-                        'label'       => 'Desglose de citas por formador',
+                        'label'       => 'Desglose de citas por formador (estados y asistencia)',
                         'descripcion' => 'Tabla con cada formador y el detalle de sus citas: total, completadas, programadas, canceladas, asistencias y faltas.',
                         'default'     => true,
                     ],
@@ -154,12 +184,12 @@ class ReporteController extends Controller
                 'secciones'   => [
                     'resumen' => [
                         'label'       => 'Resumen del periodo',
-                        'descripcion' => 'Totales del periodo con foco en la asistencia: total de citas, porcentaje de asistencia, cuántas veces sí asistió el estudiante y cuántas faltó.',
+                        'descripcion' => 'Totales del periodo con foco en la asistencia: total de citas, tasa de asistencia, cuántas veces sí asistió el estudiante y cuántas faltó.',
                         'default'     => true,
                     ],
                     'por_asistencia' => [
-                        'label'       => 'Citas por asistencia del estudiante',
-                        'descripcion' => 'Cuántas citas tuvieron al estudiante presente, cuántas no llegó y cuántas quedaron pendientes, con su porcentaje del total.',
+                        'label'       => 'Cantidad de citas agrupadas por asistencia del estudiante',
+                        'descripcion' => 'Distribución de las citas según si el estudiante asistió, no asistió o quedó pendiente, con su porcentaje del total.',
                         'default'     => true,
                     ],
                     'detalle_formador' => [
@@ -185,7 +215,6 @@ class ReporteController extends Controller
             abort(403, 'No autorizado.');
         }
 
-        // Solo años con datos en la tabla citas
         $aniosDisponibles = DB::table('citas')
             ->select(DB::raw('DISTINCT YEAR(fecha) as anio'))
             ->orderBy('anio', 'desc')
@@ -322,6 +351,23 @@ class ReporteController extends Controller
         return "{$p[2]}-{$p[1]}-{$p[0]}";
     }
 
+    /**
+     * Calcula edad en años desde fecha de nacimiento. Devuelve null si inválida.
+     */
+    private function calcularEdad($fechaNacimiento)
+    {
+        if (!$fechaNacimiento) return null;
+        try {
+            $nacimiento = new \DateTime($fechaNacimiento);
+            $hoy = new \DateTime();
+            $diff = $hoy->diff($nacimiento);
+            $edad = (int) $diff->y;
+            return ($edad >= 0 && $edad < 130) ? $edad : null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     private function recopilarDatos($fechaInicio, $fechaFin): array
     {
         // ---- Números principales ----
@@ -335,7 +381,7 @@ class ReporteController extends Controller
             ->distinct('nombre_estudiante')
             ->count('nombre_estudiante');
 
-        // ---- Citas por situación ----
+        // ---- Citas por estado ----
         $citasPorEstado = DB::table('citas')
             ->select('estado', DB::raw('count(*) as total'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -349,7 +395,7 @@ class ReporteController extends Controller
         $tasaCompletacion = $totalCitas > 0 ? round(($completadas / $totalCitas) * 100, 1) : 0;
         $tasaCancelacion  = $totalCitas > 0 ? round(($canceladas  / $totalCitas) * 100, 1) : 0;
 
-        // ---- Citas por tema tratado ----
+        // ---- Citas por tipo de clasificación ----
         $citasPorClasificacion = DB::table('citas')
             ->select('clasificacion', DB::raw('count(*) as total'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -379,7 +425,7 @@ class ReporteController extends Controller
             ->orderBy('hora', 'asc')
             ->get();
 
-        // ---- Formadores con más citas atendidas ----
+        // ---- Ranking de formadores ----
         $topFormadores = DB::table('citas')
             ->select('nombre_formador as formador', DB::raw('count(*) as total_citas'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -409,7 +455,7 @@ class ReporteController extends Controller
         $formadoresActivos = $detallesFormador->count();
         $promedio = $formadoresActivos > 0 ? round($totalCitas / $formadoresActivos, 1) : 0;
 
-        // ---- Estudiantes con más citas recibidas ----
+        // ---- Ranking de estudiantes ----
         $topEstudiantes = DB::table('citas')
             ->select('nombre_estudiante', DB::raw('count(*) as total_citas'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -436,6 +482,95 @@ class ReporteController extends Controller
             ->orderBy('estudiantes.grupo')
             ->get();
 
+        // ============================================================
+        // Estudiantes atendidos por SEXO
+        // ============================================================
+        $sexosRaw = DB::table('citas')
+            ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
+            ->select('estudiantes.sexo', 'citas.nombre_estudiante', DB::raw('COUNT(citas.id_cita) as citas_count'))
+            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
+            ->whereNotNull('estudiantes.sexo')
+            ->where('estudiantes.sexo', '!=', '')
+            ->groupBy('estudiantes.sexo', 'citas.nombre_estudiante')
+            ->get();
+
+        $estudiantesPorSexo = ['Hombre' => 0, 'Mujer' => 0, 'Prefiero no decirlo' => 0, 'Otro' => 0];
+        $citasPorSexo       = ['Hombre' => 0, 'Mujer' => 0, 'Prefiero no decirlo' => 0, 'Otro' => 0];
+
+        foreach ($sexosRaw as $s) {
+            $normalizado = mb_strtolower(trim((string) $s->sexo), 'UTF-8');
+            $normalizado = strtr($normalizado, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u']);
+
+            $categoria = 'Otro';
+            if (in_array($normalizado, ['hombre', 'masculino', 'varon', 'h'], true)) {
+                $categoria = 'Hombre';
+            } elseif (in_array($normalizado, ['mujer', 'femenino', 'f'], true)) {
+                $categoria = 'Mujer';
+            } elseif (
+                str_contains($normalizado, 'prefiero') ||
+                str_contains($normalizado, 'sin especificar') ||
+                str_contains($normalizado, 'no especificado') ||
+                str_contains($normalizado, 'n/e')
+            ) {
+                $categoria = 'Prefiero no decirlo';
+            }
+
+            $estudiantesPorSexo[$categoria]++;
+            $citasPorSexo[$categoria] += (int) $s->citas_count;
+        }
+
+        $estudiantesPorSexo = array_filter($estudiantesPorSexo, fn($v) => $v > 0);
+        $citasPorSexo       = array_filter($citasPorSexo,       fn($v) => $v > 0);
+
+        // ============================================================
+        // Estudiantes atendidos por RANGO DE EDAD
+        // ============================================================
+        $edadesRaw = DB::table('citas')
+            ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
+            ->select('estudiantes.fecha_nacimiento', 'citas.nombre_estudiante', DB::raw('COUNT(citas.id_cita) as citas_count'))
+            ->whereBetween('citas.fecha', [$fechaInicio, $fechaFin])
+            ->whereNotNull('estudiantes.fecha_nacimiento')
+            ->groupBy('estudiantes.fecha_nacimiento', 'citas.nombre_estudiante')
+            ->get();
+
+        $rangosBase = [
+            '14 años o menos' => 0,
+            '15-16 años'      => 0,
+            '17-18 años'      => 0,
+            '19 años o más'   => 0,
+        ];
+        $estudiantesPorEdad = $rangosBase;
+        $citasPorEdad       = $rangosBase;
+
+        $sumaEdades   = 0;
+        $totalConEdad = 0;
+
+        foreach ($edadesRaw as $e) {
+            $edad = $this->calcularEdad($e->fecha_nacimiento);
+            if ($edad === null) continue;
+
+            $sumaEdades += $edad;
+            $totalConEdad++;
+
+            if ($edad <= 14)      $rango = '14 años o menos';
+            elseif ($edad <= 16)  $rango = '15-16 años';
+            elseif ($edad <= 18)  $rango = '17-18 años';
+            else                  $rango = '19 años o más';
+
+            $estudiantesPorEdad[$rango]++;
+            $citasPorEdad[$rango] += (int) $e->citas_count;
+        }
+
+        $edadPromedio = $totalConEdad > 0 ? round($sumaEdades / $totalConEdad, 1) : 0;
+
+        $estudiantesPorEdad = array_filter($estudiantesPorEdad, fn($v) => $v > 0);
+        $citasPorEdad       = array_filter($citasPorEdad,       fn($v) => $v > 0);
+
+        // ---- Promedio de citas por estudiante atendido ----
+        $citasPorEstudiante = $estudiantesAtendidos > 0
+            ? round($totalCitas / $estudiantesAtendidos, 1)
+            : 0;
+
         return [
             'total_citas'              => $totalCitas,
             'total_formadores'         => $totalFormadores,
@@ -443,6 +578,8 @@ class ReporteController extends Controller
             'estudiantes_atendidos'    => $estudiantesAtendidos,
             'formadores_activos'       => $formadoresActivos,
             'promedio'                 => $promedio,
+            'citas_por_estudiante'     => $citasPorEstudiante,
+            'edad_promedio'            => $edadPromedio,
             'completadas'              => $completadas,
             'programadas'              => $programadas,
             'canceladas'               => $canceladas,
@@ -454,6 +591,10 @@ class ReporteController extends Controller
             'citas_por_asistencia'     => $citasPorAsistencia,
             'estudiantes_por_grado'    => $estudiantesPorGrado,
             'estudiantes_por_grupo'    => $estudiantesPorGrupo,
+            'estudiantes_por_sexo'     => $estudiantesPorSexo,
+            'estudiantes_por_edad'     => $estudiantesPorEdad,
+            'citas_por_sexo'           => $citasPorSexo,
+            'citas_por_edad'           => $citasPorEdad,
             'top_formadores'           => $topFormadores,
             'top_estudiantes'          => $topEstudiantes,
             'detalles_formador'        => $detallesFormador,

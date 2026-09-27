@@ -18,6 +18,8 @@ class EstudiantesCsvImport
         'nombre',
         'grado',
         'grupo',
+        'fecha_nacimiento',
+        'sexo',
         'telefono_estudiante',
         'telefono_padre',
     ];
@@ -33,48 +35,51 @@ class EstudiantesCsvImport
     ];
 
     /**
-     * Lee un archivo de texto (CSV, TXT, TSV) y lo importa a la tabla estudiantes.
-     * - Detecta encoding: UTF-8 (con/sin BOM), UTF-16, Latin-1, Windows-1252
-     * - Detecta delimitador: , ; tab |
-     * - Solo lee las columnas conocidas (id_estudiante, nombre, grado, grupo, telefono_estudiante, telefono_padre).
-     *   Cualquier otra columna del archivo se ignora sin afectar el proceso.
+     * Alias de encabezados → nombre canónico de la columna.
+     * Se aplican tras normalizar (minúsculas, espacios→_, sin acentos).
      */
+    private const ALIAS_ENCABEZADOS = [
+        'fecha_de_nacimiento' => 'fecha_nacimiento',
+        'nacimiento'          => 'fecha_nacimiento',
+        'fecha_nac'           => 'fecha_nacimiento',
+        'cumpleanos'          => 'fecha_nacimiento',
+        'genero'              => 'sexo',
+        'sexo_genero'         => 'sexo',
+        'telefono'            => 'telefono_estudiante',
+        'tel_estudiante'      => 'telefono_estudiante',
+        'tel_padre'           => 'telefono_padre',
+        'telefono_tutor'      => 'telefono_padre',
+    ];
+
     public function import($filePath)
     {
         $insertados = 0;
         $actualizados = 0;
         $saltados = 0;
 
-        // 1) Leer el archivo completo en binario
         $contenido = @file_get_contents($filePath);
         if ($contenido === false) {
             throw new \Exception('No se pudo leer el archivo.');
         }
 
-        // 2) Detectar y normalizar encoding → UTF-8
         $contenido = $this->normalizarEncoding($contenido);
 
-        // 3) Escribir a un archivo temporal en UTF-8 para procesarlo con fgetcsv
         $tmp = tmpfile();
         fwrite($tmp, $contenido);
         rewind($tmp);
 
-        // 4) Detectar delimitador
         $primeraLinea = fgets($tmp);
         rewind($tmp);
         $delimitador = $this->detectarDelimitador($primeraLinea);
 
-        // 5) Leer encabezados
         $encabezadosRaw = fgetcsv($tmp, 0, $delimitador);
         if ($encabezadosRaw === false) {
             fclose($tmp);
             throw new \Exception('El archivo está vacío o no se pudo leer.');
         }
 
-        // 6) Normalizar encabezados (espacios → _, guiones → _, minúsculas, sin BOM/comillas)
         $encabezados = array_map([$this, 'normalizarEncabezado'], $encabezadosRaw);
 
-        // 7) Verificar columnas obligatorias
         $faltantes = array_diff(self::CAMPOS_OBLIGATORIOS, $encabezados);
         if (!empty($faltantes)) {
             fclose($tmp);
@@ -84,8 +89,6 @@ class EstudiantesCsvImport
             );
         }
 
-        // 8) Mapear nombre de columna → índice
-        //    Solo nos interesa conservar los índices de las columnas permitidas.
         $idx = [];
         foreach ($encabezados as $i => $nombre) {
             if (in_array($nombre, self::CAMPOS_PERMITIDOS, true)) {
@@ -93,7 +96,6 @@ class EstudiantesCsvImport
             }
         }
 
-        // 9) Log de columnas ignoradas (útil para debugging)
         $columnasIgnoradas = array_diff($encabezados, self::CAMPOS_PERMITIDOS);
         if (!empty($columnasIgnoradas)) {
             Log::info('Importación CSV: columnas ignoradas', [
@@ -101,26 +103,25 @@ class EstudiantesCsvImport
             ]);
         }
 
-        // 10) Procesar filas
         while (($fila = fgetcsv($tmp, 0, $delimitador)) !== false) {
-            // Saltar filas completamente vacías
             if (count($fila) === 1 && ($fila[0] === null || trim((string) $fila[0]) === '')) {
                 continue;
             }
 
-            // Obtener cada campo por su índice (o null si no existe la columna)
             $idEstudiante  = $this->valorFila($fila, $idx, 'id_estudiante');
             $nombre        = $this->valorFila($fila, $idx, 'nombre') ?? '';
             $grado         = $this->valorFila($fila, $idx, 'grado') ?? '';
             $grupo         = $this->valorFila($fila, $idx, 'grupo') ?? '';
+            $fechaNacRaw   = $this->valorFila($fila, $idx, 'fecha_nacimiento');
+            $sexoRaw       = $this->valorFila($fila, $idx, 'sexo');
             $telEstudiante = $this->valorFila($fila, $idx, 'telefono_estudiante');
             $telPadre      = $this->valorFila($fila, $idx, 'telefono_padre');
 
-            // Normalizar teléfonos
             $telEstudiante = $this->normalizarTelefono($telEstudiante);
             $telPadre      = $this->normalizarTelefono($telPadre);
+            $fechaNac      = $this->normalizarFecha($fechaNacRaw);
+            $sexo          = $this->normalizarSexo($sexoRaw);
 
-            // Validar campos obligatorios
             if (empty($idEstudiante) || $nombre === '' || $grado === '' || $grupo === '') {
                 $saltados++;
                 continue;
@@ -128,26 +129,26 @@ class EstudiantesCsvImport
 
             $existe = DB::table('estudiantes')->where('id_estudiante', $idEstudiante)->exists();
 
+            $payload = [
+                'nombre'              => $nombre,
+                'grado'               => $grado,
+                'grupo'               => strtoupper($grupo),
+                'fecha_nacimiento'    => $fechaNac,
+                'sexo'                => $sexo,
+                'telefono_estudiante' => $telEstudiante ?: null,
+                'telefono_padre'      => $telPadre ?: null,
+            ];
+
             if ($existe) {
                 DB::table('estudiantes')
                     ->where('id_estudiante', $idEstudiante)
-                    ->update([
-                        'nombre' => $nombre,
-                        'grado' => $grado,
-                        'grupo' => $grupo,
-                        'telefono_estudiante' => $telEstudiante ?: null,
-                        'telefono_padre' => $telPadre ?: null,
-                    ]);
+                    ->update($payload);
                 $actualizados++;
             } else {
-                DB::table('estudiantes')->insert([
-                    'id_estudiante' => $idEstudiante,
-                    'nombre' => $nombre,
-                    'grado' => $grado,
-                    'grupo' => $grupo,
-                    'telefono_estudiante' => $telEstudiante ?: null,
-                    'telefono_padre' => $telPadre ?: null,
-                ]);
+                DB::table('estudiantes')->insert(array_merge(
+                    ['id_estudiante' => $idEstudiante],
+                    $payload
+                ));
                 $insertados++;
             }
         }
@@ -164,24 +165,29 @@ class EstudiantesCsvImport
 
     /**
      * Normaliza el nombre de una columna del encabezado.
-     * - Quita BOM, comillas, espacios y acentos
-     * - Convierte a minúsculas
-     * - Reemplaza espacios y guiones por _
+     * Además de limpiar, aplica aliases (fecha de nacimiento → fecha_nacimiento, etc.)
      */
     private function normalizarEncabezado($header): string
     {
         $h = (string) $header;
-        $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);       // BOM residual
-        $h = str_replace(['"', "'"], '', $h);                // comillas
-        $h = str_replace([' ', '-'], '_', $h);              // espacios y guiones → _
-        $h = strtolower(trim($h));                          // minúsculas + trim
+        $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);
+        $h = str_replace(['"', "'"], '', $h);
+        $h = str_replace([' ', '-'], '_', $h);
+        $h = strtolower(trim($h));
+
+        // Quitar acentos (fecha → fecha, género → genero)
+        $h = strtr($h, [
+            'á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','ü'=>'u',
+        ]);
+
+        // Aplicar alias si existe
+        if (isset(self::ALIAS_ENCABEZADOS[$h])) {
+            return self::ALIAS_ENCABEZADOS[$h];
+        }
+
         return $h;
     }
 
-    /**
-     * Lee el valor de un campo de una fila usando el índice de su columna.
-     * Devuelve null si la columna no existe en el archivo.
-     */
     private function valorFila($fila, $idx, $campo)
     {
         if (!isset($idx[$campo])) {
@@ -194,27 +200,20 @@ class EstudiantesCsvImport
         return trim($valor);
     }
 
-    /**
-     * Detecta el encoding y lo convierte a UTF-8
-     */
     private function normalizarEncoding($contenido)
     {
-        // BOM UTF-8
         if (substr($contenido, 0, 3) === "\xEF\xBB\xBF") {
             return substr($contenido, 3);
         }
 
-        // BOM UTF-16 LE
         if (substr($contenido, 0, 2) === "\xFF\xFE") {
             return mb_convert_encoding(substr($contenido, 2), 'UTF-8', 'UTF-16LE');
         }
 
-        // BOM UTF-16 BE
         if (substr($contenido, 0, 2) === "\xFE\xFF") {
             return mb_convert_encoding(substr($contenido, 2), 'UTF-8', 'UTF-16BE');
         }
 
-        // Detectar encoding con mb_detect_encoding
         $encodings = ['UTF-8', 'Windows-1252', 'ISO-8859-1', 'UTF-16', 'UTF-16LE', 'UTF-16BE'];
         $detectado = mb_detect_encoding($contenido, $encodings, true);
 
@@ -225,9 +224,6 @@ class EstudiantesCsvImport
         return $contenido;
     }
 
-    /**
-     * Detecta el delimitador analizando la primera línea
-     */
     private function detectarDelimitador($linea)
     {
         $candidatos = [
@@ -258,6 +254,111 @@ class EstudiantesCsvImport
         }
 
         return $tel ?: null;
+    }
+
+    /**
+     * Normaliza una fecha de nacimiento a formato YYYY-MM-DD o null.
+     *
+     * Acepta:
+     *  - Número de serie de Excel (ej. 40000) → convierte
+     *  - YYYY-MM-DD
+     *  - DD/MM/YYYY, DD-MM-YYYY
+     *  - YYYY/MM/DD
+     *  - DateTime textual
+     */
+    private function normalizarFecha($valor): ?string
+    {
+        if ($valor === null) return null;
+
+        $valor = trim((string) $valor);
+        if ($valor === '') return null;
+
+        // 1) ¿Es un número de serie de Excel? (rango razonable: 10000 = 1927, 60000 = 2064)
+        if (is_numeric($valor)) {
+            $num = (int) $valor;
+            if ($num > 1000 && $num < 80000) {
+                // Excel cuenta desde 1900-01-01 con un bug histórico (trata 1900 como bisiesto).
+                // La fórmula estándar es: date = 1899-12-30 + días
+                try {
+                    $fecha = new \DateTime('1899-12-30');
+                    $fecha->modify("+{$num} days");
+                    return $fecha->format('Y-m-d');
+                } catch (\Exception $e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // 2) Probar formatos comunes
+        $formatos = [
+            'Y-m-d',
+            'd/m/Y',
+            'd-m-Y',
+            'Y/m/d',
+            'd.m.Y',
+            'm/d/Y',   // Americano (último recurso)
+        ];
+
+        foreach ($formatos as $fmt) {
+            $dt = \DateTime::createFromFormat($fmt, $valor);
+            if ($dt && $dt->format($fmt) === $valor) {
+                // Sanity: no fechas futuras
+                if ($dt->getTimestamp() > time()) return null;
+                return $dt->format('Y-m-d');
+            }
+        }
+
+        // 3) Último intento con strtotime (por si viene "January 1, 2008" u otro)
+        $ts = strtotime($valor);
+        if ($ts !== false && $ts < time()) {
+            return date('Y-m-d', $ts);
+        }
+
+        return null;
+    }
+
+    /**
+     * Normaliza el sexo/género.
+     * Mapea valores comunes a las opciones base y deja el resto tal cual (truncado a 50 chars).
+     */
+    private function normalizarSexo($valor): ?string
+    {
+        if ($valor === null) return null;
+
+        $valor = trim((string) $valor);
+        if ($valor === '') return null;
+
+        // Truncar a 50 caracteres para no exceder la columna
+        if (mb_strlen($valor) > 50) {
+            $valor = mb_substr($valor, 0, 50);
+        }
+
+        $lower = mb_strtolower($valor, 'UTF-8');
+
+        // Mapeos comunes → valor canónico
+        $mapa = [
+            'm' => 'Hombre',
+            'h' => 'Hombre',
+            'hombre' => 'Hombre',
+            'masculino' => 'Hombre',
+            'varon' => 'Hombre',
+            'varón' => 'Hombre',
+            'f' => 'Mujer',
+            'mujer' => 'Mujer',
+            'femenino' => 'Mujer',
+            'prefiero no decirlo' => 'Prefiero no decirlo',
+            'no especificado' => 'Prefiero no decirlo',
+            'sin especificar' => 'Prefiero no decirlo',
+            'n/e' => 'Prefiero no decirlo',
+        ];
+
+        if (isset($mapa[$lower])) {
+            return $mapa[$lower];
+        }
+
+        // No matchea con ninguno → devolver tal cual (para que "Otro", "No binario", etc. se guarden)
+        return $valor;
     }
 
     public function getMensaje()

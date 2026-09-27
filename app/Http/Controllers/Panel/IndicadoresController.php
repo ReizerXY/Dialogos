@@ -21,6 +21,20 @@ class IndicadoresController extends Controller
         return $this->MESES_ES[(int) $month - 1] . ' ' . $year;
     }
 
+    private function calcularEdad($fechaNacimiento)
+    {
+        if (!$fechaNacimiento) return null;
+        try {
+            $nacimiento = new \DateTime($fechaNacimiento);
+            $hoy = new \DateTime();
+            $diff = $hoy->diff($nacimiento);
+            $edad = (int) $diff->y;
+            return ($edad >= 0 && $edad < 130) ? $edad : null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     public function index(Request $request)
     {
         $user = Session::get('user');
@@ -32,9 +46,6 @@ class IndicadoresController extends Controller
         $grado  = $request->get('grado');
         $grupo  = $request->get('grupo');
 
-        // ============================================================
-        // CACHÉ: 2 min por combinación de filtros
-        // ============================================================
         $cacheKey = CacheInvalidator::indicadoresKey([
             'anio' => $anio, 'mes' => $mes, 'semana' => $semana, 'grado' => $grado, 'grupo' => $grupo,
         ]);
@@ -199,16 +210,26 @@ class IndicadoresController extends Controller
             if ($grupo) $qTotalEst->where('grupo', $grupo);
             $totalEstudiantes = $qTotalEst->count();
 
+            // NUEVO: promedio de citas por estudiante atendido
+            $citasPorEstudiante = $estudiantesAtendidos > 0
+                ? round($totalCitas / $estudiantesAtendidos, 1)
+                : 0;
+
             // ========================================================
-            // ESTUDIANTES AGRUPADOS
+            // ESTUDIANTES AGRUPADOS (solo los atendidos en el periodo)
             // ========================================================
-            $qEstAgrupados = DB::table('estudiantes')
-                ->select('id_estudiante', 'nombre', 'grado', 'grupo');
-            if ($grado) $qEstAgrupados->where('grado', $grado);
-            if ($grupo) $qEstAgrupados->where('grupo', $grupo);
+            $qEstAgrupados = DB::table('citas')
+                ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
+                ->select('estudiantes.id_estudiante', 'estudiantes.nombre', 'estudiantes.grado', 'estudiantes.grupo')
+                ->whereRaw($whereRaw, $bindings)
+                ->distinct();
+
+            if ($aplicarFiltroGradoGrupo) {
+                $qEstAgrupados->whereIn('estudiantes.id_estudiante', $idsEstudiantesFiltrados ?: [0]);
+            }
 
             $estudiantesAgrupados = $qEstAgrupados
-                ->orderBy('grado')->orderBy('grupo')->orderBy('nombre')
+                ->orderBy('estudiantes.grado')->orderBy('estudiantes.grupo')->orderBy('estudiantes.nombre')
                 ->get()
                 ->groupBy('grado')
                 ->map(function ($grupoGrado) {
@@ -224,6 +245,93 @@ class IndicadoresController extends Controller
                     })->values()->toArray();
                 })
                 ->toArray();
+
+            // ========================================================
+            // DISTRIBUCIÓN DE ESTUDIANTES POR SEXO
+            // ========================================================
+            $sexosRaw = DB::table('citas')
+                ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
+                ->select('estudiantes.sexo', 'estudiantes.id_estudiante')
+                ->whereRaw($whereRaw, $bindings)
+                ->whereNotNull('estudiantes.sexo')
+                ->where('estudiantes.sexo', '!=', '')
+                ->distinct()
+                ->get();
+
+            if ($aplicarFiltroGradoGrupo) {
+                $sexosRaw = $sexosRaw->filter(fn($s) => in_array($s->id_estudiante, $idsEstudiantesFiltrados));
+            }
+
+            $estudiantesPorSexo = [
+                'Hombre' => 0,
+                'Mujer' => 0,
+                'Prefiero no decirlo' => 0,
+                'Otro' => 0,
+            ];
+
+            foreach ($sexosRaw as $s) {
+                $normalizado = mb_strtolower(trim((string) $s->sexo), 'UTF-8');
+                $normalizado = strtr($normalizado, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u']);
+
+                if (in_array($normalizado, ['hombre', 'masculino', 'varon', 'h'], true)) {
+                    $estudiantesPorSexo['Hombre']++;
+                } elseif (in_array($normalizado, ['mujer', 'femenino', 'f'], true)) {
+                    $estudiantesPorSexo['Mujer']++;
+                } elseif (
+                    str_contains($normalizado, 'prefiero') ||
+                    str_contains($normalizado, 'sin especificar') ||
+                    str_contains($normalizado, 'no especificado') ||
+                    str_contains($normalizado, 'n/e')
+                ) {
+                    $estudiantesPorSexo['Prefiero no decirlo']++;
+                } else {
+                    $estudiantesPorSexo['Otro']++;
+                }
+            }
+
+            $estudiantesPorSexo = array_filter($estudiantesPorSexo, fn($v) => $v > 0);
+
+            // ========================================================
+            // DISTRIBUCIÓN DE ESTUDIANTES POR RANGO DE EDAD
+            // ========================================================
+            $edadesRaw = DB::table('citas')
+                ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
+                ->select('estudiantes.id_estudiante', 'estudiantes.fecha_nacimiento')
+                ->whereRaw($whereRaw, $bindings)
+                ->whereNotNull('estudiantes.fecha_nacimiento')
+                ->distinct()
+                ->get();
+
+            if ($aplicarFiltroGradoGrupo) {
+                $edadesRaw = $edadesRaw->filter(fn($e) => in_array($e->id_estudiante, $idsEstudiantesFiltrados));
+            }
+
+            $rangos = [
+                '14 años o menos' => 0,
+                '15-16 años'      => 0,
+                '17-18 años'      => 0,
+                '19 años o más'   => 0,
+            ];
+
+            $sumaEdades = 0;
+            $totalConEdad = 0;
+
+            foreach ($edadesRaw as $e) {
+                $edad = $this->calcularEdad($e->fecha_nacimiento);
+                if ($edad === null) continue;
+
+                $sumaEdades += $edad;
+                $totalConEdad++;
+
+                if ($edad <= 14)      $rangos['14 años o menos']++;
+                elseif ($edad <= 16)  $rangos['15-16 años']++;
+                elseif ($edad <= 18)  $rangos['17-18 años']++;
+                else                  $rangos['19 años o más']++;
+            }
+
+            $edadPromedio = $totalConEdad > 0 ? round($sumaEdades / $totalConEdad, 1) : 0;
+
+            $estudiantesPorEdad = array_filter($rangos, fn($v) => $v > 0);
 
             // ========================================================
             // DESTACADOS
@@ -389,7 +497,6 @@ class IndicadoresController extends Controller
                     ->limit(10)->get();
             }
 
-            // Nota: `user` NO va aquí porque depende de la sesión de cada usuario.
             return [
                 'totalFormadores'          => $totalFormadores,
                 'totalEstudiantes'         => $totalEstudiantes,
@@ -399,6 +506,9 @@ class IndicadoresController extends Controller
                 'tasaCompletacion'         => $tasaCompletacion,
                 'tasaCancelacion'          => $tasaCancelacion,
                 'tasaAsistencia'           => $tasaAsistencia,
+                'edadPromedio'             => $edadPromedio,
+                // NUEVO KPI
+                'citasPorEstudiante'       => $citasPorEstudiante,
                 'estudiantesAgrupados'     => $estudiantesAgrupados,
                 'gradosActivos'            => $gradosActivos,
                 'gruposActivos'            => $gruposActivos,
@@ -407,6 +517,8 @@ class IndicadoresController extends Controller
                 'citasPorClasificacion'    => $citasPorClasificacion,
                 'citasPorAsistencia'       => $citasPorAsistencia,
                 'citasPorHora'             => $citasPorHora,
+                'estudiantesPorSexo'       => $estudiantesPorSexo,
+                'estudiantesPorEdad'       => $estudiantesPorEdad,
                 'formadoresTop'            => $formadoresTop,
                 'estudiantesTop'           => $estudiantesTop,
                 'detalleFormadores'        => $detalleFormadores,

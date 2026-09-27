@@ -7,14 +7,73 @@ import ConfirmModal from '@/Components/ConfirmModal';
 // Grados permitidos (mismo orden que el backend)
 const GRADOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
 
+// Opciones base de sexo. "Otro" se maneja especial (input libre adicional)
+const SEXOS_BASE = ['Hombre', 'Mujer', 'Prefiero no decirlo'];
+const SEXO_OTRO = 'Otro';
+
+// ✅ Calcula la edad (en años) a partir de la fecha de nacimiento YYYY-MM-DD
+function calcularEdad(fechaNacimiento) {
+    if (!fechaNacimiento) return null;
+    const nacimiento = new Date(fechaNacimiento + 'T00:00:00');
+    if (isNaN(nacimiento.getTime())) return null;
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const m = hoy.getMonth() - nacimiento.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+    }
+    return (edad >= 0 && edad < 130) ? edad : null;
+}
+
+// ✅ Colores del badge de sexo según valor guardado
+function colorBadgeSexo(sexo) {
+    if (!sexo) return 'bg-gray-100 text-gray-600';
+    const s = sexo.toLowerCase();
+    if (s === 'hombre' || s === 'masculino') return 'bg-blue-100 text-blue-800';
+    if (s === 'mujer' || s === 'femenino')    return 'bg-pink-100 text-pink-800';
+    if (s.includes('prefiero'))                return 'bg-gray-100 text-gray-700';
+    return 'bg-purple-100 text-purple-800';
+}
+
+// ✅ Formato legible: DD-MM-YYYY
+function formatFecha(fecha) {
+    if (!fecha) return '';
+    const p = fecha.split('-');
+    if (p.length !== 3) return fecha;
+    return `${p[2]}-${p[1]}-${p[0]}`;
+}
+
 // ✅ Fila memoizada: solo se re-renderiza si el estudiante o los handlers cambian
 const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEliminar }) {
+    const edad = calcularEdad(estudiante.fecha_nacimiento);
+
     return (
         <tr className="hover:bg-[#FF5900]/5 transition-colors">
             <td className="px-4 py-3 text-sm font-medium text-gray-800 font-mono">{estudiante.id_estudiante}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.nombre}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grado}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grupo}</td>
+            <td className="px-4 py-3 text-sm text-gray-700 text-center">
+                {edad !== null ? (
+                    <span
+                        className="inline-flex items-center justify-center w-9 h-7 rounded-full bg-[#FF5900]/10 text-[#CC4700] font-semibold"
+                        title={formatFecha(estudiante.fecha_nacimiento)}
+                    >
+                        {edad}
+                    </span>
+                ) : (
+                    <span className="text-gray-400">-</span>
+                )}
+            </td>
+            <td className="px-4 py-3 text-sm">
+                {estudiante.sexo ? (
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${colorBadgeSexo(estudiante.sexo)}`}>
+                        {estudiante.sexo}
+                    </span>
+                ) : (
+                    <span className="text-gray-400">-</span>
+                )}
+            </td>
             <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_estudiante || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_padre || '-'}</td>
             <td className="px-4 py-3">
@@ -55,19 +114,24 @@ export default function Estudiantes({ estudiantes, user }) {
     const [listaEstudiantes, setListaEstudiantes] = useState(estudiantes);
     const [orden, setOrden] = useState('id_estudiante');
 
-    // ✅ Sincronizar la lista local cuando el prop cambia (después de un router.reload)
     useEffect(() => {
         setListaEstudiantes(estudiantes);
     }, [estudiantes]);
 
-    // ===== FILTROS =====
+    // ===== FILTROS (input = borrador / filter = aplicado) =====
     const [busquedaInput, setBusquedaInput] = useState('');
     const [gradoInput, setGradoInput]       = useState('');
     const [grupoInput, setGrupoInput]       = useState('');
+    const [sexoInput, setSexoInput]         = useState('');
+    const [edadMinInput, setEdadMinInput]   = useState('');
+    const [edadMaxInput, setEdadMaxInput]   = useState('');
 
     const [busqueda, setBusqueda]           = useState('');
     const [gradoFilter, setGradoFilter]     = useState('');
     const [grupoFilter, setGrupoFilter]     = useState('');
+    const [sexoFilter, setSexoFilter]       = useState('');
+    const [edadMinFilter, setEdadMinFilter] = useState('');
+    const [edadMaxFilter, setEdadMaxFilter] = useState('');
 
     const [filtrosOpen, setFiltrosOpen]     = useState(false);
 
@@ -79,9 +143,14 @@ export default function Estudiantes({ estudiantes, user }) {
         nombre: '',
         grado: '',
         grupo: '',
+        fecha_nacimiento: '',
+        sexo: '',
         telefono_estudiante: '',
         telefono_padre: '',
     });
+    // Select auxiliar para sexo + input libre cuando es "Otro"
+    const [sexoSelect, setSexoSelect] = useState('');
+    const [sexoOtro, setSexoOtro]     = useState('');
     const [cargandoModal, setCargandoModal] = useState(false);
 
     // ===== CONFIRMACIONES =====
@@ -89,7 +158,7 @@ export default function Estudiantes({ estudiantes, user }) {
     const [confirmEliminarTodos, setConfirmEliminarTodos] = useState({ open: false, loading: false });
 
     // ============================================================
-    // GRADOS Y GRUPOS DISPONIBLES
+    // GRADOS Y GRUPOS DISPONIBLES (derivados de la lista actual)
     // ============================================================
     const gradosDisponibles = useMemo(() => {
         const set = new Set(listaEstudiantes.map(e => e.grado).filter(Boolean));
@@ -107,6 +176,12 @@ export default function Estudiantes({ estudiantes, user }) {
         const set = new Set(base.map(e => e.grupo).filter(Boolean));
         return [...set].sort();
     }, [listaEstudiantes, gradoInput]);
+
+    // Sexos disponibles en la BD (agrupados)
+    const sexosDisponibles = useMemo(() => {
+        const set = new Set(listaEstudiantes.map(e => e.sexo).filter(Boolean));
+        return [...set].sort((a, b) => a.localeCompare(b, 'es'));
+    }, [listaEstudiantes]);
 
     useEffect(() => {
         if (grupoInput && !gruposDisponiblesInput.includes(grupoInput)) {
@@ -126,15 +201,24 @@ export default function Estudiantes({ estudiantes, user }) {
         setBusqueda(busquedaInput.trim());
         setGradoFilter(gradoFinal);
         setGrupoFilter(grupoFinal);
-    }, [gradoInput, grupoInput, gruposDisponiblesInput, busquedaInput]);
+        setSexoFilter(sexoInput);
+        setEdadMinFilter(edadMinInput);
+        setEdadMaxFilter(edadMaxInput);
+    }, [gradoInput, grupoInput, gruposDisponiblesInput, busquedaInput, sexoInput, edadMinInput, edadMaxInput]);
 
     const limpiarFiltros = useCallback(() => {
         setBusquedaInput('');
         setGradoInput('');
         setGrupoInput('');
+        setSexoInput('');
+        setEdadMinInput('');
+        setEdadMaxInput('');
         setBusqueda('');
         setGradoFilter('');
         setGrupoFilter('');
+        setSexoFilter('');
+        setEdadMinFilter('');
+        setEdadMaxFilter('');
     }, []);
 
     // ============================================================
@@ -151,12 +235,22 @@ export default function Estudiantes({ estudiantes, user }) {
             );
         }
 
-        if (gradoFilter) {
-            lista = lista.filter(e => e.grado === gradoFilter);
-        }
+        if (gradoFilter) lista = lista.filter(e => e.grado === gradoFilter);
+        if (grupoFilter) lista = lista.filter(e => e.grupo === grupoFilter);
+        if (sexoFilter)  lista = lista.filter(e => (e.sexo || '') === sexoFilter);
 
-        if (grupoFilter) {
-            lista = lista.filter(e => e.grupo === grupoFilter);
+        // Filtro de rango de edad
+        if (edadMinFilter !== '' || edadMaxFilter !== '') {
+            const min = edadMinFilter !== '' ? parseInt(edadMinFilter, 10) : null;
+            const max = edadMaxFilter !== '' ? parseInt(edadMaxFilter, 10) : null;
+
+            lista = lista.filter(e => {
+                const edad = calcularEdad(e.fecha_nacimiento);
+                if (edad === null) return false;
+                if (min !== null && !isNaN(min) && edad < min) return false;
+                if (max !== null && !isNaN(max) && edad > max) return false;
+                return true;
+            });
         }
 
         if (orden === 'grado') {
@@ -166,28 +260,65 @@ export default function Estudiantes({ estudiantes, user }) {
                 if (gradoA !== gradoB) return gradoA - gradoB;
                 return (a.grupo || '').localeCompare(b.grupo || '');
             });
+        } else if (orden === 'edad') {
+            return lista.sort((a, b) => {
+                const ea = calcularEdad(a.fecha_nacimiento);
+                const eb = calcularEdad(b.fecha_nacimiento);
+                // Los sin edad van al final
+                if (ea === null && eb === null) return 0;
+                if (ea === null) return 1;
+                if (eb === null) return -1;
+                return ea - eb;
+            });
         } else {
             return lista.sort((a, b) =>
                 String(a.id_estudiante).localeCompare(String(b.id_estudiante), undefined, { numeric: true })
             );
         }
-    }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, orden]);
+    }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, sexoFilter, edadMinFilter, edadMaxFilter, orden]);
 
-    const filtrosActivos = [busqueda, gradoFilter, grupoFilter].filter(Boolean).length;
+    const filtrosActivos = [
+        busqueda,
+        gradoFilter,
+        grupoFilter,
+        sexoFilter,
+        edadMinFilter !== '' ? 'min' : null,
+        edadMaxFilter !== '' ? 'max' : null,
+    ].filter(Boolean).length;
 
     // ============================================================
     // HANDLERS ESTABLES (para React.memo)
     // ============================================================
     const abrirModalEditar = useCallback((estudiante) => {
         setModoEdicion(true);
+
+        // Determinar si el sexo guardado es una de las opciones base
+        const sexoGuardado = estudiante.sexo || '';
+        const esBase = SEXOS_BASE.includes(sexoGuardado);
+
         setFormData({
             id_estudiante: estudiante.id_estudiante,
             nombre: estudiante.nombre,
             grado: estudiante.grado,
             grupo: (estudiante.grupo || '').toUpperCase(),
+            fecha_nacimiento: estudiante.fecha_nacimiento || '',
+            sexo: sexoGuardado,
             telefono_estudiante: estudiante.telefono_estudiante || '',
             telefono_padre: estudiante.telefono_padre || '',
         });
+
+        if (!sexoGuardado) {
+            setSexoSelect('');
+            setSexoOtro('');
+        } else if (esBase) {
+            setSexoSelect(sexoGuardado);
+            setSexoOtro('');
+        } else {
+            // Es un valor libre → marcar "Otro" y poner el texto
+            setSexoSelect(SEXO_OTRO);
+            setSexoOtro(sexoGuardado);
+        }
+
         setModalAbierto(true);
     }, []);
 
@@ -205,9 +336,13 @@ export default function Estudiantes({ estudiantes, user }) {
             nombre: '',
             grado: '',
             grupo: '',
+            fecha_nacimiento: '',
+            sexo: '',
             telefono_estudiante: '',
             telefono_padre: '',
         });
+        setSexoSelect('');
+        setSexoOtro('');
         setModalAbierto(true);
     };
 
@@ -218,9 +353,13 @@ export default function Estudiantes({ estudiantes, user }) {
             nombre: '',
             grado: '',
             grupo: '',
+            fecha_nacimiento: '',
+            sexo: '',
             telefono_estudiante: '',
             telefono_padre: '',
         });
+        setSexoSelect('');
+        setSexoOtro('');
         setCargandoModal(false);
     };
 
@@ -232,16 +371,45 @@ export default function Estudiantes({ estudiantes, user }) {
         setFormData({ ...formData, grupo: e.target.value.toUpperCase() });
     };
 
+    const handleSexoSelectChange = (valor) => {
+        setSexoSelect(valor);
+        if (valor === SEXO_OTRO) {
+            // Dejar que el usuario escriba libremente; el valor del form se completa al guardar
+            setFormData({ ...formData, sexo: sexoOtro });
+        } else {
+            setSexoOtro('');
+            setFormData({ ...formData, sexo: valor });
+        }
+    };
+
+    const handleSexoOtroChange = (valor) => {
+        setSexoOtro(valor);
+        setFormData({ ...formData, sexo: valor });
+    };
+
+    // Edad en vivo para mostrar en el modal
+    const edadEnVivo = useMemo(() => calcularEdad(formData.fecha_nacimiento), [formData.fecha_nacimiento]);
+
     const handleSubmitModal = async (e) => {
         e.preventDefault();
         setCargandoModal(true);
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
         if (!formData.id_estudiante || !formData.nombre || !formData.grado || !formData.grupo) {
-            setMensaje({ tipo: 'error', texto: 'Todos los campos excepto teléfonos son obligatorios.' });
+            setMensaje({ tipo: 'error', texto: 'Todos los campos excepto fecha de nacimiento, sexo y teléfonos son obligatorios.' });
             setCargandoModal(false);
             return;
         }
+
+        // Si seleccionó "Otro" pero no escribió nada, limpiar el valor
+        const sexoFinal = (sexoSelect === SEXO_OTRO)
+            ? (sexoOtro.trim() || null)
+            : (sexoSelect || null);
+
+        const payload = {
+            ...formData,
+            sexo: sexoFinal,
+        };
 
         const url = modoEdicion ? `/estudiantes/${formData.id_estudiante}` : '/estudiantes';
         const method = modoEdicion ? 'PUT' : 'POST';
@@ -254,7 +422,7 @@ export default function Estudiantes({ estudiantes, user }) {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             const data = await response.json();
@@ -515,10 +683,10 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </button>
                             </form>
                             <p className="text-xs text-gray-400 mt-3">
-                                El archivo debe tener las columnas: <strong>id_estudiante, nombre, grado, grupo, telefono_estudiante, telefono_padre</strong>.
+                                Columnas esperadas: <strong>id_estudiante, nombre, grado, grupo, fecha_nacimiento, sexo, telefono_estudiante, telefono_padre</strong>.
                             </p>
                             <p className="text-xs text-gray-400">
-                                Las filas con ID existente se actualizarán; las nuevas se insertarán.
+                                Las filas con ID existente se actualizarán; las nuevas se insertarán. Las columnas extra se ignoran.
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                                 ✅ Acepta <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong> y <strong>.txt</strong>.
@@ -527,7 +695,7 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 </div>
 
-                {/* Filtros */}
+                {/* Filtros (colapsables, se aplican con el botón) */}
                 <div className="bg-white rounded-2xl shadow-md mb-6 border border-gray-100 overflow-hidden">
                     <button
                         onClick={() => setFiltrosOpen(!filtrosOpen)}
@@ -549,8 +717,9 @@ export default function Estudiantes({ estudiantes, user }) {
                         </svg>
                     </button>
 
-                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6 border-t border-gray-100 pt-5">
+                            {/* Fila 1: Búsqueda + Grado + Grupo */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre o ID</label>
@@ -604,6 +773,56 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
+                            {/* Fila 2: Sexo + Rango de edad */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Sexo</label>
+                                    <select
+                                        value={sexoInput}
+                                        onChange={(e) => setSexoInput(e.target.value)}
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    >
+                                        <option value="">Todos</option>
+                                        {sexosDisponibles.map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        Edad mínima
+                                        <span className="text-gray-400 font-normal ml-1">(años)</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="10"
+                                        max="30"
+                                        value={edadMinInput}
+                                        onChange={(e) => setEdadMinInput(e.target.value)}
+                                        placeholder="Ej. 15"
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        Edad máxima
+                                        <span className="text-gray-400 font-normal ml-1">(años)</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="10"
+                                        max="30"
+                                        value={edadMaxInput}
+                                        onChange={(e) => setEdadMaxInput(e.target.value)}
+                                        placeholder="Ej. 18"
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Fila 3: Botones */}
                             <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
                                 <button
                                     onClick={aplicarFiltros}
@@ -640,7 +859,7 @@ export default function Estudiantes({ estudiantes, user }) {
                             </span>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => setOrden('id_estudiante')}
                                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
@@ -649,7 +868,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                         : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
                                 }`}
                             >
-                                Ordenar por ID Estudiante
+                                Por ID Estudiante
                             </button>
                             <button
                                 onClick={() => setOrden('grado')}
@@ -659,7 +878,17 @@ export default function Estudiantes({ estudiantes, user }) {
                                         : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
                                 }`}
                             >
-                                Ordenar por Grado-Grupo
+                                Por Grado-Grupo
+                            </button>
+                            <button
+                                onClick={() => setOrden('edad')}
+                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                                    orden === 'edad'
+                                        ? 'bg-[#FF5900] text-white shadow-md'
+                                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                Por Edad
                             </button>
                         </div>
                     </div>
@@ -672,6 +901,8 @@ export default function Estudiantes({ estudiantes, user }) {
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grado</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Edad</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sexo</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono estudiante</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono padre</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -688,7 +919,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                 ))}
                                 {listaFiltradaYOrdenada.length === 0 && (
                                     <tr>
-                                        <td colSpan="7" className="py-12 text-center text-gray-500">
+                                        <td colSpan="9" className="py-12 text-center text-gray-500">
                                             {filtrosActivos > 0
                                                 ? 'No hay estudiantes que coincidan con los filtros.'
                                                 : 'No hay estudiantes registrados.'}
@@ -701,10 +932,12 @@ export default function Estudiantes({ estudiantes, user }) {
                 </div>
             </div>
 
+            {/* ============================================================ */}
             {/* Modal agregar/editar */}
+            {/* ============================================================ */}
             {modalAbierto && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-xl font-bold text-gray-800">
                                 {modoEdicion ? 'Editar estudiante' : 'Agregar estudiante'}
@@ -775,6 +1008,62 @@ export default function Estudiantes({ estudiantes, user }) {
                                     />
                                 </div>
                             </div>
+
+                            {/* Fecha de nacimiento + Sexo */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
+                                    <input
+                                        type="date"
+                                        name="fecha_nacimiento"
+                                        value={formData.fecha_nacimiento}
+                                        onChange={handleChange}
+                                        max={new Date().toISOString().split('T')[0]}
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    />
+                                    {edadEnVivo !== null && (
+                                        <p className="mt-1.5 text-xs text-[#CC4700] font-medium">
+                                            Edad: <strong>{edadEnVivo}</strong> años
+                                        </p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+                                    <select
+                                        value={sexoSelect}
+                                        onChange={(e) => handleSexoSelectChange(e.target.value)}
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                    >
+                                        <option value="">Sin especificar</option>
+                                        {SEXOS_BASE.map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                        <option value={SEXO_OTRO}>Otro (escribir)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Input libre cuando se elige "Otro" */}
+                            {sexoSelect === SEXO_OTRO && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Especifica el sexo
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={sexoOtro}
+                                        onChange={(e) => handleSexoOtroChange(e.target.value)}
+                                        maxLength={50}
+                                        placeholder="Escribe cómo se identifica la persona"
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                                        autoFocus
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Se guardará tal cual lo escribas (máx. 50 caracteres).
+                                    </p>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono estudiante</label>
                                 <input

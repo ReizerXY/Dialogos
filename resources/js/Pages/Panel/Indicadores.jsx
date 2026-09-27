@@ -12,6 +12,13 @@ const CLASIFICACION_COLOR_BLOCK = {
     'institucional': 'bg-amber-500',
 };
 
+const SEXO_COLOR = {
+    'Hombre':              { pill: 'bg-blue-50 border-blue-200 text-blue-800',    dot: 'bg-blue-500' },
+    'Mujer':               { pill: 'bg-pink-50 border-pink-200 text-pink-800',    dot: 'bg-pink-500' },
+    'Prefiero no decirlo': { pill: 'bg-gray-50 border-gray-200 text-gray-700',    dot: 'bg-gray-400' },
+    'Otro':                { pill: 'bg-purple-50 border-purple-200 text-purple-800', dot: 'bg-purple-500' },
+};
+
 const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 function mesTitulo(mesYMD) {
@@ -36,33 +43,35 @@ function formatHora12(hora24) {
     return `${hNum}:${m} ${ampm}`;
 }
 
-// Helper para capitalizar (para el tooltip)
 function capitalizar(texto) {
     if (!texto) return '';
     return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 const SECCIONES_INFO = [
-    { key: 'kpis',         label: 'Números principales',                    default: true },
-    { key: 'distribucion', label: 'Cómo se distribuyen las citas',          default: true },
-    { key: 'tendencias',   label: 'Cómo cambian las citas en el tiempo',    default: true },
+    { key: 'kpis',         label: 'Resumen general',                        default: true },
+    { key: 'distribucion', label: 'Distribución de citas',                  default: true },
+    { key: 'tendencias',   label: 'Tendencias',                             default: true },
     { key: 'destacados',   label: 'Formadores y estudiantes con más citas', default: true },
-    { key: 'comparativas', label: 'Comparación con periodos anteriores',    default: true },
-    { key: 'formadores',   label: 'Actividad de cada formador',             default: true },
-    { key: 'citas',        label: 'Listado de citas',                       default: true },
-    { key: 'estudiantes',  label: 'Estudiantes por grado y grupo',          default: true },
+    { key: 'comparativas', label: 'Comparativas',                           default: true },
+    { key: 'formadores',   label: 'Datos por formador',                     default: true },
+    { key: 'citas',        label: 'Tabla de citas',                         default: true },
+    { key: 'estudiantes',  label: 'Estudiantes por grado/grupo',            default: true },
 ];
 
 const SECCIONES_KEYS = SECCIONES_INFO.map(s => s.key);
 const TODAS_COLAPSADAS   = Object.fromEntries(SECCIONES_KEYS.map(k => [k, true]));
-const TODOS_SUB_CERRADOS = { estado: false, clasificacion: false, asistencia: false };
+const TODOS_SUB_CERRADOS = { estado: false, clasificacion: false, asistencia: false, sexo: false, edad: false };
 const SUB_TEND_CERRADOS  = { mes: false, dia: false, hora: false };
+const SUB_DEST_CERRADOS  = { formadores: false, estudiantes: false };
 
 export default function Indicadores({
     totalFormadores, totalEstudiantes, totalCitas, promedioCitasPorFormador,
     estudiantesAtendidos, tasaCompletacion, tasaCancelacion, tasaAsistencia,
+    edadPromedio, citasPorEstudiante,
     estudiantesAgrupados, gradosActivos, gruposActivos, gruposPorGrado,
     citasPorEstado, citasPorClasificacion, citasPorAsistencia, citasPorHora,
+    estudiantesPorSexo, estudiantesPorEdad,
     formadoresTop, estudiantesTop, detalleFormadores,
     citasPorMes, citasPorDiaSemana,
     comparativaSemana, comparativaMes,
@@ -81,7 +90,7 @@ export default function Indicadores({
     const [secciones, setSecciones] = useState(() => {
         if (typeof window === 'undefined') return Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default]));
         try {
-            const g = localStorage.getItem('indicadores_secciones_v11');
+            const g = localStorage.getItem('indicadores_secciones_v13');
             if (g) return { ...Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default])), ...JSON.parse(g) };
         } catch {}
         return Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default]));
@@ -90,12 +99,13 @@ export default function Indicadores({
     const [colapsadas, setColapsadas] = useState(TODAS_COLAPSADAS);
     const [subDist, setSubDist] = useState(TODOS_SUB_CERRADOS);
     const [subTend, setSubTend] = useState(SUB_TEND_CERRADOS);
+    const [subDest, setSubDest] = useState(SUB_DEST_CERRADOS);
     const [estudiantesExpandidos, setEstudiantesExpandidos] = useState({});
     const [formadoresExpandidos, setFormadoresExpandidos] = useState({});
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            localStorage.setItem('indicadores_secciones_v11', JSON.stringify(secciones));
+            localStorage.setItem('indicadores_secciones_v13', JSON.stringify(secciones));
         }
     }, [secciones]);
 
@@ -111,11 +121,13 @@ export default function Indicadores({
         setColapsadas(TODAS_COLAPSADAS);
         setSubDist(TODOS_SUB_CERRADOS);
         setSubTend(SUB_TEND_CERRADOS);
+        setSubDest(SUB_DEST_CERRADOS);
     };
 
     const toggleColapsada  = (k) => setColapsadas(p => ({ ...p, [k]: !p[k] }));
     const toggleSubDist    = (k) => setSubDist(p => ({ ...p, [k]: !p[k] }));
     const toggleSubTend    = (k) => setSubTend(p => ({ ...p, [k]: !p[k] }));
+    const toggleSubDest    = (k) => setSubDest(p => ({ ...p, [k]: !p[k] }));
     const toggleGradoGrupo = (k) => setEstudiantesExpandidos(p => ({ ...p, [k]: !p[k] }));
     const toggleFormador   = (k) => setFormadoresExpandidos(p => ({ ...p, [k]: !p[k] }));
 
@@ -124,6 +136,7 @@ export default function Indicadores({
         setColapsadas(TODAS_COLAPSADAS);
         setSubDist(TODOS_SUB_CERRADOS);
         setSubTend(SUB_TEND_CERRADOS);
+        setSubDest(SUB_DEST_CERRADOS);
     };
     const ocultarTodo = () => {
         setSecciones(Object.fromEntries(SECCIONES_INFO.map(s => [s.key, false])));
@@ -145,13 +158,20 @@ export default function Indicadores({
     const estadoLabels = {
         programada: 'Programada',
         cancelada: 'Cancelada',
-        cancelada_liberada: 'Cancelada (horario disponible)',
+        cancelada_liberada: 'Cancelada (hora liberada)',
         completada: 'Completada',
     };
     const asistenciaColores = {
         pendiente:    { pill: 'bg-gray-50 border-gray-200 text-gray-700', dot: 'bg-gray-400' },
         asistió:      { pill: 'bg-green-50 border-green-200 text-green-800', dot: 'bg-green-400' },
         'no asistió': { pill: 'bg-red-50 border-red-200 text-red-800', dot: 'bg-red-400' },
+    };
+
+    const EDAD_COLOR = {
+        '14 años o menos': { pill: 'bg-cyan-50 border-cyan-200 text-cyan-800',   dot: 'bg-cyan-500' },
+        '15-16 años':      { pill: 'bg-blue-50 border-blue-200 text-blue-800',   dot: 'bg-blue-500' },
+        '17-18 años':      { pill: 'bg-indigo-50 border-indigo-200 text-indigo-800', dot: 'bg-indigo-500' },
+        '19 años o más':   { pill: 'bg-violet-50 border-violet-200 text-violet-800', dot: 'bg-violet-500' },
     };
 
     const aplicarFiltros = () => {
@@ -197,9 +217,9 @@ export default function Indicadores({
     })();
 
     const tituloCitas = (() => {
-        if (filtroMes)    return `Todas las citas de ${mesTitulo(filtroMes)}${contextoGradoGrupo}`;
-        if (filtroSemana) return `Todas las citas de la ${semanaTitulo(filtroSemana)}${contextoGradoGrupo}`;
-        if (filtroAnio)   return `Todas las citas del año ${filtroAnio}${contextoGradoGrupo}`;
+        if (filtroMes)    return `Listado de citas de ${mesTitulo(filtroMes)}${contextoGradoGrupo}`;
+        if (filtroSemana) return `Listado de citas de la ${semanaTitulo(filtroSemana)}${contextoGradoGrupo}`;
+        if (filtroAnio)   return `Listado de citas del año ${filtroAnio}${contextoGradoGrupo}`;
         return 'Próximas citas (próximos 7 días)';
     })();
 
@@ -324,18 +344,20 @@ export default function Indicadores({
                     </div>
                 </div>
 
-                {/* 1. Números principales */}
+                {/* 1. Resumen general */}
                 {secciones.kpis && (
-                    <SeccionColapsable titulo={`Números principales de ${periodoTexto}${contextoGradoGrupo}`} abierta={!colapsadas.kpis} onToggle={() => toggleColapsada('kpis')}>
+                    <SeccionColapsable titulo={`Resumen general de ${periodoTexto}${contextoGradoGrupo}`} abierta={!colapsadas.kpis} onToggle={() => toggleColapsada('kpis')}>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <KpiCard value={totalFormadores} titulo="Formadores activos" subtitulo="Cuentas habilitadas" />
                             <KpiCard value={totalEstudiantes} titulo="Estudiantes inscritos" subtitulo="Registrados en el sistema" />
                             <KpiCard value={totalCitas} titulo="Citas registradas" subtitulo={`En ${periodoTexto}`} />
                             <KpiCard value={promedioCitasPorFormador} titulo="Citas por formador" subtitulo="Promedio del periodo" />
                             <KpiCard value={estudiantesAtendidos} titulo="Estudiantes atendidos" subtitulo="Con al menos 1 cita" accent="blue" />
-                            <KpiCard value={`${tasaCompletacion}%`} titulo="Citas ya atendidas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
+                            <KpiCard value={`${tasaCompletacion}%`} titulo="Citas completadas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
                             <KpiCard value={`${tasaCancelacion}%`} titulo="Citas canceladas" subtitulo={`${tasaCancelacion}% del total`} accent="red" />
-                            <KpiCard value={`${tasaAsistencia}%`} titulo="Asistencia de estudiantes" subtitulo="De citas con registro" accent="orange" />
+                            <KpiCard value={`${tasaAsistencia}%`} titulo="Tasa de asistencia" subtitulo="De citas atendidas" accent="orange" />
+                            <KpiCard value={edadPromedio > 0 ? `${edadPromedio} años` : '—'} titulo="Edad promedio" subtitulo="De estudiantes atendidos" accent="orange" />
+                            <KpiCard value={citasPorEstudiante} titulo="Citas por estudiante" subtitulo="Promedio del periodo" accent="blue" />
                         </div>
                     </SeccionColapsable>
                 )}
@@ -343,11 +365,11 @@ export default function Indicadores({
                 {/* 2. Distribución */}
                 {secciones.distribucion && (
                     <SeccionColapsable
-                        titulo={`Cómo se distribuyen las citas de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Distribución de citas de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.distribucion}
                         onToggle={() => toggleColapsada('distribucion')}
                     >
-                        <SubDesplegable titulo="Citas por situación" abierta={subDist.estado} onToggle={() => toggleSubDist('estado')}>
+                        <SubDesplegable titulo="Cantidad de citas por estado" abierta={subDist.estado} onToggle={() => toggleSubDist('estado')}>
                             {Object.keys(citasPorEstado).length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {['completada', 'programada', 'cancelada', 'cancelada_liberada'].map(estado => {
@@ -365,8 +387,7 @@ export default function Indicadores({
                             ) : <p className="text-gray-400 text-sm">No hay datos</p>}
                         </SubDesplegable>
 
-                        {/* Clasificación: solo color + número, tooltip con el nombre */}
-                        <SubDesplegable titulo="Citas por tema tratado" abierta={subDist.clasificacion} onToggle={() => toggleSubDist('clasificacion')}>
+                        <SubDesplegable titulo="Cantidad de citas por tipo de clasificación" abierta={subDist.clasificacion} onToggle={() => toggleSubDist('clasificacion')}>
                             {Object.keys(citasPorClasificacion).length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
@@ -383,7 +404,7 @@ export default function Indicadores({
                             ) : <p className="text-gray-400 text-sm">No hay datos</p>}
                         </SubDesplegable>
 
-                        <SubDesplegable titulo="Asistencia del estudiante a las citas" abierta={subDist.asistencia} onToggle={() => toggleSubDist('asistencia')}>
+                        <SubDesplegable titulo="Cantidad de citas por asistencia del estudiante" abierta={subDist.asistencia} onToggle={() => toggleSubDist('asistencia')}>
                             {Object.keys(citasPorAsistencia).length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {['asistió', 'no asistió', 'pendiente'].map(asis => {
@@ -400,18 +421,52 @@ export default function Indicadores({
                                 </div>
                             ) : <p className="text-gray-400 text-sm">No hay datos</p>}
                         </SubDesplegable>
+
+                        <SubDesplegable titulo="Estudiantes atendidos por sexo" abierta={subDist.sexo} onToggle={() => toggleSubDist('sexo')}>
+                            {Object.keys(estudiantesPorSexo || {}).length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(estudiantesPorSexo).map(([sexo, total]) => {
+                                        const col = SEXO_COLOR[sexo] || SEXO_COLOR['Otro'];
+                                        return (
+                                            <div key={sexo} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
+                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
+                                                <span className="text-sm font-medium">{sexo}</span>
+                                                <span className="text-base font-bold">{total}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : <p className="text-gray-400 text-sm">No hay datos de sexo registrados</p>}
+                        </SubDesplegable>
+
+                        <SubDesplegable titulo="Estudiantes atendidos por rango de edad" abierta={subDist.edad} onToggle={() => toggleSubDist('edad')}>
+                            {Object.keys(estudiantesPorEdad || {}).length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(estudiantesPorEdad).map(([rango, total]) => {
+                                        const col = EDAD_COLOR[rango] || { pill: 'bg-gray-50 border-gray-200 text-gray-800', dot: 'bg-gray-400' };
+                                        return (
+                                            <div key={rango} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
+                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
+                                                <span className="text-sm font-medium">{rango}</span>
+                                                <span className="text-base font-bold">{total}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : <p className="text-gray-400 text-sm">No hay datos de edad registrados</p>}
+                        </SubDesplegable>
                     </SeccionColapsable>
                 )}
 
                 {/* 3. Tendencias */}
                 {secciones.tendencias && (
                     <SeccionColapsable
-                        titulo={`Cómo cambian las citas de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Tendencias de citas de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.tendencias}
                         onToggle={() => toggleColapsada('tendencias')}
                     >
                         <SubDesplegable
-                            titulo="Citas por mes"
+                            titulo="Distribución mensual de citas"
                             abierta={subTend.mes}
                             onToggle={() => toggleSubTend('mes')}
                         >
@@ -430,7 +485,7 @@ export default function Indicadores({
                         </SubDesplegable>
 
                         <SubDesplegable
-                            titulo="Citas por día de la semana"
+                            titulo="Distribución de citas por día de la semana"
                             abierta={subTend.dia}
                             onToggle={() => toggleSubTend('dia')}
                         >
@@ -456,7 +511,7 @@ export default function Indicadores({
                         </SubDesplegable>
 
                         <SubDesplegable
-                            titulo="Citas por hora del día"
+                            titulo="Distribución de citas por hora del día"
                             abierta={subTend.hora}
                             onToggle={() => toggleSubTend('hora')}
                         >
@@ -487,49 +542,54 @@ export default function Indicadores({
                         abierta={!colapsadas.destacados}
                         onToggle={() => toggleColapsada('destacados')}
                     >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <h3 className="text-base font-medium text-gray-500 mb-3">Formadores con más citas atendidas</h3>
-                                {formadoresTop.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {formadoresTop.map((item, i) => (
-                                            <RankingItem
-                                                key={`f-${i}`}
-                                                posicion={i}
-                                                nombre={item.nombre}
-                                                etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
-                                                total={item.total}
-                                                unidad="cita"
-                                            />
-                                        ))}
-                                    </div>
-                                ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                            </div>
-                            <div>
-                                <h3 className="text-base font-medium text-gray-500 mb-3">Estudiantes con más citas recibidas</h3>
-                                {estudiantesTop.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {estudiantesTop.map((item, i) => (
-                                            <RankingItem
-                                                key={`e-${i}`}
-                                                posicion={i}
-                                                nombre={item.nombre_estudiante}
-                                                etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
-                                                total={item.total}
-                                                unidad="cita"
-                                            />
-                                        ))}
-                                    </div>
-                                ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                            </div>
-                        </div>
+                        <SubDesplegable
+                            titulo="Formadores con más citas atendidas"
+                            abierta={subDest.formadores}
+                            onToggle={() => toggleSubDest('formadores')}
+                        >
+                            {formadoresTop.length > 0 ? (
+                                <div className="space-y-2">
+                                    {formadoresTop.map((item, i) => (
+                                        <RankingItem
+                                            key={`f-${i}`}
+                                            posicion={i}
+                                            nombre={item.nombre}
+                                            etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
+                                            total={item.total}
+                                            unidad="cita"
+                                        />
+                                    ))}
+                                </div>
+                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
+                        </SubDesplegable>
+
+                        <SubDesplegable
+                            titulo="Estudiantes con más citas recibidas"
+                            abierta={subDest.estudiantes}
+                            onToggle={() => toggleSubDest('estudiantes')}
+                        >
+                            {estudiantesTop.length > 0 ? (
+                                <div className="space-y-2">
+                                    {estudiantesTop.map((item, i) => (
+                                        <RankingItem
+                                            key={`e-${i}`}
+                                            posicion={i}
+                                            nombre={item.nombre_estudiante}
+                                            etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
+                                            total={item.total}
+                                            unidad="cita"
+                                        />
+                                    ))}
+                                </div>
+                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
+                        </SubDesplegable>
                     </SeccionColapsable>
                 )}
 
                 {/* 5. Comparativas */}
                 {secciones.comparativas && (
                     <SeccionColapsable
-                        titulo={`Comparación de citas de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Comparativas de citas de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.comparativas}
                         onToggle={() => toggleColapsada('comparativas')}
                     >
@@ -562,10 +622,10 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 6. Actividad por formador */}
+                {/* 6. Datos por formador */}
                 {secciones.formadores && detalleFormadores.length > 0 && (
                     <SeccionColapsable
-                        titulo={`Actividad de cada formador de ${periodoTexto}${contextoGradoGrupo}`}
+                        titulo={`Datos por formador de ${periodoTexto}${contextoGradoGrupo}`}
                         abierta={!colapsadas.formadores}
                         onToggle={() => toggleColapsada('formadores')}
                     >
@@ -600,7 +660,7 @@ export default function Indicadores({
                                                     <MiniStat label="Completadas" value={f.completadas} accent="green" />
                                                     <MiniStat label="Programadas" value={f.programadas} accent="yellow" />
                                                     <MiniStat label="Canceladas" value={f.canceladas} accent="red" />
-                                                    <MiniStat label="% de asistencia" value={`${f.tasaAsistencia}%`} accent="orange" />
+                                                    <MiniStat label="Tasa de asistencia" value={`${f.tasaAsistencia}%`} accent="orange" />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3 mb-4">
                                                     <MiniStat label="Sí asistió" value={f.asistencias} />
@@ -632,7 +692,7 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 7. Listado de citas */}
+                {/* 7. Tabla de citas */}
                 {secciones.citas && (
                     <SeccionColapsable titulo={tituloCitas} abierta={!colapsadas.citas} onToggle={() => toggleColapsada('citas')}>
                         {citasDelPeriodo.length > 0 ? (
@@ -666,13 +726,13 @@ export default function Indicadores({
 
                 {/* 8. Estudiantes por grado/grupo */}
                 {secciones.estudiantes && (
-                    <SeccionColapsable titulo="Estudiantes registrados por grado y grupo" abierta={!colapsadas.estudiantes} onToggle={() => toggleColapsada('estudiantes')}>
+                    <SeccionColapsable titulo="Estudiantes atendidos por grado y grupo" abierta={!colapsadas.estudiantes} onToggle={() => toggleColapsada('estudiantes')}>
                         <div className="space-y-4">
                             {Object.entries(estudiantesAgrupados).map(([gradoKey, grupos]) => (
                                 <div key={`grado-${gradoKey}`} className="border border-gray-100 rounded-xl overflow-hidden">
                                     <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 flex items-center justify-between">
                                         <span className="text-base font-semibold text-gray-800">Grado {gradoKey}</span>
-                                        <span className="text-sm text-gray-500">{grupos.reduce((s, g) => s + g.total, 0)} estudiantes</span>
+                                        <span className="text-sm text-gray-500">{grupos.reduce((s, g) => s + g.total, 0)} estudiantes atendidos</span>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-4">
                                         {grupos.map((g) => {
@@ -707,7 +767,7 @@ export default function Indicadores({
                             ))}
                             {Object.keys(estudiantesAgrupados).length === 0 && (
                                 <p className="text-gray-400 text-sm text-center py-4">
-                                    No hay estudiantes para el filtro seleccionado.
+                                    No hay estudiantes atendidos para el filtro seleccionado.
                                 </p>
                             )}
                         </div>

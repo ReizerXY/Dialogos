@@ -163,15 +163,19 @@ class EstudianteController extends Controller
             'nombre'        => 'required|string|max:100',
             'grado'         => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'         => 'required|string|max:5',
+            'fecha_nacimiento' => 'nullable|date|before:today|after:1900-01-01',
+            'sexo'             => 'nullable|string|max:50',
             'telefono_estudiante' => 'nullable|string|max:10',
             'telefono_padre'      => 'nullable|string|max:10',
         ]);
 
         DB::table('estudiantes')->insert([
-            'id_estudiante' => $request->id_estudiante,
-            'nombre'        => $request->nombre,
-            'grado'         => $request->grado,
-            'grupo'         => strtoupper(trim($request->grupo)),
+            'id_estudiante'    => $request->id_estudiante,
+            'nombre'           => $request->nombre,
+            'grado'            => $request->grado,
+            'grupo'            => strtoupper(trim($request->grupo)),
+            'fecha_nacimiento' => $request->fecha_nacimiento ?: null,
+            'sexo'             => $request->sexo ? trim($request->sexo) : null,
             'telefono_estudiante' => $request->telefono_estudiante,
             'telefono_padre'      => $request->telefono_padre,
         ]);
@@ -196,6 +200,8 @@ class EstudianteController extends Controller
             'nombre'    => 'required|string|max:100',
             'grado'     => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'     => 'required|string|max:5',
+            'fecha_nacimiento' => 'nullable|date|before:today|after:1900-01-01',
+            'sexo'             => 'nullable|string|max:50',
             'telefono_estudiante' => 'nullable|string|max:10',
             'telefono_padre'      => 'nullable|string|max:10',
         ]);
@@ -211,6 +217,8 @@ class EstudianteController extends Controller
                 'nombre'    => $request->nombre,
                 'grado'     => $request->grado,
                 'grupo'     => strtoupper(trim($request->grupo)),
+                'fecha_nacimiento' => $request->fecha_nacimiento ?: null,
+                'sexo'             => $request->sexo ? trim($request->sexo) : null,
                 'telefono_estudiante' => $request->telefono_estudiante,
                 'telefono_padre'      => $request->telefono_padre,
             ]);

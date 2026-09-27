@@ -32,7 +32,6 @@ class ActualizarCitasVencidas extends Command
             ->update(['estado' => 'completada']);
 
         if ($count > 0) {
-            // ✅ Invalidar el caché de Indicadores solo si algo cambió
             CacheInvalidator::indicadores();
 
             Log::info("Citas vencidas actualizadas automáticamente: {$count} citas completadas.");
