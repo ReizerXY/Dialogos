@@ -4,6 +4,18 @@ import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import SelectorSemana from '@/Components/SelectorSemana';
 
+// ✅ Detector de dispositivo móvil / pantalla chica.
+// Los navegadores móviles bloquean la previsualización de PDFs
+// dentro de iframes con blob:, así que en esos casos mostramos
+// un aviso y el botón de descarga en lugar del iframe.
+function esDispositivoMovil() {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const esMovil = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(ua);
+    const esPantallaChica = window.innerWidth < 768;
+    return esMovil || esPantallaChica;
+}
+
 export default function Reportes({ user, catalogo, aniosDisponibles }) {
     const anios = aniosDisponibles && aniosDisponibles.length > 0
         ? aniosDisponibles
@@ -24,6 +36,9 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
     const [previewModal, setPreviewModal] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [previewFilename, setPreviewFilename] = useState('');
+
+    // ✅ Detección de móvil
+    const [esMovil, setEsMovil] = useState(false);
 
     const [seccionesPorTipo, setSeccionesPorTipo] = useState(() => {
         const inicial = {};
@@ -89,6 +104,14 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         setError('');
     }, [tipo, periodo, semana, mes, anio, fechaInicio, fechaFin]);
 
+    // ✅ Detectar móvil al montar + cuando cambia el tamaño de pantalla
+    useEffect(() => {
+        setEsMovil(esDispositivoMovil());
+        const onResize = () => setEsMovil(esDispositivoMovil());
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
     // Cerrar preview con ESC
     useEffect(() => {
         if (!previewModal) return;
@@ -98,7 +121,6 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
     }, [previewModal, previewUrl]);
 
     // Bloquear scroll del body mientras el modal está abierto
-    // (evita repaints innecesarios del fondo)
     useEffect(() => {
         if (!previewModal) return;
         const prev = document.body.style.overflow;
@@ -529,7 +551,9 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                     >
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                             <div className="min-w-0">
-                                <h3 className="text-lg font-bold text-gray-800">Vista previa del reporte</h3>
+                                <h3 className="text-lg font-bold text-gray-800">
+                                    {esMovil ? 'Reporte generado' : 'Vista previa del reporte'}
+                                </h3>
                                 <p className="text-xs text-gray-500 mt-0.5 truncate">{previewFilename}</p>
                             </div>
                             <button
@@ -544,17 +568,38 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                             </button>
                         </div>
 
-                        {/* Contenedor del iframe aislado con contain para evitar repaints */}
-                        <div
-                            className="flex-1 bg-gray-100 overflow-hidden"
-                            style={{ contain: 'strict' }}
-                        >
-                            <iframe
-                                src={previewUrl}
-                                title="Vista previa del reporte"
-                                className="w-full h-full border-0 block"
-                            />
-                        </div>
+                        {/* En escritorio: iframe con el PDF.
+                            En móvil: aviso + botón, porque los navegadores móviles
+                            bloquean la previsualización de PDFs en iframes con blob:. */}
+                        {esMovil ? (
+                            <div className="flex-1 flex items-center justify-center bg-gray-50 px-6 py-8">
+                                <div className="max-w-sm text-center">
+                                    <div className="mx-auto w-20 h-20 rounded-full bg-[#FF5900]/10 flex items-center justify-center mb-4">
+                                        <svg className="w-10 h-10 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <h4 className="text-base font-semibold text-gray-800">
+                                        Tu reporte está listo
+                                    </h4>
+                                    <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                                        Los navegadores móviles no permiten ver PDFs aquí dentro.
+                                        Toca el botón de abajo para <strong>descargar</strong> o <strong>abrir</strong> el archivo.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                className="flex-1 bg-gray-100 overflow-hidden"
+                                style={{ contain: 'strict' }}
+                            >
+                                <iframe
+                                    src={previewUrl}
+                                    title="Vista previa del reporte"
+                                    className="w-full h-full border-0 block"
+                                />
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
                             <button
@@ -572,7 +617,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                Descargar PDF
+                                {esMovil ? 'Abrir / Descargar PDF' : 'Descargar PDF'}
                             </button>
                         </div>
                     </div>
