@@ -93,6 +93,20 @@ class UsuarioController extends Controller
             ->with('success', 'Usuario actualizado exitosamente.');
     }
 
+    /**
+     * Dar de baja o reactivar un usuario.
+     *
+     * COMPORTAMIENTO ACTUAL:
+     *   activo = 0 → el usuario PUEDE iniciar sesión y ver sus citas,
+     *                pero NO aparece en los selectores al agendar nuevas citas.
+     *   activo = 1 → el usuario aparece normalmente y puede recibir nuevas citas.
+     *
+     * Esto aplica a:
+     *   - Formadores: no aparecen en el formulario público de agendar cita
+     *     ni en el modal de modificar cita.
+     *   - Coordinadores: no aparecen como opción para asignar horarios en
+     *     admin/horarios (por consistencia).
+     */
     public function toggleActivo($id_usuario)
     {
         $user = Session::get('user');
@@ -120,12 +134,15 @@ class UsuarioController extends Controller
         CacheInvalidator::indicadores();
 
         $mensaje = $nuevoEstado == 1
-            ? 'Usuario reactivado correctamente.'
-            : 'Usuario dado de baja. Sus datos históricos se conservan.';
+            ? 'Usuario reactivado. Volverá a aparecer al agendar nuevas citas.'
+            : 'Usuario dado de baja. Ya no aparecerá al agendar nuevas citas, pero puede seguir ingresando a la plataforma para consultar sus citas e históricos.';
 
         return redirect()->route('usuarios.index')->with('success', $mensaje);
     }
 
+    /**
+     * Eliminar un usuario definitivamente de la base de datos.
+     */
     public function destroy($id_usuario)
     {
         $user = Session::get('user');

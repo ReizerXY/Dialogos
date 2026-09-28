@@ -12,8 +12,12 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // 🟢 Programar el comando cada 5 minutos
-        $schedule->command('citas:vencer')->everyFiveMinutes();
+        // ⛔ Desactivado: ya NO se auto-caducan las citas por paso del tiempo.
+        //    El estado solo cambia manualmente desde el modal de Notas
+        //    cuando el formador registra la asistencia.
+        //    Para reactivarlo, descomenta la línea de abajo.
+        //
+        // $schedule->command('citas:vencer')->everyFiveMinutes();
     }
 
     /**

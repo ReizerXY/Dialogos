@@ -228,7 +228,35 @@ class ReporteController extends Controller
         ]);
     }
 
+    /**
+     * Descarga el PDF (comportamiento original, sin cambios).
+     */
     public function generarPDF(Request $request)
+    {
+        $data = $this->construirReportePDF($request);
+
+        return $data['pdf']->download($data['nombreArchivo']);
+    }
+
+    /**
+     * Devuelve el PDF en modo "inline" para previsualizarlo en un iframe.
+     */
+    public function previewPDF(Request $request)
+    {
+        $data = $this->construirReportePDF($request);
+
+        return response($data['pdf']->output(), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $data['nombreArchivo'] . '"',
+            'Cache-Control'       => 'no-store, no-cache, must-revalidate',
+            'Pragma'              => 'no-cache',
+        ]);
+    }
+
+    /**
+     * Construye el PDF a partir del request. Reutilizado por generarPDF() y previewPDF().
+     */
+    private function construirReportePDF(Request $request): array
     {
         $user = Session::get('user');
         if ($user['rol'] != 'Coordinador') {
@@ -333,7 +361,10 @@ class ReporteController extends Controller
 
         $nombreArchivo = "reporte_{$tipo}_" . $this->formatFechaPDF($fechaInicio) . "_al_" . $this->formatFechaPDF($fechaFin) . ".pdf";
 
-        return $pdf->download($nombreArchivo);
+        return [
+            'pdf'           => $pdf,
+            'nombreArchivo' => $nombreArchivo,
+        ];
     }
 
     private function mesLabel($mesYMD)
@@ -351,9 +382,6 @@ class ReporteController extends Controller
         return "{$p[2]}-{$p[1]}-{$p[0]}";
     }
 
-    /**
-     * Calcula edad en años desde fecha de nacimiento. Devuelve null si inválida.
-     */
     private function calcularEdad($fechaNacimiento)
     {
         if (!$fechaNacimiento) return null;

@@ -285,17 +285,18 @@ class CitasController extends Controller
 
     private function calcularEstadoNotas($cita, $asistencia)
     {
+        // Las citas canceladas mantienen su estado sin importar qué pase
         if (in_array($cita->estado, ['cancelada', 'cancelada_liberada'], true)) {
             return $cita->estado;
         }
 
-        $hora = $cita->hora ? substr($cita->hora, 0, 8) : '00:00:00';
-        $fechaHoraCita = Carbon::parse($cita->fecha . ' ' . $hora);
-        $yaPaso = $fechaHoraCita->isPast();
-
+        // ✅ Único disparador para pasar a completada: que el formador
+        //    haya registrado asistencia manualmente (asistió / no asistió).
+        //    ⛔ Ya NO se marca completada por el simple paso del tiempo.
+        //    Si la asistencia vuelve a "pendiente", regresa a programada.
         $asistenciaRegistrada = in_array($asistencia, ['asistió', 'no asistió'], true);
 
-        if ($yaPaso || $asistenciaRegistrada) {
+        if ($asistenciaRegistrada) {
             return 'completada';
         }
 

@@ -18,10 +18,13 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
     const [fechaFin, setFechaFin] = useState('');
     const [generando, setGenerando] = useState(false);
     const [error, setError] = useState('');
-    // Tooltip de las secciones
     const [tooltip, setTooltip] = useState(null);
 
-    // Secciones seleccionadas por tipo
+    // Preview
+    const [previewModal, setPreviewModal] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [previewFilename, setPreviewFilename] = useState('');
+
     const [seccionesPorTipo, setSeccionesPorTipo] = useState(() => {
         const inicial = {};
         Object.entries(catalogo).forEach(([key, info]) => {
@@ -86,6 +89,30 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         setError('');
     }, [tipo, periodo, semana, mes, anio, fechaInicio, fechaFin]);
 
+    // Cerrar preview con ESC
+    useEffect(() => {
+        if (!previewModal) return;
+        const onKey = (e) => { if (e.key === 'Escape') cerrarPreview(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [previewModal, previewUrl]);
+
+    // Bloquear scroll del body mientras el modal está abierto
+    // (evita repaints innecesarios del fondo)
+    useEffect(() => {
+        if (!previewModal) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, [previewModal]);
+
+    // Liberar blob al desmontar
+    useEffect(() => {
+        return () => {
+            if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
+
     const seccionesActuales = seccionesPorTipo[tipo] || [];
     const infoActual = catalogo[tipo];
 
@@ -111,18 +138,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         setError('');
     };
 
-    const handleGenerarPDF = (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (seccionesActuales.length === 0) {
-            setError('Debes marcar al menos una sección para poder generar el reporte.');
-            return;
-        }
-
-        if (generando) return;
-        setGenerando(true);
-
+    const construirParams = () => {
         const params = new URLSearchParams();
         params.append('tipo', tipo);
         params.append('periodo', periodo);
@@ -136,17 +152,74 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         }
 
         seccionesActuales.forEach(sec => params.append('secciones[]', sec));
+        return params;
+    };
 
-        const url = `/reportes/generar?${params.toString()}`;
+    const handleGenerarPDF = async (e) => {
+        e.preventDefault();
+        setError('');
 
+        if (seccionesActuales.length === 0) {
+            setError('Debes marcar al menos una sección para poder generar el reporte.');
+            return;
+        }
+
+        if (generando) return;
+        setGenerando(true);
+
+        try {
+            const params = construirParams();
+
+            const response = await fetch(`/reportes/preview?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/pdf',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al generar el PDF');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            let filename = 'reporte.pdf';
+            const disposition = response.headers.get('Content-Disposition');
+            if (disposition) {
+                const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+                if (match && match[1]) filename = decodeURIComponent(match[1]);
+            }
+
+            setPreviewUrl(url);
+            setPreviewFilename(filename);
+            setPreviewModal(true);
+        } catch (err) {
+            setError('No se pudo generar el reporte. Intenta de nuevo.');
+        } finally {
+            setGenerando(false);
+        }
+    };
+
+    const handleDescargar = () => {
+        if (!previewUrl) return;
         const link = document.createElement('a');
-        link.href = url;
-        link.style.display = 'none';
+        link.href = previewUrl;
+        link.download = previewFilename || 'reporte.pdf';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
 
-        setTimeout(() => setGenerando(false), 1200);
+    const cerrarPreview = () => {
+        if (previewUrl) {
+            window.URL.revokeObjectURL(previewUrl);
+        }
+        setPreviewUrl(null);
+        setPreviewFilename('');
+        setPreviewModal(false);
     };
 
     return (
@@ -331,7 +404,6 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                                 {secInfo.label}
                                             </label>
 
-                                            {/* Ícono de info con tooltip */}
                                             <div
                                                 className="relative"
                                                 onMouseEnter={() => setTooltip(secKey)}
@@ -431,18 +503,81 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                        Generar reporte PDF
+                                        Generar reporte
                                     </>
                                 )}
                             </button>
 
                             <p className="mt-3 text-xs text-gray-400 text-center leading-snug">
-                                Al hacer clic, el PDF se descargará automáticamente con las secciones que marcaste.
+                                Al hacer clic, el PDF se abrirá en una vista previa. Desde ahí podrás descargarlo o cerrarlo.
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* ================= MODAL DE VISTA PREVIA (OPTIMIZADO) ================= */}
+            {previewModal && previewUrl && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70">
+                    <div
+                        className="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden isolate"
+                        style={{
+                            boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
+                            transform: 'translateZ(0)',
+                            contain: 'layout paint',
+                        }}
+                    >
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                            <div className="min-w-0">
+                                <h3 className="text-lg font-bold text-gray-800">Vista previa del reporte</h3>
+                                <p className="text-xs text-gray-500 mt-0.5 truncate">{previewFilename}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={cerrarPreview}
+                                className="text-gray-400 hover:text-gray-700 transition-colors p-1 flex-shrink-0"
+                                aria-label="Cerrar vista previa"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Contenedor del iframe aislado con contain para evitar repaints */}
+                        <div
+                            className="flex-1 bg-gray-100 overflow-hidden"
+                            style={{ contain: 'strict' }}
+                        >
+                            <iframe
+                                src={previewUrl}
+                                title="Vista previa del reporte"
+                                className="w-full h-full border-0 block"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={cerrarPreview}
+                                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition"
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDescargar}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Descargar PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

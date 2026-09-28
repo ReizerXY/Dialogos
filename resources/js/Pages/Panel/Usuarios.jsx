@@ -69,7 +69,7 @@ export default function Usuarios({ usuarios, user }) {
         setConfirmModal({
             open: true,
             usuario,
-            accion: usuario.activo == 1 ? 'baja' : 'reactivar',
+            accion: usuario.activo == 1 ? 'suspender' : 'reactivar',
             procesando: false,
         });
     };
@@ -168,14 +168,20 @@ export default function Usuarios({ usuarios, user }) {
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap">
                                             {u.activo == 1 ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                                                    title="Recibe nuevas citas con normalidad"
+                                                >
                                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                                                     Activo
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
-                                                    Dado de baja
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+                                                    title="Puede ingresar a la plataforma, pero ya no aparece al agendar nuevas citas"
+                                                >
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                                                    Atención suspendida
                                                 </span>
                                             )}
                                         </td>
@@ -195,6 +201,7 @@ export default function Usuarios({ usuarios, user }) {
                                                     <>
                                                         <button
                                                             onClick={() => abrirConfirmacion(u)}
+                                                            title={u.activo == 1 ? 'Suspender atención de citas' : 'Reactivar atención de citas'}
                                                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 hover:shadow-md active:scale-95 ${
                                                                 u.activo == 1
                                                                     ? 'bg-yellow-500 text-white hover:bg-yellow-600'
@@ -204,16 +211,17 @@ export default function Usuarios({ usuarios, user }) {
                                                             {u.activo == 1 ? (
                                                                 <>
                                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                     </svg>
-                                                                    Dar de baja
+                                                                    Suspender citas
                                                                 </>
                                                             ) : (
                                                                 <>
                                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                     </svg>
-                                                                    Reactivar
+                                                                    Reactivar citas
                                                                 </>
                                                             )}
                                                         </button>
@@ -321,44 +329,51 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             )}
 
-            {/* Modal de confirmación: dar de baja / reactivar */}
+            {/* Modal de confirmación: suspender / reactivar atención de citas */}
             {confirmModal.open && confirmModal.usuario && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <div className="flex items-center gap-4 mb-4">
                             <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
-                                confirmModal.accion === 'baja' ? 'bg-yellow-100' : 'bg-green-100'
+                                confirmModal.accion === 'suspender' ? 'bg-yellow-100' : 'bg-green-100'
                             }`}>
-                                {confirmModal.accion === 'baja' ? (
+                                {confirmModal.accion === 'suspender' ? (
                                     <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 ) : (
                                     <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 )}
                             </div>
                             <h2 className="text-xl font-bold text-gray-800">
-                                {confirmModal.accion === 'baja' ? 'Dar de baja usuario' : 'Reactivar usuario'}
+                                {confirmModal.accion === 'suspender' ? 'Suspender atención de citas' : 'Reactivar atención de citas'}
                             </h2>
                         </div>
 
                         <p className="text-gray-600 mb-2">
                             ¿Estás seguro de que deseas{' '}
-                            <strong>{confirmModal.accion === 'baja' ? 'dar de baja' : 'reactivar'}</strong>{' '}
-                            a <strong>{confirmModal.usuario.nombre}</strong>?
+                            <strong>{confirmModal.accion === 'suspender' ? 'suspender la atención de citas' : 'reactivar la atención de citas'}</strong>{' '}
+                            de <strong>{confirmModal.usuario.nombre}</strong>?
                         </p>
 
                         <div className={`rounded-xl p-3 mb-4 text-sm ${
-                            confirmModal.accion === 'baja'
+                            confirmModal.accion === 'suspender'
                                 ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                                 : 'bg-green-50 border border-green-200 text-green-800'
                         }`}>
-                            {confirmModal.accion === 'baja' ? (
-                                <>El usuario no podrá iniciar sesión, pero sus citas y datos históricos se conservan.</>
+                            {confirmModal.accion === 'suspender' ? (
+                                <>
+                                    El usuario <strong>seguirá pudiendo ingresar</strong> a la plataforma para consultar sus citas e históricos.
+                                    Sin embargo, <strong>ya no aparecerá</strong> como opción al agendar nuevas citas ni al asignar horarios.
+                                </>
                             ) : (
-                                <>El usuario podrá volver a iniciar sesión con sus credenciales actuales.</>
+                                <>
+                                    El usuario <strong>volverá a aparecer</strong> como opción al agendar nuevas citas y al asignar horarios,
+                                    como cualquier usuario activo.
+                                </>
                             )}
                         </div>
 
@@ -376,16 +391,16 @@ export default function Usuarios({ usuarios, user }) {
                                 onClick={confirmarAccion}
                                 disabled={confirmModal.procesando}
                                 className={`px-6 py-2 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    confirmModal.accion === 'baja'
+                                    confirmModal.accion === 'suspender'
                                         ? 'bg-yellow-500 hover:bg-yellow-600'
                                         : 'bg-green-600 hover:bg-green-700'
                                 }`}
                             >
                                 {confirmModal.procesando
                                     ? 'Procesando...'
-                                    : confirmModal.accion === 'baja'
-                                        ? 'Sí, dar de baja'
-                                        : 'Sí, reactivar'}
+                                    : confirmModal.accion === 'suspender'
+                                        ? 'Sí, suspender citas'
+                                        : 'Sí, reactivar citas'}
                             </button>
                         </div>
                     </div>

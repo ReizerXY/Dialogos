@@ -4,7 +4,6 @@ import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
 
-// Paleta consistente con Citas.jsx y NotasModal.jsx
 const CLASIFICACION_COLOR = {
     'académica':     'bg-blue-500',
     'familiar':      'bg-green-500',
@@ -13,18 +12,43 @@ const CLASIFICACION_COLOR = {
     'institucional': 'bg-amber-500',
 };
 
+// ✅ Calcula edad en años desde una fecha de nacimiento YYYY-MM-DD
+function calcularEdad(fechaNacimiento) {
+    if (!fechaNacimiento) return null;
+    const nacimiento = new Date(fechaNacimiento + 'T00:00:00');
+    if (isNaN(nacimiento.getTime())) return null;
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const m = hoy.getMonth() - nacimiento.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+    }
+    return (edad >= 0 && edad < 130) ? edad : null;
+}
+
+// ✅ Colores del badge de sexo
+function colorBadgeSexo(sexo) {
+    if (!sexo) return 'bg-gray-100 text-gray-600';
+    const s = sexo.toLowerCase();
+    if (s === 'hombre' || s === 'masculino') return 'bg-blue-100 text-blue-800';
+    if (s === 'mujer' || s === 'femenino')    return 'bg-pink-100 text-pink-800';
+    if (s.includes('prefiero'))                return 'bg-gray-100 text-gray-700';
+    return 'bg-purple-100 text-purple-800';
+}
+
+function formatFecha(fecha) {
+    if (!fecha) return '';
+    const partes = fecha.split('-');
+    if (partes.length !== 3) return fecha;
+    return `${partes[2]}-${partes[1]}-${partes[0]}`;
+}
+
 export default function Expediente({ estudiante, citas, totalCitas, citasProgramadas, citasCompletadas, citasCanceladas, asistencias, faltas, pendientesAsistencia, egresado, user }) {
     const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null);
     const [opcionesEstudiantes, setOpcionesEstudiantes] = useState([]);
     const [buscando, setBuscando] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [error, setError] = useState(null);
-
-    const formatFecha = (fecha) => {
-        if (!fecha) return '';
-        const partes = fecha.split('-');
-        return `${partes[2]}-${partes[1]}-${partes[0]}`;
-    };
 
     useEffect(() => {
         if (estudiante) {
@@ -79,6 +103,8 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
             alert('Por favor, selecciona un estudiante de la lista.');
         }
     };
+
+    const edadEstudiante = calcularEdad(estudiante?.fecha_nacimiento);
 
     return (
         <AuthenticatedLayout>
@@ -155,12 +181,12 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                 </div>
                                 <h2 className="text-xl font-bold text-gray-800">Datos del estudiante</h2>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="bg-gray-50 rounded-xl p-3">
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">ID Estudiante</span>
                                     <p className="font-semibold text-gray-800 font-mono">{estudiante.id_estudiante}</p>
                                 </div>
-                                <div className="bg-gray-50 rounded-xl p-3">
+                                <div className="bg-gray-50 rounded-xl p-3 sm:col-span-2 lg:col-span-3">
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">Nombre completo</span>
                                     <p className="font-semibold text-gray-800">{estudiante.nombre}</p>
                                 </div>
@@ -172,6 +198,36 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">Grupo</span>
                                     <p className="font-semibold text-gray-800">{estudiante.grupo}</p>
                                 </div>
+
+                                {/* ✅ NUEVO: Edad calculada */}
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Edad</span>
+                                    <p className="font-semibold text-gray-800">
+                                        {edadEstudiante !== null ? (
+                                            <span className="inline-flex items-center gap-2">
+                                                <span className="text-lg">{edadEstudiante}</span>
+                                                <span className="text-gray-500 text-sm font-normal">años</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400 font-normal">No registrada</span>
+                                        )}
+                                    </p>
+                                </div>
+
+                                {/* ✅ NUEVO: Sexo con badge */}
+                                <div className="bg-gray-50 rounded-xl p-3">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Sexo</span>
+                                    <p className="mt-1">
+                                        {estudiante.sexo ? (
+                                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${colorBadgeSexo(estudiante.sexo)}`}>
+                                                {estudiante.sexo}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400 text-sm">No registrado</span>
+                                        )}
+                                    </p>
+                                </div>
+
                                 <div className="bg-gray-50 rounded-xl p-3">
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">Teléfono estudiante</span>
                                     <p className="font-semibold text-gray-800 font-mono">{estudiante.telefono_estudiante || 'No registrado'}</p>
@@ -248,7 +304,6 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                                     <td className="px-4 py-3 text-sm text-gray-700">{formatFecha(c.fecha)}</td>
                                                     <td className="px-4 py-3 text-sm text-gray-700">{c.hora?.substring(0,5)}</td>
 
-                                                    {/* Clasificación: solo bloque de color, centrado y visible */}
                                                     <td className="px-4 py-3 text-center">
                                                         {c.clasificacion ? (
                                                             <div

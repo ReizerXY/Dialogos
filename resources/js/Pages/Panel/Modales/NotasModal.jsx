@@ -26,7 +26,8 @@ export default function NotasModal({ isOpen, onClose, cita, onSuccess }) {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
-    // ¿La cita ya pasó? (fecha + hora)
+    // ¿La cita ya pasó? (fecha + hora). Se conserva por si luego se usa
+    // para mostrar un aviso visual, pero YA NO influye en el estado.
     const citaYaPaso = useMemo(() => {
         if (!cita?.fecha) return false;
         const horaCita = cita.hora ? cita.hora.substring(0, 8) : '00:00:00';
@@ -52,18 +53,18 @@ export default function NotasModal({ isOpen, onClose, cita, onSuccess }) {
         return `${partes[2]}-${partes[1]}-${partes[0]}`;
     };
 
-    // Regla de negocio:
+    // Regla de negocio (actualizada):
     // 1. Si ya está cancelada / liberada, no se toca el estado.
-    // 2. Si la fecha/hora ya pasó → completada.
-    // 3. Si el formador registró asistencia (asistió / no asistió) → completada.
-    // 4. Si sigue pendiente y aún no pasa la cita → programada.
+    // 2. Si el formador registró asistencia (asistió / no asistió) → completada.
+    // 3. Si la asistencia queda en "pendiente" → programada.
+    //    ⛔ Ya NO se considera el paso del tiempo.
     const calcularNuevoEstado = () => {
         const estadoActual = cita.estado;
         if (estadoActual === 'cancelada' || estadoActual === 'cancelada_liberada') {
             return estadoActual;
         }
         const asistenciaRegistrada = asistencia === 'asistió' || asistencia === 'no asistió';
-        if (citaYaPaso || asistenciaRegistrada) {
+        if (asistenciaRegistrada) {
             return 'completada';
         }
         return 'programada';
@@ -213,9 +214,9 @@ export default function NotasModal({ isOpen, onClose, cita, onSuccess }) {
                                 ))}
                             </select>
                             <p className="text-xs text-gray-400 mt-1">
-                                {citaYaPaso
-                                    ? 'Esta cita ya pasó: se marcará como completada al guardar.'
-                                    : 'La cita se marcará como completada solo si registras asistencia.'}
+                                {asistencia === 'pendiente'
+                                    ? 'Si dejas "Pendiente", la cita se mantiene como programada.'
+                                    : 'Al registrar "Asistió" o "No asistió", la cita se marca como completada.'}
                             </p>
                         </div>
 

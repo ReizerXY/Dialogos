@@ -1,6 +1,7 @@
 // resources/js/Layouts/AuthenticatedLayout.jsx
 import { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
+import BotonVolverArriba from '@/Components/BotonVolverArriba';
 
 export default function AuthenticatedLayout({ children }) {
     const { props } = usePage();
@@ -30,6 +31,8 @@ export default function AuthenticatedLayout({ children }) {
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
+    const atencionSuspendida = Number(user?.activo) === 0;
+
     const rolBadgeClases = isCoordinador
         ? 'bg-purple-100 text-purple-800 border border-purple-200'
         : isFormador
@@ -55,7 +58,9 @@ export default function AuthenticatedLayout({ children }) {
                     <h1 className="text-2xl font-bold text-[#FF5900]">Diálogos</h1>
 
                     <div className="mt-3 flex items-start gap-2.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block mt-1.5 shrink-0"></span>
+                        <span className={`w-2.5 h-2.5 rounded-full inline-block mt-1.5 shrink-0 ${
+                            atencionSuspendida ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}></span>
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-800 truncate">
                                 {nombreMostrado}
@@ -63,6 +68,14 @@ export default function AuthenticatedLayout({ children }) {
                             {rolMostrado && (
                                 <span className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide ${rolBadgeClases}`}>
                                     {rolMostrado}
+                                </span>
+                            )}
+                            {atencionSuspendida && (
+                                <span
+                                    className="inline-flex items-center mt-1 ml-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide bg-yellow-100 text-yellow-800 border border-yellow-200"
+                                    title="Puedes ingresar, pero ya no apareces al agendar nuevas citas"
+                                >
+                                    Atención suspendida
                                 </span>
                             )}
                         </div>
@@ -150,25 +163,8 @@ export default function AuthenticatedLayout({ children }) {
 
                     {isFormador && (
                         <>
-                            {/* ─── GRUPO: HORARIOS ─── */}
-                            <p className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                Horarios
-                            </p>
-                            <Link href={route('horarios.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                Ver horarios
-                            </Link>
-                            <Link href={route('mis-horarios.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                Modificar mis horarios
-                            </Link>
-
                             {/* ─── GRUPO: CITAS ─── */}
-                            <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            <p className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Citas
                             </p>
                             <Link href={route('citas.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
@@ -182,6 +178,23 @@ export default function AuthenticatedLayout({ children }) {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 Visualizar citas
+                            </Link>
+
+                            {/* ─── GRUPO: HORARIOS ─── */}
+                            <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                Horarios
+                            </p>
+                            <Link href={route('horarios.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Ver horarios
+                            </Link>
+                            <Link href={route('mis-horarios.index')} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#FF5900]/10 hover:text-[#FF5900] transition-all duration-200 text-gray-700">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Modificar mis horarios
                             </Link>
 
                             {/* ─── GRUPO: ESTUDIANTES ─── */}
@@ -222,7 +235,34 @@ export default function AuthenticatedLayout({ children }) {
                         </form>
                     </div>
                 </div>
+
+                {atencionSuspendida && (
+                    <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center mt-0.5">
+                            <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-yellow-800 text-sm">
+                                Atención de citas suspendida
+                            </p>
+                            <p className="text-sm text-yellow-700 mt-1 leading-relaxed">
+                                Puedes seguir ingresando a la plataforma para consultar y gestionar tus citas
+                                existentes, pero <strong>ya no aparecerás como opción</strong> al agendar nuevas
+                                citas ni al asignar horarios.
+                            </p>
+                            <p className="text-xs text-yellow-600 mt-2">
+                                Si crees que es un error, contacta al coordinador del programa.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {children}
+
+                {/* ✅ Botón "Volver arriba" en TODAS las páginas del panel */}
+                <BotonVolverArriba />
             </main>
         </div>
     );

@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Panel/ExpedienteController.php
 
 namespace App\Http\Controllers\Panel;
 
@@ -21,8 +22,7 @@ class ExpedienteController extends Controller
 
         $egresado = false;
 
-        // 2) Traer citas por id_estudiante (con LEFT JOIN para formador)
-        // ✅ FIX: usuarios.id → usuarios.id_usuario
+        // 2) Traer citas por id_estudiante
         $citas = DB::table('citas')
             ->leftJoin('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
             ->select('citas.*', 'usuarios.nombre as nombre_formador')
@@ -33,7 +33,6 @@ class ExpedienteController extends Controller
 
         // 3) Fallback por nombre si no hay citas con id_estudiante
         if ($citas->isEmpty() && $estudiante) {
-            // ✅ FIX: usuarios.id → usuarios.id_usuario
             $citas = DB::table('citas')
                 ->leftJoin('usuarios', 'citas.id_usuario', '=', 'usuarios.id_usuario')
                 ->select('citas.*', 'usuarios.nombre as nombre_formador')
@@ -50,10 +49,12 @@ class ExpedienteController extends Controller
             $nombreSnapshot = $citas->first()->nombre_estudiante;
 
             $estudiante = (object) [
-                'id_estudiante' => $id_estudiante,
-                'nombre'        => $nombreSnapshot,
-                'grado'         => '—',
-                'grupo'         => '—',
+                'id_estudiante'       => $id_estudiante,
+                'nombre'              => $nombreSnapshot,
+                'grado'               => '—',
+                'grupo'               => '—',
+                'fecha_nacimiento'    => null,
+                'sexo'                => null,
                 'telefono_estudiante' => null,
                 'telefono_padre'      => null,
             ];
@@ -89,17 +90,25 @@ class ExpedienteController extends Controller
 
     public function buscarEstudiantes(Request $request)
     {
-        $query = $request->get('q', '');
+        $query = trim((string) $request->get('q', ''));
+
         if (strlen($query) < 1) {
             return response()->json([]);
         }
 
         try {
-            // 1) Buscar en estudiantes activos
+            // ============================================================
+            // BÚSQUEDA INSENSIBLE A ACENTOS Y MAYÚSCULAS
+            // El COLLATE utf8mb4_unicode_ci hace que "José" = "jose" = "JOSE"
+            // aunque la columna esté en utf8mb4_general_ci.
+            // ============================================================
             $activos = DB::table('estudiantes')
                 ->where(function ($q) use ($query) {
-                    $q->where('nombre', 'LIKE', "%$query%")
-                      ->orWhere('id_estudiante', 'LIKE', "%$query%");
+                    $q->whereRaw(
+                            "CONVERT(nombre USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE ?",
+                            ["%{$query}%"]
+                        )
+                      ->orWhere('id_estudiante', 'LIKE', "%{$query}%");
                 })
                 ->select('id_estudiante', 'nombre', 'grado', 'grupo')
                 ->limit(10)
@@ -107,24 +116,27 @@ class ExpedienteController extends Controller
                 ->map(function ($e) {
                     return [
                         'id_estudiante' => (string) $e->id_estudiante,
-                        'nombre' => $e->nombre,
-                        'grado' => $e->grado,
-                        'grupo' => $e->grupo,
-                        'egresado' => false,
+                        'nombre'        => $e->nombre,
+                        'grado'         => $e->grado,
+                        'grupo'         => $e->grupo,
+                        'egresado'      => false,
                     ];
                 });
 
-            // 2) Buscar egresados: están en citas pero no en estudiantes
             $idsActivos = $activos->pluck('id_estudiante')->toArray();
 
+            // Egresados — misma lógica, insensible a acentos
             $egresados = DB::table('citas')
                 ->whereNotNull('id_estudiante')
                 ->whereNotIn('id_estudiante', function ($sub) {
                     $sub->select('id_estudiante')->from('estudiantes');
                 })
                 ->where(function ($q) use ($query) {
-                    $q->where('id_estudiante', 'LIKE', "%$query%")
-                      ->orWhere('nombre_estudiante', 'LIKE', "%$query%");
+                    $q->where('id_estudiante', 'LIKE', "%{$query}%")
+                      ->orWhereRaw(
+                            "CONVERT(nombre_estudiante USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE ?",
+                            ["%{$query}%"]
+                        );
                 })
                 ->select('id_estudiante', 'nombre_estudiante')
                 ->distinct()
@@ -133,24 +145,21 @@ class ExpedienteController extends Controller
                 ->map(function ($e) {
                     return [
                         'id_estudiante' => (string) $e->id_estudiante,
-                        'nombre' => $e->nombre_estudiante,
-                        'grado' => null,
-                        'grupo' => null,
-                        'egresado' => true,
+                        'nombre'        => $e->nombre_estudiante,
+                        'grado'         => null,
+                        'grupo'         => null,
+                        'egresado'      => true,
                     ];
                 })
                 ->filter(function ($e) use ($idsActivos) {
                     return !in_array($e['id_estudiante'], $idsActivos);
                 });
 
-            // 3) Unir y quitar duplicados
             $resultado = collect($activos)
                 ->merge($egresados)
                 ->unique('id_estudiante')
                 ->values()
                 ->take(15);
-
-            Log::info('Buscar estudiantes:', ['query' => $query, 'resultados' => $resultado->count()]);
 
             return response()->json($resultado);
         } catch (\Exception $e) {

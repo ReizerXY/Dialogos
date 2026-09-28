@@ -55,12 +55,13 @@ const SECCIONES_INFO = [
     { key: 'destacados',   label: 'Formadores y estudiantes con más citas', default: true },
     { key: 'comparativas', label: 'Comparativas',                           default: true },
     { key: 'formadores',   label: 'Datos por formador',                     default: true },
-    { key: 'citas',        label: 'Tabla de citas',                         default: true },
     { key: 'estudiantes',  label: 'Estudiantes por grado/grupo',            default: true },
+    { key: 'citas',        label: 'Tabla de citas',                         default: true },
 ];
 
 const SECCIONES_KEYS = SECCIONES_INFO.map(s => s.key);
 const TODAS_COLAPSADAS   = Object.fromEntries(SECCIONES_KEYS.map(k => [k, true]));
+const TODAS_EXPANDIDAS   = Object.fromEntries(SECCIONES_KEYS.map(k => [k, false]));
 const TODOS_SUB_CERRADOS = { estado: false, clasificacion: false, asistencia: false, sexo: false, edad: false };
 const SUB_TEND_CERRADOS  = { mes: false, dia: false, hora: false };
 const SUB_DEST_CERRADOS  = { formadores: false, estudiantes: false };
@@ -141,6 +142,20 @@ export default function Indicadores({
     const ocultarTodo = () => {
         setSecciones(Object.fromEntries(SECCIONES_INFO.map(s => [s.key, false])));
         setColapsadas(TODAS_COLAPSADAS);
+    };
+
+    const desplegarTodo = () => {
+        setColapsadas(TODAS_EXPANDIDAS);
+        setSubDist({ estado: true, clasificacion: true, asistencia: true, sexo: true, edad: true });
+        setSubTend({ mes: true, dia: true, hora: true });
+        setSubDest({ formadores: true, estudiantes: true });
+    };
+
+    const contraerTodo = () => {
+        setColapsadas(TODAS_COLAPSADAS);
+        setSubDist(TODOS_SUB_CERRADOS);
+        setSubTend(SUB_TEND_CERRADOS);
+        setSubDest(SUB_DEST_CERRADOS);
     };
 
     const formatFecha = (f) => {
@@ -232,6 +247,33 @@ export default function Indicadores({
     const claseDiff = (v) => v > 0 ? 'text-green-600' : v < 0 ? 'text-red-600' : 'text-gray-500';
     const gruposDisponibles = grado ? (gruposPorGrado[grado] || []) : gruposActivos;
 
+    const seccionesVisibles = SECCIONES_INFO.filter(s => secciones[s.key]);
+    const todoColapsado = seccionesVisibles.length > 0 && seccionesVisibles.every(s => colapsadas[s.key]);
+    const todoExpandido = seccionesVisibles.length > 0 && seccionesVisibles.every(s => !colapsadas[s.key]);
+
+    // ============================================================
+    // Detección de "sin datos" y descripción de filtros
+    // ============================================================
+    const hayFiltros = !!(filtroAnio || filtroMes || filtroSemana || filtroGrado || filtroGrupo);
+    const sinDatos = totalCitas === 0;
+
+    const descripcionFiltros = (() => {
+        const partes = [];
+        if (filtroGrado) partes.push(`grado ${filtroGrado}`);
+        if (filtroGrupo) partes.push(`grupo ${filtroGrupo}`);
+        if (filtroSemana) partes.push(`la ${semanaTitulo(filtroSemana)}`);
+        else if (filtroMes) partes.push(mesTitulo(filtroMes));
+        else if (filtroAnio) partes.push(`el año ${filtroAnio}`);
+        return partes.join(', ');
+    })();
+
+    // Helper: convierte 0 / '0' / '0%' en '—' cuando no hay datos
+    const kpiValue = (valor) => {
+        if (!sinDatos) return valor;
+        if (valor === 0 || valor === '0' || valor === '0%') return '—';
+        return valor;
+    };
+
     return (
         <AuthenticatedLayout>
             <Head title="Indicadores" />
@@ -246,16 +288,43 @@ export default function Indicadores({
                         </p>
                         <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                     </div>
-                    <button
-                        onClick={() => setPersonalizadorOpen(!personalizadorOpen)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        Personalizar vista
-                    </button>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            onClick={desplegarTodo}
+                            disabled={todoExpandido || seccionesVisibles.length === 0}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 hover:border-[#FF5900] hover:text-[#CC4700] transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:text-gray-700 disabled:hover:bg-white"
+                            title="Desplegar todas las secciones visibles"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7M19 5l-7 7-7-7" />
+                            </svg>
+                            Desplegar todo
+                        </button>
+
+                        <button
+                            onClick={contraerTodo}
+                            disabled={todoColapsado || seccionesVisibles.length === 0}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 hover:border-[#FF5900] hover:text-[#CC4700] transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:text-gray-700 disabled:hover:bg-white"
+                            title="Contraer todas las secciones visibles"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7M5 19l7-7 7 7" />
+                            </svg>
+                            Contraer todo
+                        </button>
+
+                        <button
+                            onClick={() => setPersonalizadorOpen(!personalizadorOpen)}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Personalizar vista
+                        </button>
+                    </div>
                 </div>
 
                 {personalizadorOpen && (
@@ -344,20 +413,60 @@ export default function Indicadores({
                     </div>
                 </div>
 
+                {/* ============================================================ */}
+                {/* Banner de "sin datos" cuando el filtro no encuentra */}
+                {/* ============================================================ */}
+                {sinDatos && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
+                        <div className="flex-shrink-0 mt-0.5">
+                            <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-yellow-800">
+                                No hay citas para generar información
+                            </p>
+                            <p className="text-sm text-yellow-700 mt-1">
+                                {hayFiltros ? (
+                                    <>Con los filtros aplicados (<strong>{descripcionFiltros}</strong>) no se encontraron citas registradas en el sistema.</>
+                                ) : (
+                                    <>Durante <strong>{periodoTexto}</strong> no se encontraron citas registradas en el sistema.</>
+                                )}
+                                {' '}Por eso los indicadores se muestran como <strong>—</strong> en lugar de mostrar números: no hay datos que analizar en este periodo.
+                            </p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <button
+                                    onClick={limpiarFiltros}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-xl hover:bg-yellow-700 transition"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Limpiar filtros y ver todo
+                                </button>
+                                <span className="text-xs text-yellow-700">
+                                    ¿Esperabas ver datos aquí? Revisa que el periodo y los filtros sean correctos.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* 1. Resumen general */}
                 {secciones.kpis && (
                     <SeccionColapsable titulo={`Resumen general de ${periodoTexto}${contextoGradoGrupo}`} abierta={!colapsadas.kpis} onToggle={() => toggleColapsada('kpis')}>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <KpiCard value={kpiValue(totalCitas)} titulo="Citas registradas" subtitulo={`En ${periodoTexto}`} />
                             <KpiCard value={totalFormadores} titulo="Formadores activos" subtitulo="Cuentas habilitadas" />
                             <KpiCard value={totalEstudiantes} titulo="Estudiantes inscritos" subtitulo="Registrados en el sistema" />
-                            <KpiCard value={totalCitas} titulo="Citas registradas" subtitulo={`En ${periodoTexto}`} />
-                            <KpiCard value={promedioCitasPorFormador} titulo="Citas por formador" subtitulo="Promedio del periodo" />
-                            <KpiCard value={estudiantesAtendidos} titulo="Estudiantes atendidos" subtitulo="Con al menos 1 cita" accent="blue" />
-                            <KpiCard value={`${tasaCompletacion}%`} titulo="Citas completadas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
-                            <KpiCard value={`${tasaCancelacion}%`} titulo="Citas canceladas" subtitulo={`${tasaCancelacion}% del total`} accent="red" />
-                            <KpiCard value={`${tasaAsistencia}%`} titulo="Tasa de asistencia" subtitulo="De citas atendidas" accent="orange" />
+                            <KpiCard value={kpiValue(promedioCitasPorFormador)} titulo="Citas por formador" subtitulo="Promedio del periodo" />
+                            <KpiCard value={kpiValue(estudiantesAtendidos)} titulo="Estudiantes atendidos" subtitulo="Con al menos 1 cita" accent="blue" />
+                            <KpiCard value={kpiValue(`${tasaCompletacion}%`)} titulo="Citas completadas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
+                            <KpiCard value={kpiValue(`${tasaCancelacion}%`)} titulo="Citas canceladas" subtitulo={`${tasaCancelacion}% del total`} accent="red" />
+                            <KpiCard value={kpiValue(`${tasaAsistencia}%`)} titulo="Tasa de asistencia" subtitulo="De citas atendidas" accent="orange" />
                             <KpiCard value={edadPromedio > 0 ? `${edadPromedio} años` : '—'} titulo="Edad promedio" subtitulo="De estudiantes atendidos" accent="orange" />
-                            <KpiCard value={citasPorEstudiante} titulo="Citas por estudiante" subtitulo="Promedio del periodo" accent="blue" />
+                            <KpiCard value={kpiValue(citasPorEstudiante)} titulo="Citas por estudiante" subtitulo="Promedio del periodo" accent="blue" />
                         </div>
                     </SeccionColapsable>
                 )}
@@ -692,39 +801,7 @@ export default function Indicadores({
                     </SeccionColapsable>
                 )}
 
-                {/* 7. Tabla de citas */}
-                {secciones.citas && (
-                    <SeccionColapsable titulo={tituloCitas} abierta={!colapsadas.citas} onToggle={() => toggleColapsada('citas')}>
-                        {citasDelPeriodo.length > 0 ? (
-                            <div className="overflow-x-auto -mx-6 -mb-6">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Estudiante</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Formador</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hora</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-100">
-                                        {citasDelPeriodo.map(c => (
-                                            <tr key={`cita-${c.id_cita}`} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_estudiante}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_formador}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{formatFecha(c.fecha)}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.hora?.substring(0,5)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="py-12 text-center"><p className="text-gray-500 text-base">{mensajeSinCitas}</p></div>
-                        )}
-                    </SeccionColapsable>
-                )}
-
-                {/* 8. Estudiantes por grado/grupo */}
+                {/* 7. Estudiantes por grado/grupo */}
                 {secciones.estudiantes && (
                     <SeccionColapsable titulo="Estudiantes atendidos por grado y grupo" abierta={!colapsadas.estudiantes} onToggle={() => toggleColapsada('estudiantes')}>
                         <div className="space-y-4">
@@ -771,6 +848,38 @@ export default function Indicadores({
                                 </p>
                             )}
                         </div>
+                    </SeccionColapsable>
+                )}
+
+                {/* 8. Tabla de citas */}
+                {secciones.citas && (
+                    <SeccionColapsable titulo={tituloCitas} abierta={!colapsadas.citas} onToggle={() => toggleColapsada('citas')}>
+                        {citasDelPeriodo.length > 0 ? (
+                            <div className="overflow-x-auto -mx-6 -mb-6">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Estudiante</th>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Formador</th>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hora</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-100">
+                                        {citasDelPeriodo.map(c => (
+                                            <tr key={`cita-${c.id_cita}`} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_estudiante}</td>
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_formador}</td>
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{formatFecha(c.fecha)}</td>
+                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.hora?.substring(0,5)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center"><p className="text-gray-500 text-base">{mensajeSinCitas}</p></div>
+                        )}
                     </SeccionColapsable>
                 )}
             </div>

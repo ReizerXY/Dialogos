@@ -4,14 +4,13 @@ import { Head, router } from '@inertiajs/react';
 import { useState, useRef, useMemo, useEffect, useCallback, memo } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 
-// Grados permitidos (mismo orden que el backend)
 const GRADOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
 
-// Opciones base de sexo. "Otro" se maneja especial (input libre adicional)
 const SEXOS_BASE = ['Hombre', 'Mujer', 'Prefiero no decirlo'];
 const SEXO_OTRO = 'Otro';
 
-// ✅ Calcula la edad (en años) a partir de la fecha de nacimiento YYYY-MM-DD
+const OPCIONES_POR_PAGINA = [25, 50, 100, 200];
+
 function calcularEdad(fechaNacimiento) {
     if (!fechaNacimiento) return null;
     const nacimiento = new Date(fechaNacimiento + 'T00:00:00');
@@ -25,7 +24,6 @@ function calcularEdad(fechaNacimiento) {
     return (edad >= 0 && edad < 130) ? edad : null;
 }
 
-// ✅ Colores del badge de sexo según valor guardado
 function colorBadgeSexo(sexo) {
     if (!sexo) return 'bg-gray-100 text-gray-600';
     const s = sexo.toLowerCase();
@@ -35,7 +33,6 @@ function colorBadgeSexo(sexo) {
     return 'bg-purple-100 text-purple-800';
 }
 
-// ✅ Formato legible: DD-MM-YYYY
 function formatFecha(fecha) {
     if (!fecha) return '';
     const p = fecha.split('-');
@@ -43,7 +40,6 @@ function formatFecha(fecha) {
     return `${p[2]}-${p[1]}-${p[0]}`;
 }
 
-// ✅ Fila memoizada: solo se re-renderiza si el estudiante o los handlers cambian
 const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEliminar }) {
     const edad = calcularEdad(estudiante.fecha_nacimiento);
 
@@ -102,6 +98,87 @@ const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEl
     );
 });
 
+// ✅ Componente de paginación reutilizable (arriba y abajo)
+const Paginacion = memo(function Paginacion({
+    paginaActual, totalPaginas, porPagina, totalItems,
+    inicio, fin,
+    onCambiarPagina, onCambiarPorPagina,
+    mostrarSelectorPorPagina = true,
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span>
+                    Mostrando <strong className="text-gray-700">{inicio}</strong>–<strong className="text-gray-700">{fin}</strong> de{' '}
+                    <strong className="text-gray-700">{totalItems}</strong>
+                </span>
+                {mostrarSelectorPorPagina && (
+                    <div className="flex items-center gap-2 ml-2">
+                        <label className="text-xs text-gray-500">Por página:</label>
+                        <select
+                            value={porPagina}
+                            onChange={(e) => onCambiarPorPagina(Number(e.target.value))}
+                            className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50"
+                        >
+                            {OPCIONES_POR_PAGINA.map(n => (
+                                <option key={n} value={n}>{n}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex items-center gap-1">
+                <button
+                    onClick={() => onCambiarPagina(1)}
+                    disabled={paginaActual === 1}
+                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    title="Primera página"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                    </svg>
+                </button>
+                <button
+                    onClick={() => onCambiarPagina(paginaActual - 1)}
+                    disabled={paginaActual === 1}
+                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    title="Anterior"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+
+                <span className="px-3 py-1 text-sm text-gray-700 font-medium">
+                    Página <strong>{paginaActual}</strong> de <strong>{totalPaginas}</strong>
+                </span>
+
+                <button
+                    onClick={() => onCambiarPagina(paginaActual + 1)}
+                    disabled={paginaActual === totalPaginas}
+                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    title="Siguiente"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+                <button
+                    onClick={() => onCambiarPagina(totalPaginas)}
+                    disabled={paginaActual === totalPaginas}
+                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    title="Última página"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    );
+});
+
 export default function Estudiantes({ estudiantes, user }) {
     // ===== IMPORTACIÓN =====
     const [archivo, setArchivo] = useState(null);
@@ -114,11 +191,15 @@ export default function Estudiantes({ estudiantes, user }) {
     const [listaEstudiantes, setListaEstudiantes] = useState(estudiantes);
     const [orden, setOrden] = useState('id_estudiante');
 
+    // ===== PAGINACIÓN =====
+    const [paginaActual, setPaginaActual] = useState(1);
+    const [porPagina, setPorPagina] = useState(50);
+
     useEffect(() => {
         setListaEstudiantes(estudiantes);
     }, [estudiantes]);
 
-    // ===== FILTROS (input = borrador / filter = aplicado) =====
+    // ===== FILTROS =====
     const [busquedaInput, setBusquedaInput] = useState('');
     const [gradoInput, setGradoInput]       = useState('');
     const [grupoInput, setGrupoInput]       = useState('');
@@ -135,7 +216,7 @@ export default function Estudiantes({ estudiantes, user }) {
 
     const [filtrosOpen, setFiltrosOpen]     = useState(false);
 
-    // ===== MODAL AGREGAR / EDITAR =====
+    // ===== MODAL =====
     const [modalAbierto, setModalAbierto] = useState(false);
     const [modoEdicion, setModoEdicion] = useState(false);
     const [formData, setFormData] = useState({
@@ -148,7 +229,6 @@ export default function Estudiantes({ estudiantes, user }) {
         telefono_estudiante: '',
         telefono_padre: '',
     });
-    // Select auxiliar para sexo + input libre cuando es "Otro"
     const [sexoSelect, setSexoSelect] = useState('');
     const [sexoOtro, setSexoOtro]     = useState('');
     const [cargandoModal, setCargandoModal] = useState(false);
@@ -158,7 +238,7 @@ export default function Estudiantes({ estudiantes, user }) {
     const [confirmEliminarTodos, setConfirmEliminarTodos] = useState({ open: false, loading: false });
 
     // ============================================================
-    // GRADOS Y GRUPOS DISPONIBLES (derivados de la lista actual)
+    // GRADOS Y GRUPOS
     // ============================================================
     const gradosDisponibles = useMemo(() => {
         const set = new Set(listaEstudiantes.map(e => e.grado).filter(Boolean));
@@ -177,7 +257,6 @@ export default function Estudiantes({ estudiantes, user }) {
         return [...set].sort();
     }, [listaEstudiantes, gradoInput]);
 
-    // Sexos disponibles en la BD (agrupados)
     const sexosDisponibles = useMemo(() => {
         const set = new Set(listaEstudiantes.map(e => e.sexo).filter(Boolean));
         return [...set].sort((a, b) => a.localeCompare(b, 'es'));
@@ -204,6 +283,7 @@ export default function Estudiantes({ estudiantes, user }) {
         setSexoFilter(sexoInput);
         setEdadMinFilter(edadMinInput);
         setEdadMaxFilter(edadMaxInput);
+        setPaginaActual(1); // ✅ Reset de página al filtrar
     }, [gradoInput, grupoInput, gruposDisponiblesInput, busquedaInput, sexoInput, edadMinInput, edadMaxInput]);
 
     const limpiarFiltros = useCallback(() => {
@@ -219,6 +299,7 @@ export default function Estudiantes({ estudiantes, user }) {
         setSexoFilter('');
         setEdadMinFilter('');
         setEdadMaxFilter('');
+        setPaginaActual(1);
     }, []);
 
     // ============================================================
@@ -239,7 +320,6 @@ export default function Estudiantes({ estudiantes, user }) {
         if (grupoFilter) lista = lista.filter(e => e.grupo === grupoFilter);
         if (sexoFilter)  lista = lista.filter(e => (e.sexo || '') === sexoFilter);
 
-        // Filtro de rango de edad
         if (edadMinFilter !== '' || edadMaxFilter !== '') {
             const min = edadMinFilter !== '' ? parseInt(edadMinFilter, 10) : null;
             const max = edadMaxFilter !== '' ? parseInt(edadMaxFilter, 10) : null;
@@ -264,7 +344,6 @@ export default function Estudiantes({ estudiantes, user }) {
             return lista.sort((a, b) => {
                 const ea = calcularEdad(a.fecha_nacimiento);
                 const eb = calcularEdad(b.fecha_nacimiento);
-                // Los sin edad van al final
                 if (ea === null && eb === null) return 0;
                 if (ea === null) return 1;
                 if (eb === null) return -1;
@@ -277,6 +356,35 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, sexoFilter, edadMinFilter, edadMaxFilter, orden]);
 
+    // ✅ PAGINACIÓN: recorte de la lista filtrada
+    const totalItems = listaFiltradaYOrdenada.length;
+    const totalPaginas = Math.max(1, Math.ceil(totalItems / porPagina));
+
+    // Si la página actual quedó fuera de rango (por ej. al filtrar), retroceder
+    useEffect(() => {
+        if (paginaActual > totalPaginas) {
+            setPaginaActual(totalPaginas);
+        }
+    }, [paginaActual, totalPaginas]);
+
+    const listaPaginada = useMemo(() => {
+        const inicio = (paginaActual - 1) * porPagina;
+        return listaFiltradaYOrdenada.slice(inicio, inicio + porPagina);
+    }, [listaFiltradaYOrdenada, paginaActual, porPagina]);
+
+    const inicioMostrado = totalItems === 0 ? 0 : (paginaActual - 1) * porPagina + 1;
+    const finMostrado    = Math.min(paginaActual * porPagina, totalItems);
+
+    // ✅ Resetear a página 1 cuando cambia el orden
+    useEffect(() => {
+        setPaginaActual(1);
+    }, [orden]);
+
+    // ✅ Resetear a página 1 cuando cambia el tamaño de página
+    useEffect(() => {
+        setPaginaActual(1);
+    }, [porPagina]);
+
     const filtrosActivos = [
         busqueda,
         gradoFilter,
@@ -287,12 +395,11 @@ export default function Estudiantes({ estudiantes, user }) {
     ].filter(Boolean).length;
 
     // ============================================================
-    // HANDLERS ESTABLES (para React.memo)
+    // HANDLERS ESTABLES
     // ============================================================
     const abrirModalEditar = useCallback((estudiante) => {
         setModoEdicion(true);
 
-        // Determinar si el sexo guardado es una de las opciones base
         const sexoGuardado = estudiante.sexo || '';
         const esBase = SEXOS_BASE.includes(sexoGuardado);
 
@@ -314,7 +421,6 @@ export default function Estudiantes({ estudiantes, user }) {
             setSexoSelect(sexoGuardado);
             setSexoOtro('');
         } else {
-            // Es un valor libre → marcar "Otro" y poner el texto
             setSexoSelect(SEXO_OTRO);
             setSexoOtro(sexoGuardado);
         }
@@ -374,7 +480,6 @@ export default function Estudiantes({ estudiantes, user }) {
     const handleSexoSelectChange = (valor) => {
         setSexoSelect(valor);
         if (valor === SEXO_OTRO) {
-            // Dejar que el usuario escriba libremente; el valor del form se completa al guardar
             setFormData({ ...formData, sexo: sexoOtro });
         } else {
             setSexoOtro('');
@@ -387,7 +492,6 @@ export default function Estudiantes({ estudiantes, user }) {
         setFormData({ ...formData, sexo: valor });
     };
 
-    // Edad en vivo para mostrar en el modal
     const edadEnVivo = useMemo(() => calcularEdad(formData.fecha_nacimiento), [formData.fecha_nacimiento]);
 
     const handleSubmitModal = async (e) => {
@@ -401,7 +505,6 @@ export default function Estudiantes({ estudiantes, user }) {
             return;
         }
 
-        // Si seleccionó "Otro" pero no escribió nada, limpiar el valor
         const sexoFinal = (sexoSelect === SEXO_OTRO)
             ? (sexoOtro.trim() || null)
             : (sexoSelect || null);
@@ -664,22 +767,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                     disabled={cargando || !archivo}
                                     className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 whitespace-nowrap"
                                 >
-                                    {cargando ? (
-                                        <>
-                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Importando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                            </svg>
-                                            Importar
-                                        </>
-                                    )}
+                                    {cargando ? 'Importando...' : 'Importar'}
                                 </button>
                             </form>
                             <p className="text-xs text-gray-400 mt-3">
@@ -688,14 +776,11 @@ export default function Estudiantes({ estudiantes, user }) {
                             <p className="text-xs text-gray-400">
                                 Las filas con ID existente se actualizarán; las nuevas se insertarán. Las columnas extra se ignoran.
                             </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                                ✅ Acepta <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong> y <strong>.txt</strong>.
-                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Filtros (colapsables, se aplican con el botón) */}
+                {/* Filtros */}
                 <div className="bg-white rounded-2xl shadow-md mb-6 border border-gray-100 overflow-hidden">
                     <button
                         onClick={() => setFiltrosOpen(!filtrosOpen)}
@@ -719,7 +804,6 @@ export default function Estudiantes({ estudiantes, user }) {
 
                     <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6 border-t border-gray-100 pt-5">
-                            {/* Fila 1: Búsqueda + Grado + Grupo */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre o ID</label>
@@ -773,7 +857,6 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
-                            {/* Fila 2: Sexo + Rango de edad */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Sexo</label>
@@ -791,8 +874,7 @@ export default function Estudiantes({ estudiantes, user }) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                        Edad mínima
-                                        <span className="text-gray-400 font-normal ml-1">(años)</span>
+                                        Edad mínima <span className="text-gray-400 font-normal">(años)</span>
                                     </label>
                                     <input
                                         type="number"
@@ -807,8 +889,7 @@ export default function Estudiantes({ estudiantes, user }) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                        Edad máxima
-                                        <span className="text-gray-400 font-normal ml-1">(años)</span>
+                                        Edad máxima <span className="text-gray-400 font-normal">(años)</span>
                                     </label>
                                     <input
                                         type="number"
@@ -822,7 +903,6 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
-                            {/* Fila 3: Botones */}
                             <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
                                 <button
                                     onClick={aplicarFiltros}
@@ -848,49 +928,58 @@ export default function Estudiantes({ estudiantes, user }) {
 
                 {/* Tabla */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-                    <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-xl font-bold text-gray-800">Lista de estudiantes</h2>
-                            <span className="text-sm text-gray-500">
-                                {filtrosActivos > 0
-                                    ? <>Mostrando <strong className="text-gray-700">{listaFiltradaYOrdenada.length}</strong> de {listaEstudiantes.length}</>
-                                    : <>Total: {listaEstudiantes.length}</>
-                                }
-                            </span>
+                    {/* Header con título + orden + paginación */}
+                    <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-xl font-bold text-gray-800">Lista de estudiantes</h2>
+                                <span className="text-sm text-gray-500">
+                                    {filtrosActivos > 0
+                                        ? <>Filtrados: <strong className="text-gray-700">{listaFiltradaYOrdenada.length}</strong> de {listaEstudiantes.length}</>
+                                        : <>Total: {listaEstudiantes.length}</>
+                                    }
+                                </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => setOrden('id_estudiante')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                                        orden === 'id_estudiante' ? 'bg-[#FF5900] text-white shadow-md' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    Por ID Estudiante
+                                </button>
+                                <button
+                                    onClick={() => setOrden('grado')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                                        orden === 'grado' ? 'bg-[#FF5900] text-white shadow-md' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    Por Grado-Grupo
+                                </button>
+                                <button
+                                    onClick={() => setOrden('edad')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                                        orden === 'edad' ? 'bg-[#FF5900] text-white shadow-md' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    Por Edad
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={() => setOrden('id_estudiante')}
-                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                                    orden === 'id_estudiante'
-                                        ? 'bg-[#FF5900] text-white shadow-md'
-                                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                                Por ID Estudiante
-                            </button>
-                            <button
-                                onClick={() => setOrden('grado')}
-                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                                    orden === 'grado'
-                                        ? 'bg-[#FF5900] text-white shadow-md'
-                                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                                Por Grado-Grupo
-                            </button>
-                            <button
-                                onClick={() => setOrden('edad')}
-                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                                    orden === 'edad'
-                                        ? 'bg-[#FF5900] text-white shadow-md'
-                                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                                Por Edad
-                            </button>
-                        </div>
+                        {/* ✅ Paginación arriba */}
+                        <Paginacion
+                            paginaActual={paginaActual}
+                            totalPaginas={totalPaginas}
+                            porPagina={porPagina}
+                            totalItems={totalItems}
+                            inicio={inicioMostrado}
+                            fin={finMostrado}
+                            onCambiarPagina={setPaginaActual}
+                            onCambiarPorPagina={setPorPagina}
+                        />
                     </div>
 
                     <div className="overflow-x-auto">
@@ -909,7 +998,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
-                                {listaFiltradaYOrdenada.map(e => (
+                                {listaPaginada.map(e => (
                                     <FilaEstudiante
                                         key={e.id_estudiante}
                                         estudiante={e}
@@ -917,7 +1006,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                         onEliminar={handleDelete}
                                     />
                                 ))}
-                                {listaFiltradaYOrdenada.length === 0 && (
+                                {listaPaginada.length === 0 && (
                                     <tr>
                                         <td colSpan="9" className="py-12 text-center text-gray-500">
                                             {filtrosActivos > 0
@@ -929,12 +1018,27 @@ export default function Estudiantes({ estudiantes, user }) {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* ✅ Paginación abajo */}
+                    {totalItems > 0 && (
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <Paginacion
+                                paginaActual={paginaActual}
+                                totalPaginas={totalPaginas}
+                                porPagina={porPagina}
+                                totalItems={totalItems}
+                                inicio={inicioMostrado}
+                                fin={finMostrado}
+                                onCambiarPagina={setPaginaActual}
+                                onCambiarPorPagina={setPorPagina}
+                                mostrarSelectorPorPagina={false}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* ============================================================ */}
-            {/* Modal agregar/editar */}
-            {/* ============================================================ */}
+            {/* Modal agregar/editar (igual que antes) */}
             {modalAbierto && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
@@ -993,8 +1097,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Grupo *
-                                        <span className="text-gray-400 font-normal ml-1">(A-Z)</span>
+                                        Grupo * <span className="text-gray-400 font-normal">(A-Z)</span>
                                     </label>
                                     <input
                                         type="text"
@@ -1009,7 +1112,6 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
-                            {/* Fecha de nacimiento + Sexo */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
@@ -1043,7 +1145,6 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
-                            {/* Input libre cuando se elige "Otro" */}
                             {sexoSelect === SEXO_OTRO && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">

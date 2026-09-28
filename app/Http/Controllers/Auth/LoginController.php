@@ -42,21 +42,19 @@ class LoginController extends Controller
             ]);
         }
 
-        if (isset($user->activo) && $user->activo == 0) {
-            return back()->withErrors([
-                'usuario' => 'Este usuario está dado de baja. Contacta al coordinador.',
-            ]);
-        }
+        // ✅ Ya NO bloqueamos el login si activo = 0. Un usuario con atención
+        //    suspendida puede seguir ingresando a consultar y gestionar sus citas.
 
         Session::put('user', (array) $user);
         Session::put('last_activity_at', time());
 
         $request->session()->regenerate();
 
+        // ✅ El Formador ahora entra directo a "Gestionar mis citas" (antes era horarios)
         if ($user->rol === 'Coordinador') {
             return Inertia::location(route('indicadores.index'));
         }
-        return Inertia::location(route('horarios.index'));
+        return Inertia::location(route('citas.index'));
     }
 
     public function logout(Request $request)
@@ -74,10 +72,6 @@ class LoginController extends Controller
     // Helpers
     // ==================================================================
 
-    /**
-     * Devuelve true si hay un usuario en sesión Y su última actividad
-     * está dentro del tiempo permitido (SESSION_LIFETIME minutos).
-     */
     private function tieneSesionActiva(): bool
     {
         if (!Session::has('user')) {
@@ -86,7 +80,6 @@ class LoginController extends Controller
 
         $lastActivity = Session::get('last_activity_at');
         if (!$lastActivity) {
-            // Sesión sin timestamp (de versiones viejas) → considerar inactiva
             Session::forget('user');
             return false;
         }
@@ -95,7 +88,6 @@ class LoginController extends Controller
         $dentroDeTiempo = (time() - (int) $lastActivity) <= $lifetimeSegundos;
 
         if (!$dentroDeTiempo) {
-            // Expiró por inactividad → limpiar
             Session::forget('user');
             Session::forget('last_activity_at');
             return false;
@@ -112,7 +104,8 @@ class LoginController extends Controller
         $user = Session::get('user');
         $rol = $user['rol'] ?? '';
 
-        $route = ($rol === 'Coordinador') ? 'indicadores.index' : 'horarios.index';
+        // ✅ Formador ahora entra a "Gestionar mis citas"
+        $route = ($rol === 'Coordinador') ? 'indicadores.index' : 'citas.index';
         return redirect()->route($route);
     }
 }

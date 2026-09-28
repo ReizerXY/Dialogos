@@ -33,7 +33,8 @@ Route::get('/', function () {
         $lifetimeSegundos = ((int) config('session.lifetime', 30)) * 60;
 
         if ($lastActivity && (time() - (int) $lastActivity) <= $lifetimeSegundos) {
-            $route = ($user['rol'] ?? '') === 'Coordinador' ? 'indicadores.index' : 'horarios.index';
+            // ✅ Formador ahora va a "Gestionar mis citas" (antes era horarios)
+            $route = ($user['rol'] ?? '') === 'Coordinador' ? 'indicadores.index' : 'citas.index';
             return redirect()->route($route);
         }
 
@@ -47,30 +48,28 @@ Route::get('/', function () {
 Route::get('/solicitar-cita', [CitaPublicController::class, 'index'])->name('cita.solicitar');
 
 Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])
-    ->middleware('throttle:solicitar-cita')
+    ->middleware('throttle:3,1')
     ->name('cita.store');
 
-Route::middleware('throttle:api-publica')->group(function () {
+Route::middleware('throttle:10,1')->group(function () {
     Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
     Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
     Route::get('/api/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
 });
 
 // =============================================
-// AUTENTICACIÓN (ahora con limiter 'login' de 30/min)
+// AUTENTICACIÓN PERSONALIZADA
 // =============================================
+
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-
-Route::post('/login', [LoginController::class, 'login'])
-    ->middleware('throttle:login')
-    ->name('login.post');
-
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1')->name('login.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // =============================================
-// RUTAS PROTEGIDAS (500/min por usuario)
+// RUTAS PROTEGIDAS
 // =============================================
-Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
+
+Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
 
     // ---------- COORDINADOR ----------
     Route::get('/indicadores', [IndicadoresController::class, 'index'])
@@ -83,6 +82,9 @@ Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
     Route::get('/reportes/generar', [ReporteController::class, 'generarPDF'])
         ->middleware('check.role:Coordinador')
         ->name('reportes.generar');
+    Route::get('/reportes/preview', [ReporteController::class, 'previewPDF'])
+        ->middleware('check.role:Coordinador')
+        ->name('reportes.preview');
 
     Route::get('/admin/backups', [BackupController::class, 'index'])
         ->middleware('check.role:Coordinador')
