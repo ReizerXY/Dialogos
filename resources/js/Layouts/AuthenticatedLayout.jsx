@@ -1,6 +1,6 @@
 // resources/js/Layouts/AuthenticatedLayout.jsx
 import { useState, useEffect } from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import BotonVolverArriba from '@/Components/BotonVolverArriba';
 
 export default function AuthenticatedLayout({ children }) {
@@ -23,13 +23,17 @@ export default function AuthenticatedLayout({ children }) {
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+    // ✅ Logout con Inertia: usa el XSRF-TOKEN cookie (siempre fresco)
+    //    y evita el error 419 de CSRF
+    const handleLogout = () => {
+        router.post(route('logout'));
+    };
+
     const isCoordinador = user?.rol === 'Coordinador';
     const isFormador = user?.rol === 'Formador';
 
     const nombreMostrado = user?.nombre || user?.usuario || 'Usuario';
     const rolMostrado = user?.rol || '';
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     const atencionSuspendida = Number(user?.activo) === 0;
 
@@ -221,18 +225,16 @@ export default function AuthenticatedLayout({ children }) {
                     </button>
                     <div className="flex-1"></div>
                     <div className="flex items-center gap-4">
-                        <form method="POST" action={route('logout')}>
-                            <input type="hidden" name="_token" value={csrfToken} />
-                            <button
-                                type="submit"
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-xl hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-200 active:scale-95"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                                Cerrar sesión
-                            </button>
-                        </form>
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-xl hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-200 active:scale-95"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Cerrar sesión
+                        </button>
                     </div>
                 </div>
 
