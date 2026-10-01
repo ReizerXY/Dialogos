@@ -11,7 +11,6 @@ use App\Services\CacheInvalidator;
 
 class CitaController extends Controller
 {
-    // Muestra el formulario público para solicitar cita
     public function index()
     {
         $formadores = DB::table('usuarios')
@@ -32,7 +31,6 @@ class CitaController extends Controller
         ]);
     }
 
-    // Verifica si existe un estudiante por su ID
     public function verificarIdEstudiante($id_estudiante)
     {
         $estudiante = DB::table('estudiantes')
@@ -40,11 +38,9 @@ class CitaController extends Controller
             ->first();
 
         if ($estudiante) {
-            $nombreCompleto = trim($estudiante->nombre . ' ' . $estudiante->apellido_paterno . ' ' . $estudiante->apellido_materno);
-
             return response()->json([
                 'existe' => true,
-                'nombre' => $nombreCompleto,
+                'nombre' => $estudiante->nombre,
                 'id_estudiante' => $estudiante->id_estudiante,
             ]);
         }
@@ -52,7 +48,6 @@ class CitaController extends Controller
         return response()->json(['existe' => false]);
     }
 
-    // Busca estudiantes por nombre, apellidos o ID
     public function estudiantes(Request $request)
     {
         $query = $request->get('q', '');
@@ -61,28 +56,15 @@ class CitaController extends Controller
         }
 
         $estudiantes = DB::table('estudiantes')
-            ->where(function ($q) use ($query) {
-                $q->where('nombre', 'LIKE', "%$query%")
-                  ->orWhere('apellido_paterno', 'LIKE', "%$query%")
-                  ->orWhere('apellido_materno', 'LIKE', "%$query%")
-                  ->orWhere('id_estudiante', 'LIKE', "%$query%");
-            })
-            ->select('id_estudiante', 'nombre', 'apellido_paterno', 'apellido_materno', 'grado', 'grupo')
+            ->where('nombre', 'LIKE', "%$query%")
+            ->orWhere('id_estudiante', 'LIKE', "%$query%")
+            ->select('id_estudiante', 'nombre', 'grado', 'grupo')
             ->limit(10)
-            ->get()
-            ->map(function ($e) {
-                return [
-                    'id_estudiante' => $e->id_estudiante,
-                    'nombre'        => trim($e->nombre . ' ' . $e->apellido_paterno . ' ' . $e->apellido_materno),
-                    'grado'         => $e->grado,
-                    'grupo'         => $e->grupo,
-                ];
-            });
+            ->get();
 
         return response()->json($estudiantes);
     }
 
-    // Devuelve los horarios disponibles de un formador en los próximos 7 días
     public function disponibilidad(Request $request)
     {
         $formadorId = $request->get('formador_id');
@@ -142,7 +124,6 @@ class CitaController extends Controller
         return response()->json($disponible);
     }
 
-    // Guarda una nueva cita solicitada desde el formulario público
     public function store(Request $request)
     {
         try {
@@ -153,12 +134,8 @@ class CitaController extends Controller
                 'hora'              => 'required|date_format:H:i',
             ]);
 
-            // Busca al estudiante por su nombre completo (nombre + apellidos concatenados)
             $estudiante = DB::table('estudiantes')
-                ->whereRaw(
-                    "CONCAT(nombre, ' ', apellido_paterno, ' ', apellido_materno) = ?",
-                    [$validated['nombre_estudiante']]
-                )
+                ->where('nombre', $validated['nombre_estudiante'])
                 ->first();
 
             $formador = DB::table('usuarios')
@@ -187,6 +164,7 @@ class CitaController extends Controller
                 Log::warning('Error al enviar WhatsApp de confirmación: ' . $e->getMessage());
             }
 
+            // ✅ Invalidar caché de indicadores (cambió el conteo de citas)
             CacheInvalidator::indicadores();
 
             return response()->json([

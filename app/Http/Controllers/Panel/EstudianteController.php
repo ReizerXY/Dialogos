@@ -16,9 +16,9 @@ use App\Services\CacheInvalidator;
 
 class EstudianteController extends Controller
 {
+    // Grados permitidos (lista blanca)
     private const GRADOS_VALIDOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
 
-    // Lista todos los estudiantes ordenados por grado, grupo y nombre
     public function index()
     {
         $user = Session::get('user');
@@ -29,8 +29,6 @@ class EstudianteController extends Controller
         $estudiantes = DB::table('estudiantes')
             ->orderBy('grado')
             ->orderBy('grupo')
-            ->orderBy('apellido_paterno')
-            ->orderBy('apellido_materno')
             ->orderBy('nombre')
             ->get();
 
@@ -40,7 +38,6 @@ class EstudianteController extends Controller
         ]);
     }
 
-    // Importa estudiantes desde archivo Excel, CSV o TXT
     public function import(Request $request)
     {
         $user = Session::get('user');
@@ -139,7 +136,6 @@ class EstudianteController extends Controller
         }
     }
 
-    // Detecta el tipo de archivo por sus magic bytes
     private function detectarTipo($magicBytes)
     {
         $hex = bin2hex(substr($magicBytes, 0, 4));
@@ -155,7 +151,6 @@ class EstudianteController extends Controller
         return 'texto';
     }
 
-    // Crea un estudiante nuevo
     public function store(Request $request)
     {
         $user = Session::get('user');
@@ -164,23 +159,23 @@ class EstudianteController extends Controller
         }
 
         $request->validate([
-            'id_estudiante'       => 'required|string|max:10|unique:estudiantes,id_estudiante',
-            'nombre'              => 'required|string|max:100',
-            'apellido_paterno'    => 'required|string|max:100',
-            'apellido_materno'    => 'required|string|max:100',
-            'grado'               => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
-            'grupo'               => 'required|string|max:5',
+            'id_estudiante' => 'required|string|max:10|unique:estudiantes,id_estudiante',
+            'nombre'        => 'required|string|max:100',
+            'grado'         => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
+            'grupo'         => 'required|string|max:5',
+            'fecha_nacimiento' => 'nullable|date|before:today|after:1900-01-01',
+            'sexo'             => 'nullable|string|max:50',
             'telefono_estudiante' => 'nullable|string|max:10',
             'telefono_padre'      => 'nullable|string|max:10',
         ]);
 
         DB::table('estudiantes')->insert([
-            'id_estudiante'       => $request->id_estudiante,
-            'nombre'              => $request->nombre,
-            'apellido_paterno'    => $request->apellido_paterno,
-            'apellido_materno'    => $request->apellido_materno,
-            'grado'               => $request->grado,
-            'grupo'               => strtoupper(trim($request->grupo)),
+            'id_estudiante'    => $request->id_estudiante,
+            'nombre'           => $request->nombre,
+            'grado'            => $request->grado,
+            'grupo'            => strtoupper(trim($request->grupo)),
+            'fecha_nacimiento' => $request->fecha_nacimiento ?: null,
+            'sexo'             => $request->sexo ? trim($request->sexo) : null,
             'telefono_estudiante' => $request->telefono_estudiante,
             'telefono_padre'      => $request->telefono_padre,
         ]);
@@ -194,7 +189,6 @@ class EstudianteController extends Controller
         ]);
     }
 
-    // Actualiza un estudiante existente
     public function update(Request $request, $id_estudiante)
     {
         $user = Session::get('user');
@@ -203,11 +197,11 @@ class EstudianteController extends Controller
         }
 
         $request->validate([
-            'nombre'              => 'required|string|max:100',
-            'apellido_paterno'    => 'required|string|max:100',
-            'apellido_materno'    => 'required|string|max:100',
-            'grado'               => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
-            'grupo'               => 'required|string|max:5',
+            'nombre'    => 'required|string|max:100',
+            'grado'     => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
+            'grupo'     => 'required|string|max:5',
+            'fecha_nacimiento' => 'nullable|date|before:today|after:1900-01-01',
+            'sexo'             => 'nullable|string|max:50',
             'telefono_estudiante' => 'nullable|string|max:10',
             'telefono_padre'      => 'nullable|string|max:10',
         ]);
@@ -220,11 +214,11 @@ class EstudianteController extends Controller
         DB::table('estudiantes')
             ->where('id_estudiante', $id_estudiante)
             ->update([
-                'nombre'              => $request->nombre,
-                'apellido_paterno'    => $request->apellido_paterno,
-                'apellido_materno'    => $request->apellido_materno,
-                'grado'               => $request->grado,
-                'grupo'               => strtoupper(trim($request->grupo)),
+                'nombre'    => $request->nombre,
+                'grado'     => $request->grado,
+                'grupo'     => strtoupper(trim($request->grupo)),
+                'fecha_nacimiento' => $request->fecha_nacimiento ?: null,
+                'sexo'             => $request->sexo ? trim($request->sexo) : null,
                 'telefono_estudiante' => $request->telefono_estudiante,
                 'telefono_padre'      => $request->telefono_padre,
             ]);
@@ -238,7 +232,6 @@ class EstudianteController extends Controller
         ]);
     }
 
-    // Elimina un estudiante (sus citas históricas se conservan)
     public function destroy($id_estudiante)
     {
         $user = Session::get('user');
@@ -261,7 +254,6 @@ class EstudianteController extends Controller
         ]);
     }
 
-    // Elimina todos los estudiantes (sus citas históricas se conservan)
     public function destroyAll()
     {
         $user = Session::get('user');
