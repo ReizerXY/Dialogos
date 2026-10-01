@@ -5,17 +5,18 @@ namespace App\Http\Controllers\Auth;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Hash;
-use Inertia\Inertia;
 
 class LoginController extends Controller
 {
-    /**
-     * Muestra el formulario de login.
-     * Si ya hay una sesión activa (y no expirada), redirige al panel del usuario.
-     */
+    private const MAX_INTENTOS = 5;
+    private const VENTANA_SEGUNDOS = 60;
+
+    // Muestra el formulario de login.
+    // Si ya hay una sesión activa (y no expirada), redirige al panel del usuario.
     public function showLoginForm()
     {
         if ($this->tieneSesionActiva()) {
@@ -25,6 +26,7 @@ class LoginController extends Controller
         return inertia('Auth/LoginCustom');
     }
 
+    // Procesa el login. Regenera la sesión ANTES de guardar los datos del usuario.
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -32,31 +34,52 @@ class LoginController extends Controller
             'clave'   => 'required|string',
         ]);
 
+        // Clave única para el rate limiter: IP + usuario.
+        // Solo cuenta intentos FALLIDOS. Un login correcto limpia el contador.
+        $throttleKey = 'login|' . $request->ip() . '|' . strtolower($credentials['usuario']);
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_INTENTOS)) {
+            $segundos = RateLimiter::availableIn($throttleKey);
+            return back()->withErrors([
+                'usuario' => "Demasiados intentos fallidos. Intenta de nuevo en {$segundos} segundos.",
+            ]);
+        }
+
         $user = DB::table('usuarios')
             ->where('usuario', $credentials['usuario'])
             ->first();
 
         if (!$user || !Hash::check($credentials['clave'], $user->clave)) {
+            RateLimiter::hit($throttleKey, self::VENTANA_SEGUNDOS);
             return back()->withErrors([
                 'usuario' => 'Usuario o clave incorrectos.',
             ]);
         }
 
-        // ✅ Ya NO bloqueamos el login si activo = 0. Un usuario con atención
-        //    suspendida puede seguir ingresando a consultar y gestionar sus citas.
+        // Login exitoso: limpiamos el contador
+        RateLimiter::clear($throttleKey);
+
+        // ✅ ORDEN CORRECTO:
+        // 1. Regenerar el ID de sesión primero (nueva cookie)
+        // 2. Luego guardar los datos (asociados al nuevo ID)
+        // 3. Forzar el guardado en BD
+        // Así la cookie que recibe el navegador coincide con los datos guardados.
+        $request->session()->regenerate();
 
         Session::put('user', (array) $user);
         Session::put('last_activity_at', time());
 
-        $request->session()->regenerate();
+        // Forzar el guardado en BD antes de responder
+        Session::save();
 
-        // ✅ El Formador ahora entra directo a "Gestionar mis citas" (antes era horarios)
+        // ✅ Redirección con 302 estándar (más confiable que Inertia::location)
         if ($user->rol === 'Coordinador') {
-            return Inertia::location(route('indicadores.index'));
+            return redirect()->route('indicadores.index');
         }
-        return Inertia::location(route('citas.index'));
+        return redirect()->route('citas.index');
     }
 
+    // Cierra la sesión y vuelve al login.
     public function logout(Request $request)
     {
         Session::forget('user');
@@ -65,13 +88,14 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return Inertia::location(route('login'));
+        return redirect()->route('login');
     }
 
     // ==================================================================
     // Helpers
     // ==================================================================
 
+    // Devuelve true si hay una sesión activa dentro del lifetime configurado.
     private function tieneSesionActiva(): bool
     {
         if (!Session::has('user')) {
@@ -96,15 +120,12 @@ class LoginController extends Controller
         return true;
     }
 
-    /**
-     * Redirige al panel correspondiente según el rol del usuario.
-     */
+    // Redirige al panel correspondiente según el rol del usuario.
     private function redirectAlPanel()
     {
         $user = Session::get('user');
         $rol = $user['rol'] ?? '';
 
-        // ✅ Formador ahora entra a "Gestionar mis citas"
         $route = ($rol === 'Coordinador') ? 'indicadores.index' : 'citas.index';
         return redirect()->route($route);
     }
