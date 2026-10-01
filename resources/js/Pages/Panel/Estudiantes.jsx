@@ -5,34 +5,18 @@ import { useState, useRef, useMemo, useEffect, useCallback, memo } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 
 const GRADOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
-
-const SEXOS_BASE = ['Hombre', 'Mujer', 'Prefiero no decirlo'];
-const SEXO_OTRO = 'Otro';
-
 const OPCIONES_POR_PAGINA = [25, 50, 100, 200];
 
-function calcularEdad(fechaNacimiento) {
-    if (!fechaNacimiento) return null;
-    const nacimiento = new Date(fechaNacimiento + 'T00:00:00');
-    if (isNaN(nacimiento.getTime())) return null;
-    const hoy = new Date();
-    let edad = hoy.getFullYear() - nacimiento.getFullYear();
-    const m = hoy.getMonth() - nacimiento.getMonth();
-    if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
-        edad--;
-    }
-    return (edad >= 0 && edad < 130) ? edad : null;
+// Normaliza un string: minúsculas y sin acentos. Para búsquedas.
+function normalizarTexto(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
 }
 
-function colorBadgeSexo(sexo) {
-    if (!sexo) return 'bg-gray-100 text-gray-600';
-    const s = sexo.toLowerCase();
-    if (s === 'hombre' || s === 'masculino') return 'bg-blue-100 text-blue-800';
-    if (s === 'mujer' || s === 'femenino')    return 'bg-pink-100 text-pink-800';
-    if (s.includes('prefiero'))                return 'bg-gray-100 text-gray-700';
-    return 'bg-purple-100 text-purple-800';
-}
-
+// Formatea fecha YYYY-MM-DD a DD-MM-YYYY
 function formatFecha(fecha) {
     if (!fecha) return '';
     const p = fecha.split('-');
@@ -40,36 +24,16 @@ function formatFecha(fecha) {
     return `${p[2]}-${p[1]}-${p[0]}`;
 }
 
+// Fila individual de la tabla de estudiantes
 const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEliminar }) {
-    const edad = calcularEdad(estudiante.fecha_nacimiento);
-
     return (
         <tr className="hover:bg-[#FF5900]/5 transition-colors">
             <td className="px-4 py-3 text-sm font-medium text-gray-800 font-mono">{estudiante.id_estudiante}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.nombre}</td>
+            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.apellido_paterno}</td>
+            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.apellido_materno}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grado}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grupo}</td>
-            <td className="px-4 py-3 text-sm text-gray-700 text-center">
-                {edad !== null ? (
-                    <span
-                        className="inline-flex items-center justify-center w-9 h-7 rounded-full bg-[#FF5900]/10 text-[#CC4700] font-semibold"
-                        title={formatFecha(estudiante.fecha_nacimiento)}
-                    >
-                        {edad}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">-</span>
-                )}
-            </td>
-            <td className="px-4 py-3 text-sm">
-                {estudiante.sexo ? (
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${colorBadgeSexo(estudiante.sexo)}`}>
-                        {estudiante.sexo}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">-</span>
-                )}
-            </td>
             <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_estudiante || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_padre || '-'}</td>
             <td className="px-4 py-3">
@@ -98,7 +62,7 @@ const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEl
     );
 });
 
-// ✅ Componente de paginación reutilizable (arriba y abajo)
+// Paginación reutilizable (arriba y abajo de la tabla)
 const Paginacion = memo(function Paginacion({
     paginaActual, totalPaginas, porPagina, totalItems,
     inicio, fin,
@@ -180,66 +144,56 @@ const Paginacion = memo(function Paginacion({
 });
 
 export default function Estudiantes({ estudiantes, user }) {
-    // ===== IMPORTACIÓN =====
+    // Importación
     const [archivo, setArchivo] = useState(null);
     const [cargando, setCargando] = useState(false);
     const [mensaje, setMensaje] = useState(null);
     const [importarOpen, setImportarOpen] = useState(false);
     const inputFileRef = useRef(null);
 
-    // ===== LISTA Y ORDEN =====
+    // Lista y orden
     const [listaEstudiantes, setListaEstudiantes] = useState(estudiantes);
     const [orden, setOrden] = useState('id_estudiante');
 
-    // ===== PAGINACIÓN =====
+    // Paginación (por defecto 25)
     const [paginaActual, setPaginaActual] = useState(1);
-    const [porPagina, setPorPagina] = useState(50);
+    const [porPagina, setPorPagina] = useState(25);
 
     useEffect(() => {
         setListaEstudiantes(estudiantes);
     }, [estudiantes]);
 
-    // ===== FILTROS =====
+    // Filtros
     const [busquedaInput, setBusquedaInput] = useState('');
-    const [gradoInput, setGradoInput]       = useState('');
-    const [grupoInput, setGrupoInput]       = useState('');
-    const [sexoInput, setSexoInput]         = useState('');
-    const [edadMinInput, setEdadMinInput]   = useState('');
-    const [edadMaxInput, setEdadMaxInput]   = useState('');
+    const [gradoInput, setGradoInput] = useState('');
+    const [grupoInput, setGrupoInput] = useState('');
 
-    const [busqueda, setBusqueda]           = useState('');
-    const [gradoFilter, setGradoFilter]     = useState('');
-    const [grupoFilter, setGrupoFilter]     = useState('');
-    const [sexoFilter, setSexoFilter]       = useState('');
-    const [edadMinFilter, setEdadMinFilter] = useState('');
-    const [edadMaxFilter, setEdadMaxFilter] = useState('');
+    const [busqueda, setBusqueda] = useState('');
+    const [gradoFilter, setGradoFilter] = useState('');
+    const [grupoFilter, setGrupoFilter] = useState('');
 
-    const [filtrosOpen, setFiltrosOpen]     = useState(false);
+    const [filtrosOpen, setFiltrosOpen] = useState(false);
 
-    // ===== MODAL =====
+    // Modal
     const [modalAbierto, setModalAbierto] = useState(false);
     const [modoEdicion, setModoEdicion] = useState(false);
     const [formData, setFormData] = useState({
         id_estudiante: '',
         nombre: '',
+        apellido_paterno: '',
+        apellido_materno: '',
         grado: '',
         grupo: '',
-        fecha_nacimiento: '',
-        sexo: '',
         telefono_estudiante: '',
         telefono_padre: '',
     });
-    const [sexoSelect, setSexoSelect] = useState('');
-    const [sexoOtro, setSexoOtro]     = useState('');
     const [cargandoModal, setCargandoModal] = useState(false);
 
-    // ===== CONFIRMACIONES =====
+    // Confirmaciones
     const [confirmEliminar, setConfirmEliminar] = useState({ open: false, estudiante: null, loading: false });
     const [confirmEliminarTodos, setConfirmEliminarTodos] = useState({ open: false, loading: false });
 
-    // ============================================================
-    // GRADOS Y GRUPOS
-    // ============================================================
+    // Grados y grupos disponibles para los filtros
     const gradosDisponibles = useMemo(() => {
         const set = new Set(listaEstudiantes.map(e => e.grado).filter(Boolean));
         return [...set].sort((a, b) => {
@@ -257,20 +211,13 @@ export default function Estudiantes({ estudiantes, user }) {
         return [...set].sort();
     }, [listaEstudiantes, gradoInput]);
 
-    const sexosDisponibles = useMemo(() => {
-        const set = new Set(listaEstudiantes.map(e => e.sexo).filter(Boolean));
-        return [...set].sort((a, b) => a.localeCompare(b, 'es'));
-    }, [listaEstudiantes]);
-
     useEffect(() => {
         if (grupoInput && !gruposDisponiblesInput.includes(grupoInput)) {
             setGrupoInput('');
         }
     }, [gruposDisponiblesInput, grupoInput]);
 
-    // ============================================================
-    // APLICAR / LIMPIAR FILTROS
-    // ============================================================
+    // Aplica los filtros seleccionados
     const aplicarFiltros = useCallback(() => {
         const gradoFinal = gradoInput;
         const grupoFinal = (gradoInput && grupoInput && gruposDisponiblesInput.includes(grupoInput))
@@ -280,58 +227,50 @@ export default function Estudiantes({ estudiantes, user }) {
         setBusqueda(busquedaInput.trim());
         setGradoFilter(gradoFinal);
         setGrupoFilter(grupoFinal);
-        setSexoFilter(sexoInput);
-        setEdadMinFilter(edadMinInput);
-        setEdadMaxFilter(edadMaxInput);
-        setPaginaActual(1); // ✅ Reset de página al filtrar
-    }, [gradoInput, grupoInput, gruposDisponiblesInput, busquedaInput, sexoInput, edadMinInput, edadMaxInput]);
+        setPaginaActual(1);
+    }, [gradoInput, grupoInput, gruposDisponiblesInput, busquedaInput]);
 
+    // Limpia todos los filtros
     const limpiarFiltros = useCallback(() => {
         setBusquedaInput('');
         setGradoInput('');
         setGrupoInput('');
-        setSexoInput('');
-        setEdadMinInput('');
-        setEdadMaxInput('');
         setBusqueda('');
         setGradoFilter('');
         setGrupoFilter('');
-        setSexoFilter('');
-        setEdadMinFilter('');
-        setEdadMaxFilter('');
         setPaginaActual(1);
     }, []);
 
-    // ============================================================
-    // LISTA FILTRADA + ORDENADA
-    // ============================================================
+    // Lista filtrada y ordenada según los filtros activos
     const listaFiltradaYOrdenada = useMemo(() => {
         let lista = [...listaEstudiantes];
 
         if (busqueda !== '') {
-            const q = busqueda.toLowerCase();
-            lista = lista.filter(e =>
-                (e.nombre || '').toLowerCase().includes(q) ||
-                String(e.id_estudiante).toLowerCase().includes(q)
-            );
+            // Limpia caracteres especiales y divide en palabras
+            const queryLimpio = busqueda
+                .replace(/[\(\)\-_,\.\*\+\?\¿\¡\!\[\]\{\}]+/g, ' ')
+                .trim();
+
+            const palabras = queryLimpio
+                .split(/\s+/)
+                .filter(Boolean)
+                .map(normalizarTexto);
+
+            if (palabras.length > 0) {
+                lista = lista.filter(e => {
+                    const nombreCompleto = normalizarTexto(
+                        `${e.nombre || ''} ${e.apellido_paterno || ''} ${e.apellido_materno || ''}`
+                    );
+                    const id = String(e.id_estudiante || '').toLowerCase();
+
+                    // Cada palabra debe estar presente en el nombre completo o en el ID
+                    return palabras.every(p => nombreCompleto.includes(p) || id.includes(p));
+                });
+            }
         }
 
         if (gradoFilter) lista = lista.filter(e => e.grado === gradoFilter);
         if (grupoFilter) lista = lista.filter(e => e.grupo === grupoFilter);
-        if (sexoFilter)  lista = lista.filter(e => (e.sexo || '') === sexoFilter);
-
-        if (edadMinFilter !== '' || edadMaxFilter !== '') {
-            const min = edadMinFilter !== '' ? parseInt(edadMinFilter, 10) : null;
-            const max = edadMaxFilter !== '' ? parseInt(edadMaxFilter, 10) : null;
-
-            lista = lista.filter(e => {
-                const edad = calcularEdad(e.fecha_nacimiento);
-                if (edad === null) return false;
-                if (min !== null && !isNaN(min) && edad < min) return false;
-                if (max !== null && !isNaN(max) && edad > max) return false;
-                return true;
-            });
-        }
 
         if (orden === 'grado') {
             return lista.sort((a, b) => {
@@ -340,27 +279,17 @@ export default function Estudiantes({ estudiantes, user }) {
                 if (gradoA !== gradoB) return gradoA - gradoB;
                 return (a.grupo || '').localeCompare(b.grupo || '');
             });
-        } else if (orden === 'edad') {
-            return lista.sort((a, b) => {
-                const ea = calcularEdad(a.fecha_nacimiento);
-                const eb = calcularEdad(b.fecha_nacimiento);
-                if (ea === null && eb === null) return 0;
-                if (ea === null) return 1;
-                if (eb === null) return -1;
-                return ea - eb;
-            });
         } else {
             return lista.sort((a, b) =>
                 String(a.id_estudiante).localeCompare(String(b.id_estudiante), undefined, { numeric: true })
             );
         }
-    }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, sexoFilter, edadMinFilter, edadMaxFilter, orden]);
+    }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, orden]);
 
-    // ✅ PAGINACIÓN: recorte de la lista filtrada
+    // Paginación
     const totalItems = listaFiltradaYOrdenada.length;
     const totalPaginas = Math.max(1, Math.ceil(totalItems / porPagina));
 
-    // Si la página actual quedó fuera de rango (por ej. al filtrar), retroceder
     useEffect(() => {
         if (paginaActual > totalPaginas) {
             setPaginaActual(totalPaginas);
@@ -375,12 +304,10 @@ export default function Estudiantes({ estudiantes, user }) {
     const inicioMostrado = totalItems === 0 ? 0 : (paginaActual - 1) * porPagina + 1;
     const finMostrado    = Math.min(paginaActual * porPagina, totalItems);
 
-    // ✅ Resetear a página 1 cuando cambia el orden
     useEffect(() => {
         setPaginaActual(1);
     }, [orden]);
 
-    // ✅ Resetear a página 1 cuando cambia el tamaño de página
     useEffect(() => {
         setPaginaActual(1);
     }, [porPagina]);
@@ -389,42 +316,21 @@ export default function Estudiantes({ estudiantes, user }) {
         busqueda,
         gradoFilter,
         grupoFilter,
-        sexoFilter,
-        edadMinFilter !== '' ? 'min' : null,
-        edadMaxFilter !== '' ? 'max' : null,
     ].filter(Boolean).length;
 
-    // ============================================================
-    // HANDLERS ESTABLES
-    // ============================================================
+    // Handlers estables
     const abrirModalEditar = useCallback((estudiante) => {
         setModoEdicion(true);
-
-        const sexoGuardado = estudiante.sexo || '';
-        const esBase = SEXOS_BASE.includes(sexoGuardado);
-
         setFormData({
             id_estudiante: estudiante.id_estudiante,
             nombre: estudiante.nombre,
+            apellido_paterno: estudiante.apellido_paterno,
+            apellido_materno: estudiante.apellido_materno,
             grado: estudiante.grado,
             grupo: (estudiante.grupo || '').toUpperCase(),
-            fecha_nacimiento: estudiante.fecha_nacimiento || '',
-            sexo: sexoGuardado,
             telefono_estudiante: estudiante.telefono_estudiante || '',
             telefono_padre: estudiante.telefono_padre || '',
         });
-
-        if (!sexoGuardado) {
-            setSexoSelect('');
-            setSexoOtro('');
-        } else if (esBase) {
-            setSexoSelect(sexoGuardado);
-            setSexoOtro('');
-        } else {
-            setSexoSelect(SEXO_OTRO);
-            setSexoOtro(sexoGuardado);
-        }
-
         setModalAbierto(true);
     }, []);
 
@@ -432,23 +338,19 @@ export default function Estudiantes({ estudiantes, user }) {
         setConfirmEliminar({ open: true, estudiante, loading: false });
     }, []);
 
-    // ============================================================
-    // MODAL
-    // ============================================================
+    // Modal
     const abrirModalAgregar = () => {
         setModoEdicion(false);
         setFormData({
             id_estudiante: '',
             nombre: '',
+            apellido_paterno: '',
+            apellido_materno: '',
             grado: '',
             grupo: '',
-            fecha_nacimiento: '',
-            sexo: '',
             telefono_estudiante: '',
             telefono_padre: '',
         });
-        setSexoSelect('');
-        setSexoOtro('');
         setModalAbierto(true);
     };
 
@@ -457,15 +359,13 @@ export default function Estudiantes({ estudiantes, user }) {
         setFormData({
             id_estudiante: '',
             nombre: '',
+            apellido_paterno: '',
+            apellido_materno: '',
             grado: '',
             grupo: '',
-            fecha_nacimiento: '',
-            sexo: '',
             telefono_estudiante: '',
             telefono_padre: '',
         });
-        setSexoSelect('');
-        setSexoOtro('');
         setCargandoModal(false);
     };
 
@@ -477,42 +377,17 @@ export default function Estudiantes({ estudiantes, user }) {
         setFormData({ ...formData, grupo: e.target.value.toUpperCase() });
     };
 
-    const handleSexoSelectChange = (valor) => {
-        setSexoSelect(valor);
-        if (valor === SEXO_OTRO) {
-            setFormData({ ...formData, sexo: sexoOtro });
-        } else {
-            setSexoOtro('');
-            setFormData({ ...formData, sexo: valor });
-        }
-    };
-
-    const handleSexoOtroChange = (valor) => {
-        setSexoOtro(valor);
-        setFormData({ ...formData, sexo: valor });
-    };
-
-    const edadEnVivo = useMemo(() => calcularEdad(formData.fecha_nacimiento), [formData.fecha_nacimiento]);
-
+    // Guarda (crea o actualiza) un estudiante
     const handleSubmitModal = async (e) => {
         e.preventDefault();
         setCargandoModal(true);
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-        if (!formData.id_estudiante || !formData.nombre || !formData.grado || !formData.grupo) {
-            setMensaje({ tipo: 'error', texto: 'Todos los campos excepto fecha de nacimiento, sexo y teléfonos son obligatorios.' });
+        if (!formData.id_estudiante || !formData.nombre || !formData.apellido_paterno || !formData.apellido_materno || !formData.grado || !formData.grupo) {
+            setMensaje({ tipo: 'error', texto: 'Todos los campos excepto teléfonos son obligatorios.' });
             setCargandoModal(false);
             return;
         }
-
-        const sexoFinal = (sexoSelect === SEXO_OTRO)
-            ? (sexoOtro.trim() || null)
-            : (sexoSelect || null);
-
-        const payload = {
-            ...formData,
-            sexo: sexoFinal,
-        };
 
         const url = modoEdicion ? `/estudiantes/${formData.id_estudiante}` : '/estudiantes';
         const method = modoEdicion ? 'PUT' : 'POST';
@@ -525,7 +400,7 @@ export default function Estudiantes({ estudiantes, user }) {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(formData),
             });
 
             const data = await response.json();
@@ -551,7 +426,7 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     };
 
-    // ===== IMPORTAR =====
+    // Importación
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -611,7 +486,7 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     };
 
-    // ===== ELIMINAR UNO =====
+    // Eliminar un estudiante
     const confirmarEliminarUno = async () => {
         const estudiante = confirmEliminar.estudiante;
         if (!estudiante) return;
@@ -646,7 +521,7 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     };
 
-    // ===== ELIMINAR TODOS =====
+    // Eliminar toda la lista de estudiantes
     const confirmarEliminarTodos = async () => {
         setConfirmEliminarTodos(prev => ({ ...prev, loading: true }));
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -717,7 +592,7 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 )}
 
-                {/* Importación (COLAPSABLE) */}
+                {/* Importación */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 overflow-hidden">
                     <button
                         onClick={() => setImportarOpen(!importarOpen)}
@@ -771,7 +646,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </button>
                             </form>
                             <p className="text-xs text-gray-400 mt-3">
-                                Columnas esperadas: <strong>id_estudiante, nombre, grado, grupo, fecha_nacimiento, sexo, telefono_estudiante, telefono_padre</strong>.
+                                Columnas esperadas: <strong>ID, Nombre, Apellido paterno, Apellido materno, Grado, Grupo, Contacto, Contacto de emergencia</strong>.
                             </p>
                             <p className="text-xs text-gray-400">
                                 Las filas con ID existente se actualizarán; las nuevas se insertarán. Las columnas extra se ignoran.
@@ -802,11 +677,11 @@ export default function Estudiantes({ estudiantes, user }) {
                         </svg>
                     </button>
 
-                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6 border-t border-gray-100 pt-5">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre o ID</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre, apellido o ID</label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -818,7 +693,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                             value={busquedaInput}
                                             onChange={(e) => setBusquedaInput(e.target.value)}
                                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aplicarFiltros(); } }}
-                                            placeholder="Ej. Daniela o 800001"
+                                            placeholder="Ej. Daniela, García o 800001"
                                             className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
                                         />
                                     </div>
@@ -857,52 +732,6 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Sexo</label>
-                                    <select
-                                        value={sexoInput}
-                                        onChange={(e) => setSexoInput(e.target.value)}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                    >
-                                        <option value="">Todos</option>
-                                        {sexosDisponibles.map(s => (
-                                            <option key={s} value={s}>{s}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                        Edad mínima <span className="text-gray-400 font-normal">(años)</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="10"
-                                        max="30"
-                                        value={edadMinInput}
-                                        onChange={(e) => setEdadMinInput(e.target.value)}
-                                        placeholder="Ej. 15"
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                        Edad máxima <span className="text-gray-400 font-normal">(años)</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="10"
-                                        max="30"
-                                        value={edadMaxInput}
-                                        onChange={(e) => setEdadMaxInput(e.target.value)}
-                                        placeholder="Ej. 18"
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                    />
-                                </div>
-                            </div>
-
                             <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
                                 <button
                                     onClick={aplicarFiltros}
@@ -928,7 +757,6 @@ export default function Estudiantes({ estudiantes, user }) {
 
                 {/* Tabla */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-                    {/* Header con título + orden + paginación */}
                     <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
@@ -958,18 +786,9 @@ export default function Estudiantes({ estudiantes, user }) {
                                 >
                                     Por Grado-Grupo
                                 </button>
-                                <button
-                                    onClick={() => setOrden('edad')}
-                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                                        orden === 'edad' ? 'bg-[#FF5900] text-white shadow-md' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    Por Edad
-                                </button>
                             </div>
                         </div>
 
-                        {/* ✅ Paginación arriba */}
                         <Paginacion
                             paginaActual={paginaActual}
                             totalPaginas={totalPaginas}
@@ -988,12 +807,12 @@ export default function Estudiantes({ estudiantes, user }) {
                                 <tr>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Estudiante</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apellido paterno</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apellido materno</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grado</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Edad</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sexo</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono estudiante</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono padre</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto de emergencia</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
@@ -1019,7 +838,6 @@ export default function Estudiantes({ estudiantes, user }) {
                         </table>
                     </div>
 
-                    {/* ✅ Paginación abajo */}
                     {totalItems > 0 && (
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
                             <Paginacion
@@ -1038,7 +856,7 @@ export default function Estudiantes({ estudiantes, user }) {
                 </div>
             </div>
 
-            {/* Modal agregar/editar (igual que antes) */}
+            {/* Modal agregar/editar */}
             {modalAbierto && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
@@ -1081,6 +899,30 @@ export default function Estudiantes({ estudiantes, user }) {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido paterno *</label>
+                                    <input
+                                        type="text"
+                                        name="apellido_paterno"
+                                        value={formData.apellido_paterno}
+                                        onChange={handleChange}
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido materno *</label>
+                                    <input
+                                        type="text"
+                                        name="apellido_materno"
+                                        value={formData.apellido_materno}
+                                        onChange={handleChange}
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Grado *</label>
                                     <select
                                         name="grado"
@@ -1112,61 +954,8 @@ export default function Estudiantes({ estudiantes, user }) {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
-                                    <input
-                                        type="date"
-                                        name="fecha_nacimiento"
-                                        value={formData.fecha_nacimiento}
-                                        onChange={handleChange}
-                                        max={new Date().toISOString().split('T')[0]}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                    />
-                                    {edadEnVivo !== null && (
-                                        <p className="mt-1.5 text-xs text-[#CC4700] font-medium">
-                                            Edad: <strong>{edadEnVivo}</strong> años
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
-                                    <select
-                                        value={sexoSelect}
-                                        onChange={(e) => handleSexoSelectChange(e.target.value)}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                    >
-                                        <option value="">Sin especificar</option>
-                                        {SEXOS_BASE.map(s => (
-                                            <option key={s} value={s}>{s}</option>
-                                        ))}
-                                        <option value={SEXO_OTRO}>Otro (escribir)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {sexoSelect === SEXO_OTRO && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Especifica el sexo
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={sexoOtro}
-                                        onChange={(e) => handleSexoOtroChange(e.target.value)}
-                                        maxLength={50}
-                                        placeholder="Escribe cómo se identifica la persona"
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                        autoFocus
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">
-                                        Se guardará tal cual lo escribas (máx. 50 caracteres).
-                                    </p>
-                                </div>
-                            )}
-
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono estudiante</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Contacto</label>
                                 <input
                                     type="text"
                                     name="telefono_estudiante"
@@ -1178,7 +967,7 @@ export default function Estudiantes({ estudiantes, user }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono padre</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Contacto de emergencia</label>
                                 <input
                                     type="text"
                                     name="telefono_padre"
@@ -1218,7 +1007,7 @@ export default function Estudiantes({ estudiantes, user }) {
                 title="Eliminar estudiante"
                 message={
                     confirmEliminar.estudiante
-                        ? `¿Estás seguro de eliminar a ${confirmEliminar.estudiante.nombre} (${confirmEliminar.estudiante.id_estudiante})? Sus citas históricas se conservarán.`
+                        ? `¿Estás seguro de eliminar a ${confirmEliminar.estudiante.nombre} ${confirmEliminar.estudiante.apellido_paterno} ${confirmEliminar.estudiante.apellido_materno} (${confirmEliminar.estudiante.id_estudiante})? Sus citas históricas se conservarán.`
                         : ''
                 }
                 confirmText="Sí, eliminar"

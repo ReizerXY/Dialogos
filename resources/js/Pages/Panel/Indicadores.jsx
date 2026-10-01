@@ -12,27 +12,23 @@ const CLASIFICACION_COLOR_BLOCK = {
     'institucional': 'bg-amber-500',
 };
 
-const SEXO_COLOR = {
-    'Hombre':              { pill: 'bg-blue-50 border-blue-200 text-blue-800',    dot: 'bg-blue-500' },
-    'Mujer':               { pill: 'bg-pink-50 border-pink-200 text-pink-800',    dot: 'bg-pink-500' },
-    'Prefiero no decirlo': { pill: 'bg-gray-50 border-gray-200 text-gray-700',    dot: 'bg-gray-400' },
-    'Otro':                { pill: 'bg-purple-50 border-purple-200 text-purple-800', dot: 'bg-purple-500' },
-};
-
 const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
+// Devuelve el título del mes a partir de YYYY-MM
 function mesTitulo(mesYMD) {
     if (!mesYMD) return '';
     const [year, month] = mesYMD.split('-');
     return `${MESES_ES[parseInt(month, 10) - 1]} ${year}`;
 }
 
+// Devuelve el título de la semana ISO
 function semanaTitulo(semanaISO) {
     if (!semanaISO) return '';
     const [year, weekPart] = semanaISO.split('-W');
     return `semana ${parseInt(weekPart, 10)} de ${year}`;
 }
 
+// Convierte hora 24h a formato 12h
 function formatHora12(hora24) {
     if (!hora24) return '';
     const [h, m] = hora24.split(':');
@@ -43,6 +39,7 @@ function formatHora12(hora24) {
     return `${hNum}:${m} ${ampm}`;
 }
 
+// Capitaliza la primera letra
 function capitalizar(texto) {
     if (!texto) return '';
     return texto.charAt(0).toUpperCase() + texto.slice(1);
@@ -62,17 +59,16 @@ const SECCIONES_INFO = [
 const SECCIONES_KEYS = SECCIONES_INFO.map(s => s.key);
 const TODAS_COLAPSADAS   = Object.fromEntries(SECCIONES_KEYS.map(k => [k, true]));
 const TODAS_EXPANDIDAS   = Object.fromEntries(SECCIONES_KEYS.map(k => [k, false]));
-const TODOS_SUB_CERRADOS = { estado: false, clasificacion: false, asistencia: false, sexo: false, edad: false };
+const TODOS_SUB_CERRADOS = { estado: false, clasificacion: false, asistencia: false };
 const SUB_TEND_CERRADOS  = { mes: false, dia: false, hora: false };
 const SUB_DEST_CERRADOS  = { formadores: false, estudiantes: false };
 
 export default function Indicadores({
     totalFormadores, totalEstudiantes, totalCitas, promedioCitasPorFormador,
     estudiantesAtendidos, tasaCompletacion, tasaCancelacion, tasaAsistencia,
-    edadPromedio, citasPorEstudiante,
+    citasPorEstudiante,
     estudiantesAgrupados, gradosActivos, gruposActivos, gruposPorGrado,
     citasPorEstado, citasPorClasificacion, citasPorAsistencia, citasPorHora,
-    estudiantesPorSexo, estudiantesPorEdad,
     formadoresTop, estudiantesTop, detalleFormadores,
     citasPorMes, citasPorDiaSemana,
     comparativaSemana, comparativaMes,
@@ -91,7 +87,7 @@ export default function Indicadores({
     const [secciones, setSecciones] = useState(() => {
         if (typeof window === 'undefined') return Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default]));
         try {
-            const g = localStorage.getItem('indicadores_secciones_v13');
+            const g = localStorage.getItem('indicadores_secciones_v14');
             if (g) return { ...Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default])), ...JSON.parse(g) };
         } catch {}
         return Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default]));
@@ -106,7 +102,7 @@ export default function Indicadores({
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            localStorage.setItem('indicadores_secciones_v13', JSON.stringify(secciones));
+            localStorage.setItem('indicadores_secciones_v14', JSON.stringify(secciones));
         }
     }, [secciones]);
 
@@ -146,7 +142,7 @@ export default function Indicadores({
 
     const desplegarTodo = () => {
         setColapsadas(TODAS_EXPANDIDAS);
-        setSubDist({ estado: true, clasificacion: true, asistencia: true, sexo: true, edad: true });
+        setSubDist({ estado: true, clasificacion: true, asistencia: true });
         setSubTend({ mes: true, dia: true, hora: true });
         setSubDest({ formadores: true, estudiantes: true });
     };
@@ -156,6 +152,31 @@ export default function Indicadores({
         setSubDist(TODOS_SUB_CERRADOS);
         setSubTend(SUB_TEND_CERRADOS);
         setSubDest(SUB_DEST_CERRADOS);
+    };
+
+    // ✅ Filtros de fecha excluyentes: al elegir uno se limpian los otros dos
+    const handleAnioChange = (value) => {
+        setAnio(value);
+        if (value) {
+            setMes('');
+            setSemana('');
+        }
+    };
+
+    const handleMesChange = (value) => {
+        setMes(value);
+        if (value) {
+            setAnio('');
+            setSemana('');
+        }
+    };
+
+    const handleSemanaChange = (value) => {
+        setSemana(value);
+        if (value) {
+            setAnio('');
+            setMes('');
+        }
     };
 
     const formatFecha = (f) => {
@@ -180,13 +201,6 @@ export default function Indicadores({
         pendiente:    { pill: 'bg-gray-50 border-gray-200 text-gray-700', dot: 'bg-gray-400' },
         asistió:      { pill: 'bg-green-50 border-green-200 text-green-800', dot: 'bg-green-400' },
         'no asistió': { pill: 'bg-red-50 border-red-200 text-red-800', dot: 'bg-red-400' },
-    };
-
-    const EDAD_COLOR = {
-        '14 años o menos': { pill: 'bg-cyan-50 border-cyan-200 text-cyan-800',   dot: 'bg-cyan-500' },
-        '15-16 años':      { pill: 'bg-blue-50 border-blue-200 text-blue-800',   dot: 'bg-blue-500' },
-        '17-18 años':      { pill: 'bg-indigo-50 border-indigo-200 text-indigo-800', dot: 'bg-indigo-500' },
-        '19 años o más':   { pill: 'bg-violet-50 border-violet-200 text-violet-800', dot: 'bg-violet-500' },
     };
 
     const aplicarFiltros = () => {
@@ -251,9 +265,6 @@ export default function Indicadores({
     const todoColapsado = seccionesVisibles.length > 0 && seccionesVisibles.every(s => colapsadas[s.key]);
     const todoExpandido = seccionesVisibles.length > 0 && seccionesVisibles.every(s => !colapsadas[s.key]);
 
-    // ============================================================
-    // Detección de "sin datos" y descripción de filtros
-    // ============================================================
     const hayFiltros = !!(filtroAnio || filtroMes || filtroSemana || filtroGrado || filtroGrupo);
     const sinDatos = totalCitas === 0;
 
@@ -267,12 +278,19 @@ export default function Indicadores({
         return partes.join(', ');
     })();
 
-    // Helper: convierte 0 / '0' / '0%' en '—' cuando no hay datos
     const kpiValue = (valor) => {
         if (!sinDatos) return valor;
         if (valor === 0 || valor === '0' || valor === '0%') return '—';
         return valor;
     };
+
+    // Texto de ayuda sobre los filtros de fecha activos
+    const hintFechaActiva = (() => {
+        if (semana) return 'Se está filtrando por semana (año y mes se ignoran).';
+        if (mes)    return 'Se está filtrando por mes (año y semana se ignoran).';
+        if (anio)   return 'Se está filtrando por año (mes y semana se ignoran).';
+        return 'Elige un año, un mes o una semana (no se combinan entre sí).';
+    })();
 
     return (
         <AuthenticatedLayout>
@@ -364,23 +382,33 @@ export default function Indicadores({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                     </button>
-                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                         <div className="px-6 pb-6">
+
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por año</label>
-                                    <select value={anio} onChange={(e) => setAnio(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700">
+                                    <select
+                                        value={anio}
+                                        onChange={(e) => handleAnioChange(e.target.value)}
+                                        className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700"
+                                    >
                                         <option value="">Todos</option>
                                         {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por mes</label>
-                                    <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700" />
+                                    <input
+                                        type="month"
+                                        value={mes}
+                                        onChange={(e) => handleMesChange(e.target.value)}
+                                        className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por semana</label>
-                                    <SelectorSemana value={semana} onChange={(n) => setSemana(n)} label="" />
+                                    <SelectorSemana value={semana} onChange={(n) => handleSemanaChange(n)} label="" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por grado</label>
@@ -405,6 +433,12 @@ export default function Indicadores({
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Hint dinámico según filtro de fecha activo */}
+                            <p className="text-xs text-gray-500 mb-4">
+                                {hintFechaActiva}
+                            </p>
+
                             <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-gray-100">
                                 <button onClick={aplicarFiltros} className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] transition active:scale-95">Aplicar filtros</button>
                                 <button onClick={limpiarFiltros} className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition active:scale-95">Limpiar filtros</button>
@@ -413,9 +447,7 @@ export default function Indicadores({
                     </div>
                 </div>
 
-                {/* ============================================================ */}
                 {/* Banner de "sin datos" cuando el filtro no encuentra */}
-                {/* ============================================================ */}
                 {sinDatos && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
                         <div className="flex-shrink-0 mt-0.5">
@@ -465,7 +497,6 @@ export default function Indicadores({
                             <KpiCard value={kpiValue(`${tasaCompletacion}%`)} titulo="Citas completadas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
                             <KpiCard value={kpiValue(`${tasaCancelacion}%`)} titulo="Citas canceladas" subtitulo={`${tasaCancelacion}% del total`} accent="red" />
                             <KpiCard value={kpiValue(`${tasaAsistencia}%`)} titulo="Tasa de asistencia" subtitulo="De citas atendidas" accent="orange" />
-                            <KpiCard value={edadPromedio > 0 ? `${edadPromedio} años` : '—'} titulo="Edad promedio" subtitulo="De estudiantes atendidos" accent="orange" />
                             <KpiCard value={kpiValue(citasPorEstudiante)} titulo="Citas por estudiante" subtitulo="Promedio del periodo" accent="blue" />
                         </div>
                     </SeccionColapsable>
@@ -529,40 +560,6 @@ export default function Indicadores({
                                     })}
                                 </div>
                             ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-
-                        <SubDesplegable titulo="Estudiantes atendidos por sexo" abierta={subDist.sexo} onToggle={() => toggleSubDist('sexo')}>
-                            {Object.keys(estudiantesPorSexo || {}).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(estudiantesPorSexo).map(([sexo, total]) => {
-                                        const col = SEXO_COLOR[sexo] || SEXO_COLOR['Otro'];
-                                        return (
-                                            <div key={sexo} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
-                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
-                                                <span className="text-sm font-medium">{sexo}</span>
-                                                <span className="text-base font-bold">{total}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos de sexo registrados</p>}
-                        </SubDesplegable>
-
-                        <SubDesplegable titulo="Estudiantes atendidos por rango de edad" abierta={subDist.edad} onToggle={() => toggleSubDist('edad')}>
-                            {Object.keys(estudiantesPorEdad || {}).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(estudiantesPorEdad).map(([rango, total]) => {
-                                        const col = EDAD_COLOR[rango] || { pill: 'bg-gray-50 border-gray-200 text-gray-800', dot: 'bg-gray-400' };
-                                        return (
-                                            <div key={rango} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
-                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
-                                                <span className="text-sm font-medium">{rango}</span>
-                                                <span className="text-base font-bold">{total}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos de edad registrados</p>}
                         </SubDesplegable>
                     </SeccionColapsable>
                 )}
@@ -887,10 +884,7 @@ export default function Indicadores({
     );
 }
 
-/* ============================================================ */
-/* COMPONENTES AUXILIARES                                       */
-/* ============================================================ */
-
+// Sección colapsable principal
 function SeccionColapsable({ titulo, abierta, onToggle, children }) {
     return (
         <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 overflow-hidden">
@@ -910,6 +904,7 @@ function SeccionColapsable({ titulo, abierta, onToggle, children }) {
     );
 }
 
+// Sub-desplegable dentro de una sección
 function SubDesplegable({ titulo, abierta, onToggle, children }) {
     return (
         <div className="border border-gray-100 rounded-xl mb-3 overflow-hidden bg-gray-50/40">
@@ -926,6 +921,7 @@ function SubDesplegable({ titulo, abierta, onToggle, children }) {
     );
 }
 
+// Elemento de tendencia (fila con título, descripción y total)
 function TrendItem({ titulo, descripcion, total }) {
     return (
         <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow flex items-center justify-between gap-4">
@@ -938,6 +934,7 @@ function TrendItem({ titulo, descripcion, total }) {
     );
 }
 
+// Elemento de ranking (posición + nombre + total)
 function RankingItem({ posicion, nombre, etiqueta, total, unidad = 'cita' }) {
     const colores = ['bg-yellow-400', 'bg-gray-400', 'bg-orange-400'];
     const colorMedalla = posicion < 3 ? colores[posicion] : 'bg-gray-300';
@@ -962,6 +959,7 @@ function RankingItem({ posicion, nombre, etiqueta, total, unidad = 'cita' }) {
     );
 }
 
+// Tarjeta de KPI
 function KpiCard({ value, titulo, subtitulo, accent = 'orange' }) {
     const accents = { orange: 'text-[#FF5900]', blue: 'text-blue-600', green: 'text-green-600', red: 'text-red-600' };
     return (
@@ -973,6 +971,7 @@ function KpiCard({ value, titulo, subtitulo, accent = 'orange' }) {
     );
 }
 
+// Mini estadística dentro de una tarjeta expandible
 function MiniStat({ label, value, accent = 'gray' }) {
     const accents = { gray: 'text-gray-700', green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600', orange: 'text-[#FF5900]' };
     return (
@@ -983,6 +982,7 @@ function MiniStat({ label, value, accent = 'gray' }) {
     );
 }
 
+// Medalla de posición en un ranking
 function Medal({ position }) {
     const colors = ['bg-yellow-400', 'bg-gray-300', 'bg-orange-300'];
     const color = position < 3 ? colors[position] : 'bg-gray-200';
@@ -993,6 +993,7 @@ function Medal({ position }) {
     );
 }
 
+// Tarjeta comparativa entre dos periodos
 function ComparativaCard({ titulo, labelActual, labelAnterior, actual, anterior, diff, pct, claseDiff }) {
     return (
         <div className="border border-gray-100 rounded-xl p-5 bg-white">
