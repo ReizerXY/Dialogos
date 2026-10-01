@@ -12,36 +12,85 @@ const CLASIFICACION_COLOR = {
     'institucional': 'bg-amber-500',
 };
 
-// ✅ Calcula edad en años desde una fecha de nacimiento YYYY-MM-DD
-function calcularEdad(fechaNacimiento) {
-    if (!fechaNacimiento) return null;
-    const nacimiento = new Date(fechaNacimiento + 'T00:00:00');
-    if (isNaN(nacimiento.getTime())) return null;
-    const hoy = new Date();
-    let edad = hoy.getFullYear() - nacimiento.getFullYear();
-    const m = hoy.getMonth() - nacimiento.getMonth();
-    if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
-        edad--;
-    }
-    return (edad >= 0 && edad < 130) ? edad : null;
-}
-
-// ✅ Colores del badge de sexo
-function colorBadgeSexo(sexo) {
-    if (!sexo) return 'bg-gray-100 text-gray-600';
-    const s = sexo.toLowerCase();
-    if (s === 'hombre' || s === 'masculino') return 'bg-blue-100 text-blue-800';
-    if (s === 'mujer' || s === 'femenino')    return 'bg-pink-100 text-pink-800';
-    if (s.includes('prefiero'))                return 'bg-gray-100 text-gray-700';
-    return 'bg-purple-100 text-purple-800';
-}
-
+// Formatea fecha YYYY-MM-DD a DD-MM-YYYY
 function formatFecha(fecha) {
     if (!fecha) return '';
     const partes = fecha.split('-');
     if (partes.length !== 3) return fecha;
     return `${partes[2]}-${partes[1]}-${partes[0]}`;
 }
+
+// Estilos personalizados para el react-select (fuente más grande que el default 14px)
+const selectStyles = {
+    control: (base) => ({
+        ...base,
+        minHeight: '48px',
+        fontSize: '1rem',
+        borderRadius: '0.75rem',
+        borderColor: '#D1D5DB',
+        boxShadow: 'none',
+        '&:hover': { borderColor: '#FF5900' },
+    }),
+    valueContainer: (base) => ({
+        ...base,
+        padding: '4px 12px',
+    }),
+    singleValue: (base) => ({
+        ...base,
+        fontSize: '1rem',
+        color: '#1F2937',
+    }),
+    placeholder: (base) => ({
+        ...base,
+        fontSize: '1rem',
+        color: '#9CA3AF',
+    }),
+    input: (base) => ({
+        ...base,
+        fontSize: '1rem',
+        color: '#1F2937',
+        margin: 0,
+        padding: 0,
+    }),
+    menu: (base) => ({
+        ...base,
+        fontSize: '1rem',
+        borderRadius: '0.75rem',
+        overflow: 'hidden',
+        zIndex: 20,
+    }),
+    option: (base, state) => ({
+        ...base,
+        fontSize: '1rem',
+        padding: '10px 12px',
+        backgroundColor: state.isFocused ? '#FFF7ED' : state.isSelected ? '#FF5900' : 'white',
+        color: state.isSelected ? 'white' : '#1F2937',
+        cursor: 'pointer',
+    }),
+    indicatorSeparator: () => ({ display: 'none' }),
+    clearIndicator: (base) => ({
+        ...base,
+        cursor: 'pointer',
+        color: '#9CA3AF',
+        '&:hover': { color: '#EF4444' },
+    }),
+    dropdownIndicator: (base) => ({
+        ...base,
+        cursor: 'pointer',
+        color: '#9CA3AF',
+        '&:hover': { color: '#FF5900' },
+    }),
+    loadingMessage: (base) => ({
+        ...base,
+        fontSize: '1rem',
+        color: '#6B7280',
+    }),
+    noOptionsMessage: (base) => ({
+        ...base,
+        fontSize: '1rem',
+        color: '#6B7280',
+    }),
+};
 
 export default function Expediente({ estudiante, citas, totalCitas, citasProgramadas, citasCompletadas, citasCanceladas, asistencias, faltas, pendientesAsistencia, egresado, user }) {
     const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null);
@@ -50,27 +99,35 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
     const [inputValue, setInputValue] = useState('');
     const [error, setError] = useState(null);
 
+    // Sincroniza el estudiante recibido del backend con el select
     useEffect(() => {
         if (estudiante) {
             setEstudianteSeleccionado({
                 value: estudiante.id_estudiante,
-                label: egresado
-                    ? `${estudiante.nombre} (${estudiante.id_estudiante}) - Egresado`
-                    : `${estudiante.nombre} (${estudiante.id_estudiante}) - ${estudiante.grado} ${estudiante.grupo}`
+                label: estudiante.nombre,
+                id_estudiante: estudiante.id_estudiante,
+                grado: estudiante.grado,
+                grupo: estudiante.grupo,
+                egresado,
             });
         }
     }, [estudiante, egresado]);
 
+    // Búsqueda con debounce en el endpoint de estudiantes
     useEffect(() => {
-        if (inputValue.length < 1) {
+        const trimmed = inputValue.trim();
+
+        if (trimmed.length < 1) {
             setOpcionesEstudiantes([]);
+            setBuscando(false);
             return;
         }
 
+        setBuscando(true);
+        setError(null);
+
         const delay = setTimeout(() => {
-            setBuscando(true);
-            setError(null);
-            fetch(`/api/expediente/estudiantes?q=${encodeURIComponent(inputValue)}`)
+            fetch(`/api/expediente/estudiantes?q=${encodeURIComponent(trimmed)}`)
                 .then(res => {
                     if (!res.ok) throw new Error(`Error ${res.status}`);
                     return res.json();
@@ -78,9 +135,11 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                 .then(data => {
                     const options = data.map(item => ({
                         value: item.id_estudiante,
-                        label: item.egresado
-                            ? `${item.nombre} (${item.id_estudiante}) - Egresado`
-                            : `${item.nombre} (${item.id_estudiante}) - ${item.grado} ${item.grupo}`
+                        label: item.nombre,
+                        id_estudiante: item.id_estudiante,
+                        grado: item.grado,
+                        grupo: item.grupo,
+                        egresado: item.egresado,
                     }));
                     setOpcionesEstudiantes(options);
                     setBuscando(false);
@@ -91,7 +150,7 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                     setOpcionesEstudiantes([]);
                     setBuscando(false);
                 });
-        }, 500);
+        }, 300);
 
         return () => clearTimeout(delay);
     }, [inputValue]);
@@ -103,8 +162,6 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
             alert('Por favor, selecciona un estudiante de la lista.');
         }
     };
-
-    const edadEstudiante = calcularEdad(estudiante?.fecha_nacimiento);
 
     return (
         <AuthenticatedLayout>
@@ -118,7 +175,7 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
 
                 <div className="bg-white rounded-2xl shadow-md p-6 mb-8 border border-gray-100">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Buscar estudiante por nombre o ID
+                        Buscar estudiante por nombre, apellido o ID
                     </label>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="flex-1">
@@ -126,15 +183,41 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                 options={opcionesEstudiantes}
                                 value={estudianteSeleccionado}
                                 onChange={setEstudianteSeleccionado}
-                                onInputChange={(newValue) => setInputValue(newValue)}
-                                placeholder="Escribe nombre o ID..."
+                                onInputChange={(newValue, actionMeta) => {
+                                    if (actionMeta.action === 'input-change') {
+                                        setInputValue(newValue);
+                                    }
+                                }}
+                                placeholder="Escribe nombre, apellido o ID..."
                                 isClearable
-                                className="mt-1"
+                                styles={selectStyles}
                                 classNamePrefix="select"
                                 isLoading={buscando}
-                                noOptionsMessage={() => inputValue.length < 1 ? 'Escribe para buscar' : 'No se encontraron estudiantes'}
+                                noOptionsMessage={() =>
+                                    inputValue.trim().length < 1
+                                        ? 'Escribe para buscar'
+                                        : 'No se encontraron estudiantes'
+                                }
                                 loadingMessage={() => 'Buscando...'}
                                 filterOption={() => true}
+                                formatOptionLabel={(option, { context }) => {
+                                    // En el input solo muestra el nombre completo (limpio)
+                                    if (context === 'value') {
+                                        return option.label;
+                                    }
+                                    // En el menú: nombre + ID + grado/grupo
+                                    const detalle = option.egresado
+                                        ? 'Egresado'
+                                        : `${option.grado || ''} ${option.grupo || ''}`.trim();
+                                    return (
+                                        <div className="flex justify-between items-center gap-3">
+                                            <span className="text-gray-800">{option.label}</span>
+                                            <span className="text-sm text-gray-500 font-mono whitespace-nowrap">
+                                                {option.id_estudiante}{detalle ? ` · ${detalle}` : ''}
+                                            </span>
+                                        </div>
+                                    );
+                                }}
                                 onBlur={() => {
                                     if (!estudianteSeleccionado) {
                                         setInputValue('');
@@ -145,14 +228,14 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                         </div>
                         <button
                             onClick={handleBuscar}
-                            className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 whitespace-nowrap"
+                            className="px-6 py-3 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 whitespace-nowrap text-base"
                         >
                             Buscar
                         </button>
                     </div>
                     {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-                    <p className="mt-2 text-xs text-gray-400">
-                        Escribe al menos 1 carácter para buscar por nombre o ID. Se incluyen estudiantes egresados.
+                    <p className="mt-3 text-sm text-gray-400">
+                        Escribe al menos 1 carácter. Puedes buscar por nombre, apellidos, ID o combinaciones (ej. "Eduardo Ruiz", "Eduardo", "800211"). Se incluyen estudiantes egresados.
                     </p>
                 </div>
 
@@ -186,10 +269,29 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">ID Estudiante</span>
                                     <p className="font-semibold text-gray-800 font-mono">{estudiante.id_estudiante}</p>
                                 </div>
-                                <div className="bg-gray-50 rounded-xl p-3 sm:col-span-2 lg:col-span-3">
-                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Nombre completo</span>
-                                    <p className="font-semibold text-gray-800">{estudiante.nombre}</p>
-                                </div>
+
+                                {!egresado ? (
+                                    <>
+                                        <div className="bg-gray-50 rounded-xl p-3">
+                                            <span className="text-xs text-gray-400 uppercase tracking-wider">Nombre</span>
+                                            <p className="font-semibold text-gray-800">{estudiante.nombre}</p>
+                                        </div>
+                                        <div className="bg-gray-50 rounded-xl p-3">
+                                            <span className="text-xs text-gray-400 uppercase tracking-wider">Apellido paterno</span>
+                                            <p className="font-semibold text-gray-800">{estudiante.apellido_paterno}</p>
+                                        </div>
+                                        <div className="bg-gray-50 rounded-xl p-3">
+                                            <span className="text-xs text-gray-400 uppercase tracking-wider">Apellido materno</span>
+                                            <p className="font-semibold text-gray-800">{estudiante.apellido_materno}</p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="bg-gray-50 rounded-xl p-3 sm:col-span-2 lg:col-span-3">
+                                        <span className="text-xs text-gray-400 uppercase tracking-wider">Nombre completo</span>
+                                        <p className="font-semibold text-gray-800">{estudiante.nombre}</p>
+                                    </div>
+                                )}
+
                                 <div className="bg-gray-50 rounded-xl p-3">
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">Grado</span>
                                     <p className="font-semibold text-gray-800">{estudiante.grado}</p>
@@ -199,41 +301,12 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                                     <p className="font-semibold text-gray-800">{estudiante.grupo}</p>
                                 </div>
 
-                                {/* ✅ NUEVO: Edad calculada */}
                                 <div className="bg-gray-50 rounded-xl p-3">
-                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Edad</span>
-                                    <p className="font-semibold text-gray-800">
-                                        {edadEstudiante !== null ? (
-                                            <span className="inline-flex items-center gap-2">
-                                                <span className="text-lg">{edadEstudiante}</span>
-                                                <span className="text-gray-500 text-sm font-normal">años</span>
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-400 font-normal">No registrada</span>
-                                        )}
-                                    </p>
-                                </div>
-
-                                {/* ✅ NUEVO: Sexo con badge */}
-                                <div className="bg-gray-50 rounded-xl p-3">
-                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Sexo</span>
-                                    <p className="mt-1">
-                                        {estudiante.sexo ? (
-                                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${colorBadgeSexo(estudiante.sexo)}`}>
-                                                {estudiante.sexo}
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-400 text-sm">No registrado</span>
-                                        )}
-                                    </p>
-                                </div>
-
-                                <div className="bg-gray-50 rounded-xl p-3">
-                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Teléfono estudiante</span>
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Contacto</span>
                                     <p className="font-semibold text-gray-800 font-mono">{estudiante.telefono_estudiante || 'No registrado'}</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
-                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Teléfono padre/tutor</span>
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">Contacto de emergencia</span>
                                     <p className="font-semibold text-gray-800 font-mono">{estudiante.telefono_padre || 'No registrado'}</p>
                                 </div>
                             </div>

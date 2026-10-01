@@ -16,6 +16,7 @@ use App\Services\CacheInvalidator;
 
 class CitasController extends Controller
 {
+    // Lista de citas con todos los filtros aplicados
     public function index(Request $request)
     {
         $user = Session::get('user');
@@ -25,18 +26,21 @@ class CitasController extends Controller
         $verTodas = ($rol === 'Formador') && ($request->get('todas') == 1);
         $soloLectura = $verTodas;
 
-        $filtroFormador = $request->get('formador');
-        $filtroEstado   = $request->get('estado');
-        $filtroFecha    = $request->get('fecha');
-        $periodo        = $request->get('semana', 'actual');
-        $filtroAnio     = $request->get('anio');
-        $filtroMes      = $request->get('mes');
-        $semanaValor    = $request->get('semana_valor');
-        $filtroGrado    = $request->get('grado');
-        $filtroGrupo    = $request->get('grupo');
+        $filtroFormador      = $request->get('formador');
+        $filtroEstado        = $request->get('estado');
+        $filtroClasificacion = $request->get('clasificacion');
+        $filtroAsistencia    = $request->get('asistencia');
+        $filtroFecha         = $request->get('fecha');
+        $periodo             = $request->get('semana', 'actual');
+        $filtroAnio          = $request->get('anio');
+        $filtroMes           = $request->get('mes');
+        $semanaValor         = $request->get('semana_valor');
+        $filtroGrado         = $request->get('grado');
+        $filtroGrupo         = $request->get('grupo');
 
         $query = DB::table('citas')->select('citas.*');
 
+        // Si es Formador en su propia vista, solo ve sus citas
         if ($rol == 'Formador' && !$verTodas) {
             $query->where('citas.id_usuario', $usuarioId);
         } else {
@@ -45,10 +49,22 @@ class CitasController extends Controller
             }
         }
 
+        // Filtro por estado
         if ($filtroEstado) {
             $query->where('citas.estado', $filtroEstado);
         }
 
+        // Filtro por clasificación
+        if ($filtroClasificacion) {
+            $query->where('citas.clasificacion', $filtroClasificacion);
+        }
+
+        // Filtro por asistencia
+        if ($filtroAsistencia) {
+            $query->where('citas.asistencia', $filtroAsistencia);
+        }
+
+        // Filtro por grado/grupo
         if ($filtroGrado || $filtroGrupo) {
             $qEst = DB::table('estudiantes')->select('id_estudiante');
             if ($filtroGrado) $qEst->where('grado', $filtroGrado);
@@ -57,6 +73,7 @@ class CitasController extends Controller
             $query->whereIn('citas.id_estudiante', $idsEstudiantes ?: [0]);
         }
 
+        // Filtros de fecha (mutuamente excluyentes)
         if ($semanaValor) {
             $year = substr($semanaValor, 0, 4);
             $week = substr($semanaValor, 6, 2);
@@ -72,8 +89,29 @@ class CitasController extends Controller
         } elseif ($filtroAnio) {
             $query->whereYear('citas.fecha', (int) $filtroAnio);
         } elseif ($periodo === 'actual') {
-            $query->where('citas.fecha', '>=', now()->toDateString())
-                  ->where('citas.fecha', '<=', now()->addDays(7)->toDateString());
+            if ($rol === 'Formador') {
+                // Formador sin filtro de fecha:
+                //   - Trae las citas de la próxima semana (hoy a +7 días)
+                //   - MÁS todas las citas que siguen en estado 'programada' y ya
+                //     pasaron de fecha, sin importar qué tan viejas sean.
+                //     Así se llena la tabla "Citas por atender".
+                $query->where(function ($q) {
+                    $q->whereBetween('citas.fecha', [
+                            now()->toDateString(),
+                            now()->addDays(7)->toDateString(),
+                        ])
+                      ->orWhere(function ($q2) {
+                            $q2->where('citas.fecha', '<', now()->toDateString())
+                               ->where('citas.estado', 'programada');
+                        });
+                });
+            } else {
+                // Coordinador: solo el rango de la próxima semana
+                $query->whereBetween('citas.fecha', [
+                    now()->toDateString(),
+                    now()->addDays(7)->toDateString(),
+                ]);
+            }
         }
 
         $citas = $query->orderBy('citas.fecha', 'asc')
@@ -112,15 +150,17 @@ class CitasController extends Controller
             'gradosActivos'    => $gradosActivos,
             'gruposPorGrado'   => $gruposPorGrado,
             'filtros'          => [
-                'formador'     => $filtroFormador,
-                'estado'       => $filtroEstado,
-                'fecha'        => $filtroFecha,
-                'semana'       => $periodo,
-                'anio'         => $filtroAnio,
-                'mes'          => $filtroMes,
-                'semana_valor' => $semanaValor,
-                'grado'        => $filtroGrado,
-                'grupo'        => $filtroGrupo,
+                'formador'      => $filtroFormador,
+                'estado'        => $filtroEstado,
+                'clasificacion' => $filtroClasificacion,
+                'asistencia'    => $filtroAsistencia,
+                'fecha'         => $filtroFecha,
+                'semana'        => $periodo,
+                'anio'          => $filtroAnio,
+                'mes'           => $filtroMes,
+                'semana_valor'  => $semanaValor,
+                'grado'         => $filtroGrado,
+                'grupo'         => $filtroGrupo,
             ],
             'rol'         => $rol,
             'soloLectura' => $soloLectura,
@@ -128,6 +168,7 @@ class CitasController extends Controller
         ]);
     }
 
+    // Exporta citas a Excel, respetando filtros o selección manual
     public function exportarExcel(Request $request)
     {
         $user = Session::get('user');
@@ -148,18 +189,22 @@ class CitasController extends Controller
         if (!empty($ids)) {
             $query->whereIn('citas.id_cita', $ids);
         } else {
-            $filtroFormador = $request->get('formador');
-            $filtroEstado   = $request->get('estado');
-            $filtroFecha    = $request->get('fecha');
-            $periodo        = $request->get('semana', 'actual');
-            $filtroAnio     = $request->get('anio');
-            $filtroMes      = $request->get('mes');
-            $semanaValor    = $request->get('semana_valor');
-            $filtroGrado    = $request->get('grado');
-            $filtroGrupo    = $request->get('grupo');
+            $filtroFormador      = $request->get('formador');
+            $filtroEstado        = $request->get('estado');
+            $filtroClasificacion = $request->get('clasificacion');
+            $filtroAsistencia    = $request->get('asistencia');
+            $filtroFecha         = $request->get('fecha');
+            $periodo             = $request->get('semana', 'actual');
+            $filtroAnio          = $request->get('anio');
+            $filtroMes           = $request->get('mes');
+            $semanaValor         = $request->get('semana_valor');
+            $filtroGrado         = $request->get('grado');
+            $filtroGrupo         = $request->get('grupo');
 
-            if ($filtroFormador) $query->where('citas.id_usuario', $filtroFormador);
-            if ($filtroEstado)   $query->where('citas.estado', $filtroEstado);
+            if ($filtroFormador)      $query->where('citas.id_usuario', $filtroFormador);
+            if ($filtroEstado)        $query->where('citas.estado', $filtroEstado);
+            if ($filtroClasificacion) $query->where('citas.clasificacion', $filtroClasificacion);
+            if ($filtroAsistencia)    $query->where('citas.asistencia', $filtroAsistencia);
 
             if ($filtroGrado || $filtroGrupo) {
                 $qEst = DB::table('estudiantes')->select('id_estudiante');
@@ -184,8 +229,10 @@ class CitasController extends Controller
             } elseif ($filtroAnio) {
                 $query->whereYear('citas.fecha', (int) $filtroAnio);
             } elseif ($periodo === 'actual') {
-                $query->where('citas.fecha', '>=', now()->toDateString())
-                      ->where('citas.fecha', '<=', now()->addDays(7)->toDateString());
+                $query->whereBetween('citas.fecha', [
+                    now()->toDateString(),
+                    now()->addDays(7)->toDateString(),
+                ]);
             }
         }
 
@@ -204,6 +251,7 @@ class CitasController extends Controller
         return Excel::download(new CitasExport($citas), $nombreArchivo);
     }
 
+    // Muestra la pantalla individual de gestión de una cita (solo Formador)
     public function show($id)
     {
         $user = Session::get('user');
@@ -228,6 +276,7 @@ class CitasController extends Controller
         ]);
     }
 
+    // Actualiza clasificación, notas y asistencia (desde el modal Notas)
     public function actualizarNotas(Request $request, $id)
     {
         try {
@@ -283,17 +332,13 @@ class CitasController extends Controller
         }
     }
 
+    // Calcula el nuevo estado de una cita según la asistencia registrada
     private function calcularEstadoNotas($cita, $asistencia)
     {
-        // Las citas canceladas mantienen su estado sin importar qué pase
         if (in_array($cita->estado, ['cancelada', 'cancelada_liberada'], true)) {
             return $cita->estado;
         }
 
-        // ✅ Único disparador para pasar a completada: que el formador
-        //    haya registrado asistencia manualmente (asistió / no asistió).
-        //    ⛔ Ya NO se marca completada por el simple paso del tiempo.
-        //    Si la asistencia vuelve a "pendiente", regresa a programada.
         $asistenciaRegistrada = in_array($asistencia, ['asistió', 'no asistió'], true);
 
         if ($asistenciaRegistrada) {
@@ -303,6 +348,7 @@ class CitasController extends Controller
         return 'programada';
     }
 
+    // Modifica la fecha y hora de una cita (desde el modal Modificar)
     public function modificarCita(Request $request, $id)
     {
         try {
@@ -359,6 +405,7 @@ class CitasController extends Controller
         }
     }
 
+    // Cancela una cita con o sin liberación de horario (desde el modal Cancelar)
     public function cancelarCita(Request $request, $id)
     {
         try {
@@ -418,6 +465,7 @@ class CitasController extends Controller
         }
     }
 
+    // Devuelve las horas disponibles de un formador en una fecha (para el modal Modificar)
     public function disponibilidadParaModificar(Request $request)
     {
         $usuarioId = $request->get('usuario_id');
@@ -454,6 +502,7 @@ class CitasController extends Controller
         return response()->json(array_values($horasDisponibles));
     }
 
+    // Actualiza una cita completa (versión antigua, ya no se usa desde UI)
     public function update(Request $request, $id)
     {
         $user = Session::get('user');
@@ -503,6 +552,7 @@ class CitasController extends Controller
         return redirect()->route('citas.index')->with('success', 'Cita actualizada exitosamente.');
     }
 
+    // Busca citas por nombre de estudiante (endpoint histórico, sin uso actual)
     public function historial(Request $request)
     {
         $query = $request->get('query', '');

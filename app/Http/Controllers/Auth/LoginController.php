@@ -26,7 +26,7 @@ class LoginController extends Controller
         return inertia('Auth/LoginCustom');
     }
 
-    // Procesa el login. Regenera la sesión ANTES de guardar los datos del usuario.
+    // Procesa el login. Regenera la sesión antes de guardar los datos del usuario.
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -59,20 +59,15 @@ class LoginController extends Controller
         // Login exitoso: limpiamos el contador
         RateLimiter::clear($throttleKey);
 
-        // ✅ ORDEN CORRECTO:
-        // 1. Regenerar el ID de sesión primero (nueva cookie)
-        // 2. Luego guardar los datos (asociados al nuevo ID)
-        // 3. Forzar el guardado en BD
-        // Así la cookie que recibe el navegador coincide con los datos guardados.
+        // Orden correcto: regenerar primero, luego guardar, luego save()
         $request->session()->regenerate();
 
         Session::put('user', (array) $user);
         Session::put('last_activity_at', time());
 
-        // Forzar el guardado en BD antes de responder
         Session::save();
 
-        // ✅ Redirección con 302 estándar (más confiable que Inertia::location)
+        // Redirección 302 estándar (más confiable que Inertia::location)
         if ($user->rol === 'Coordinador') {
             return redirect()->route('indicadores.index');
         }
