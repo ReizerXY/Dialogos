@@ -18,7 +18,12 @@ class EstudianteController extends Controller
 {
     private const GRADOS_VALIDOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
 
-    // Lista todos los estudiantes ordenados por grado, grupo y nombre
+    // Días antes del inicio del ciclo en que se muestra la importación
+    private const DIAS_ANTES_CICLO = 7;
+    // Días después del inicio del ciclo en que se muestra la importación
+    private const DIAS_DESPUES_CICLO = 14;
+
+    // Lista todos los estudiantes y pasa la configuración del ciclo escolar
     public function index()
     {
         $user = Session::get('user');
@@ -34,10 +39,94 @@ class EstudianteController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        // Lee la configuración (con fallback si la tabla aún no existe)
+        $inicioCiclo = null;
+        $importacionManual = '0';
+        try {
+            $inicioCiclo = DB::table('configuracion')->where('clave', 'inicio_ciclo_escolar')->value('valor');
+            $importacionManual = DB::table('configuracion')->where('clave', 'importacion_activa_manual')->value('valor');
+        } catch (\Exception $e) {
+            // Tabla no existe aún
+        }
+
+        $mostrarImportacion = $this->calcularMostrarImportacion($inicioCiclo, $importacionManual === '1');
+
         return inertia('Panel/Estudiantes', [
             'estudiantes' => $estudiantes,
             'user' => $user,
+            'config' => [
+                'inicio_ciclo_escolar'      => $inicioCiclo,
+                'importacion_activa_manual' => $importacionManual === '1',
+                'mostrar_importacion'       => $mostrarImportacion,
+                'dias_antes_ciclo'          => self::DIAS_ANTES_CICLO,
+                'dias_despues_ciclo'        => self::DIAS_DESPUES_CICLO,
+            ],
         ]);
+    }
+
+    // Determina si se debe mostrar el bloque de importación según la fecha y el modo manual
+    private function calcularMostrarImportacion($inicioCiclo, $importacionManual)
+    {
+        // Modo manual: siempre mostrar
+        if ($importacionManual) {
+            return true;
+        }
+
+        // Sin fecha configurada: no mostrar
+        if (!$inicioCiclo) {
+            return false;
+        }
+
+        try {
+            $inicio = new \DateTime($inicioCiclo);
+            $inicio->setTime(0, 0, 0);
+            $hoy = new \DateTime();
+            $hoy->setTime(0, 0, 0);
+
+            $diff = $inicio->diff($hoy);
+            $dias = (int) $diff->format('%r%a'); // %r da signo: -5 = 5 días antes, +3 = 3 días después
+
+            return $dias >= -self::DIAS_ANTES_CICLO && $dias <= self::DIAS_DESPUES_CICLO;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    // Guarda la configuración del ciclo escolar (fecha y modo manual)
+    public function updateConfiguracion(Request $request)
+    {
+        $user = Session::get('user');
+        if ($user['rol'] != 'Coordinador') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        $request->validate([
+            'inicio_ciclo_escolar'      => 'nullable|date',
+            'importacion_activa_manual' => 'required|boolean',
+        ]);
+
+        try {
+            DB::table('configuracion')->updateOrInsert(
+                ['clave' => 'inicio_ciclo_escolar'],
+                ['valor' => $request->inicio_ciclo_escolar ?: null]
+            );
+
+            DB::table('configuracion')->updateOrInsert(
+                ['clave' => 'importacion_activa_manual'],
+                ['valor' => $request->importacion_activa_manual ? '1' : '0']
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Configuración del ciclo escolar guardada correctamente.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al guardar configuración:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar la configuración: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     // Importa estudiantes desde archivo Excel, CSV o TXT
@@ -79,9 +168,7 @@ class EstudianteController extends Controller
             if ($tipo === 'xlsx') {
                 $import = new EstudiantesExcelImport();
                 Excel::import($import, $file, null, ExcelFormat::XLSX);
-
                 CacheInvalidator::indicadores();
-
                 return response()->json([
                     'success' => true,
                     'message' => $import->getMensaje(),
@@ -92,9 +179,7 @@ class EstudianteController extends Controller
             if ($tipo === 'xls') {
                 $import = new EstudiantesExcelImport();
                 Excel::import($import, $file, null, ExcelFormat::XLS);
-
                 CacheInvalidator::indicadores();
-
                 return response()->json([
                     'success' => true,
                     'message' => $import->getMensaje(),
@@ -104,9 +189,7 @@ class EstudianteController extends Controller
 
             $import = new EstudiantesCsvImport();
             $import->import($path);
-
             CacheInvalidator::indicadores();
-
             return response()->json([
                 'success' => true,
                 'message' => $import->getMensaje(),
@@ -143,15 +226,8 @@ class EstudianteController extends Controller
     private function detectarTipo($magicBytes)
     {
         $hex = bin2hex(substr($magicBytes, 0, 4));
-
-        if (substr($hex, 0, 4) === '504b') {
-            return 'xlsx';
-        }
-
-        if (substr($hex, 0, 8) === 'd0cf11e0') {
-            return 'xls';
-        }
-
+        if (substr($hex, 0, 4) === '504b') return 'xlsx';
+        if (substr($hex, 0, 8) === 'd0cf11e0') return 'xls';
         return 'texto';
     }
 
@@ -252,7 +328,6 @@ class EstudianteController extends Controller
         }
 
         DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->delete();
-
         CacheInvalidator::indicadores();
 
         return response()->json([
@@ -279,7 +354,6 @@ class EstudianteController extends Controller
         }
 
         DB::table('estudiantes')->delete();
-
         CacheInvalidator::indicadores();
 
         return response()->json([

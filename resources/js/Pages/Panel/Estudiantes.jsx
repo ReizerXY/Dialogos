@@ -1,149 +1,30 @@
 // resources/js/Pages/Panel/Estudiantes.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-import { useState, useRef, useMemo, useEffect, useCallback, memo } from 'react';
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 
-const GRADOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
-const OPCIONES_POR_PAGINA = [25, 50, 100, 200];
+import { normalizarTexto, formatFecha, obtenerCsrfToken } from './Estudiantes/helpers';
+import FilaEstudiante from './Estudiantes/FilaEstudiante';
+import Paginacion from './Estudiantes/Paginacion';
+import FiltrosEstudiantes from './Estudiantes/FiltrosEstudiantes';
+import BloqueImportacion from './Estudiantes/BloqueImportacion';
+import ModalEstudiante from './Estudiantes/ModalEstudiante';
+import ModalConfigCiclo from './Estudiantes/ModalConfigCiclo';
 
-// Normaliza un string: minúsculas y sin acentos. Para búsquedas.
-function normalizarTexto(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-}
+// Form data inicial (fuera del componente para evitar re-creación)
+const FORM_DATA_VACIO = {
+    id_estudiante: '',
+    nombre: '',
+    apellido_paterno: '',
+    apellido_materno: '',
+    grado: '',
+    grupo: '',
+    telefono_estudiante: '',
+    telefono_padre: '',
+};
 
-// Formatea fecha YYYY-MM-DD a DD-MM-YYYY
-function formatFecha(fecha) {
-    if (!fecha) return '';
-    const p = fecha.split('-');
-    if (p.length !== 3) return fecha;
-    return `${p[2]}-${p[1]}-${p[0]}`;
-}
-
-// Fila individual de la tabla de estudiantes
-const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEliminar }) {
-    return (
-        <tr className="hover:bg-[#FF5900]/5 transition-colors">
-            <td className="px-4 py-3 text-sm font-medium text-gray-800 font-mono">{estudiante.id_estudiante}</td>
-            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.nombre}</td>
-            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.apellido_paterno}</td>
-            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.apellido_materno}</td>
-            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grado}</td>
-            <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grupo}</td>
-            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_estudiante || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_padre || '-'}</td>
-            <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={() => onEditar(estudiante)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-all duration-200 hover:shadow-md active:scale-95"
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Modificar
-                    </button>
-                    <button
-                        onClick={() => onEliminar(estudiante)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-all duration-200 hover:shadow-md active:scale-95"
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Eliminar
-                    </button>
-                </div>
-            </td>
-        </tr>
-    );
-});
-
-// Paginación reutilizable (arriba y abajo de la tabla)
-const Paginacion = memo(function Paginacion({
-    paginaActual, totalPaginas, porPagina, totalItems,
-    inicio, fin,
-    onCambiarPagina, onCambiarPorPagina,
-    mostrarSelectorPorPagina = true,
-}) {
-    return (
-        <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>
-                    Mostrando <strong className="text-gray-700">{inicio}</strong>–<strong className="text-gray-700">{fin}</strong> de{' '}
-                    <strong className="text-gray-700">{totalItems}</strong>
-                </span>
-                {mostrarSelectorPorPagina && (
-                    <div className="flex items-center gap-2 ml-2">
-                        <label className="text-xs text-gray-500">Por página:</label>
-                        <select
-                            value={porPagina}
-                            onChange={(e) => onCambiarPorPagina(Number(e.target.value))}
-                            className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50"
-                        >
-                            {OPCIONES_POR_PAGINA.map(n => (
-                                <option key={n} value={n}>{n}</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-            </div>
-
-            <div className="flex items-center gap-1">
-                <button
-                    onClick={() => onCambiarPagina(1)}
-                    disabled={paginaActual === 1}
-                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                    title="Primera página"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                    </svg>
-                </button>
-                <button
-                    onClick={() => onCambiarPagina(paginaActual - 1)}
-                    disabled={paginaActual === 1}
-                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                    title="Anterior"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-
-                <span className="px-3 py-1 text-sm text-gray-700 font-medium">
-                    Página <strong>{paginaActual}</strong> de <strong>{totalPaginas}</strong>
-                </span>
-
-                <button
-                    onClick={() => onCambiarPagina(paginaActual + 1)}
-                    disabled={paginaActual === totalPaginas}
-                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                    title="Siguiente"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                </button>
-                <button
-                    onClick={() => onCambiarPagina(totalPaginas)}
-                    disabled={paginaActual === totalPaginas}
-                    className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                    title="Última página"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-    );
-});
-
-export default function Estudiantes({ estudiantes, user }) {
+export default function Estudiantes({ estudiantes, user, config }) {
     // Importación
     const [archivo, setArchivo] = useState(null);
     const [cargando, setCargando] = useState(false);
@@ -174,24 +55,42 @@ export default function Estudiantes({ estudiantes, user }) {
 
     const [filtrosOpen, setFiltrosOpen] = useState(false);
 
-    // Modal
+    // Modal estudiante
     const [modalAbierto, setModalAbierto] = useState(false);
     const [modoEdicion, setModoEdicion] = useState(false);
-    const [formData, setFormData] = useState({
-        id_estudiante: '',
-        nombre: '',
-        apellido_paterno: '',
-        apellido_materno: '',
-        grado: '',
-        grupo: '',
-        telefono_estudiante: '',
-        telefono_padre: '',
-    });
+    const [formData, setFormData] = useState(FORM_DATA_VACIO);
     const [cargandoModal, setCargandoModal] = useState(false);
 
     // Confirmaciones
     const [confirmEliminar, setConfirmEliminar] = useState({ open: false, estudiante: null, loading: false });
     const [confirmEliminarTodos, setConfirmEliminarTodos] = useState({ open: false, loading: false });
+
+    // Configuración del ciclo escolar
+    const [configModalOpen, setConfigModalOpen] = useState(false);
+    const [inicioCiclo, setInicioCiclo] = useState(config?.inicio_ciclo_escolar || '');
+    const [importacionManual, setImportacionManual] = useState(!!config?.importacion_activa_manual);
+    const [guardandoConfig, setGuardandoConfig] = useState(false);
+
+    useEffect(() => {
+        setInicioCiclo(config?.inicio_ciclo_escolar || '');
+        setImportacionManual(!!config?.importacion_activa_manual);
+    }, [config]);
+
+    const mostrarImportacion = !!config?.mostrar_importacion;
+
+    // Preview en vivo: ¿se mostraría la importación con esta config?
+    const previewMostrar = useMemo(() => {
+        if (importacionManual) return true;
+        if (!inicioCiclo) return false;
+        const inicio = new Date(inicioCiclo + 'T00:00:00');
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const diffMs = hoy - inicio;
+        const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const antes = config?.dias_antes_ciclo ?? 7;
+        const despues = config?.dias_despues_ciclo ?? 14;
+        return dias >= -antes && dias <= despues;
+    }, [inicioCiclo, importacionManual, config]);
 
     // Grados y grupos disponibles para los filtros
     const gradosDisponibles = useMemo(() => {
@@ -217,7 +116,6 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     }, [gruposDisponiblesInput, grupoInput]);
 
-    // Aplica los filtros seleccionados
     const aplicarFiltros = useCallback(() => {
         const gradoFinal = gradoInput;
         const grupoFinal = (gradoInput && grupoInput && gruposDisponiblesInput.includes(grupoInput))
@@ -230,7 +128,6 @@ export default function Estudiantes({ estudiantes, user }) {
         setPaginaActual(1);
     }, [gradoInput, grupoInput, gruposDisponiblesInput, busquedaInput]);
 
-    // Limpia todos los filtros
     const limpiarFiltros = useCallback(() => {
         setBusquedaInput('');
         setGradoInput('');
@@ -241,12 +138,10 @@ export default function Estudiantes({ estudiantes, user }) {
         setPaginaActual(1);
     }, []);
 
-    // Lista filtrada y ordenada según los filtros activos
     const listaFiltradaYOrdenada = useMemo(() => {
         let lista = [...listaEstudiantes];
 
         if (busqueda !== '') {
-            // Limpia caracteres especiales y divide en palabras
             const queryLimpio = busqueda
                 .replace(/[\(\)\-_,\.\*\+\?\¿\¡\!\[\]\{\}]+/g, ' ')
                 .trim();
@@ -262,8 +157,6 @@ export default function Estudiantes({ estudiantes, user }) {
                         `${e.nombre || ''} ${e.apellido_paterno || ''} ${e.apellido_materno || ''}`
                     );
                     const id = String(e.id_estudiante || '').toLowerCase();
-
-                    // Cada palabra debe estar presente en el nombre completo o en el ID
                     return palabras.every(p => nombreCompleto.includes(p) || id.includes(p));
                 });
             }
@@ -286,14 +179,11 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     }, [listaEstudiantes, busqueda, gradoFilter, grupoFilter, orden]);
 
-    // Paginación
     const totalItems = listaFiltradaYOrdenada.length;
     const totalPaginas = Math.max(1, Math.ceil(totalItems / porPagina));
 
     useEffect(() => {
-        if (paginaActual > totalPaginas) {
-            setPaginaActual(totalPaginas);
-        }
+        if (paginaActual > totalPaginas) setPaginaActual(totalPaginas);
     }, [paginaActual, totalPaginas]);
 
     const listaPaginada = useMemo(() => {
@@ -304,21 +194,12 @@ export default function Estudiantes({ estudiantes, user }) {
     const inicioMostrado = totalItems === 0 ? 0 : (paginaActual - 1) * porPagina + 1;
     const finMostrado    = Math.min(paginaActual * porPagina, totalItems);
 
-    useEffect(() => {
-        setPaginaActual(1);
-    }, [orden]);
+    useEffect(() => { setPaginaActual(1); }, [orden]);
+    useEffect(() => { setPaginaActual(1); }, [porPagina]);
 
-    useEffect(() => {
-        setPaginaActual(1);
-    }, [porPagina]);
+    const filtrosActivos = [busqueda, gradoFilter, grupoFilter].filter(Boolean).length;
 
-    const filtrosActivos = [
-        busqueda,
-        gradoFilter,
-        grupoFilter,
-    ].filter(Boolean).length;
-
-    // Handlers estables
+    // Handlers
     const abrirModalEditar = useCallback((estudiante) => {
         setModoEdicion(true);
         setFormData({
@@ -338,34 +219,15 @@ export default function Estudiantes({ estudiantes, user }) {
         setConfirmEliminar({ open: true, estudiante, loading: false });
     }, []);
 
-    // Modal
     const abrirModalAgregar = () => {
         setModoEdicion(false);
-        setFormData({
-            id_estudiante: '',
-            nombre: '',
-            apellido_paterno: '',
-            apellido_materno: '',
-            grado: '',
-            grupo: '',
-            telefono_estudiante: '',
-            telefono_padre: '',
-        });
+        setFormData(FORM_DATA_VACIO);
         setModalAbierto(true);
     };
 
     const cerrarModal = () => {
         setModalAbierto(false);
-        setFormData({
-            id_estudiante: '',
-            nombre: '',
-            apellido_paterno: '',
-            apellido_materno: '',
-            grado: '',
-            grupo: '',
-            telefono_estudiante: '',
-            telefono_padre: '',
-        });
+        setFormData(FORM_DATA_VACIO);
         setCargandoModal(false);
     };
 
@@ -381,7 +243,7 @@ export default function Estudiantes({ estudiantes, user }) {
     const handleSubmitModal = async (e) => {
         e.preventDefault();
         setCargandoModal(true);
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const csrfToken = obtenerCsrfToken();
 
         if (!formData.id_estudiante || !formData.nombre || !formData.apellido_paterno || !formData.apellido_materno || !formData.grado || !formData.grupo) {
             setMensaje({ tipo: 'error', texto: 'Todos los campos excepto teléfonos son obligatorios.' });
@@ -447,7 +309,7 @@ export default function Estudiantes({ estudiantes, user }) {
         const formData = new FormData();
         formData.append('archivo', archivo);
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const csrfToken = obtenerCsrfToken();
 
         try {
             const response = await fetch('/estudiantes/importar', {
@@ -492,8 +354,7 @@ export default function Estudiantes({ estudiantes, user }) {
         if (!estudiante) return;
 
         setConfirmEliminar(prev => ({ ...prev, loading: true }));
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const csrfToken = obtenerCsrfToken();
 
         try {
             const response = await fetch(`/estudiantes/${estudiante.id_estudiante}`, {
@@ -524,7 +385,7 @@ export default function Estudiantes({ estudiantes, user }) {
     // Eliminar toda la lista de estudiantes
     const confirmarEliminarTodos = async () => {
         setConfirmEliminarTodos(prev => ({ ...prev, loading: true }));
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const csrfToken = obtenerCsrfToken();
 
         try {
             const response = await fetch('/estudiantes/todos', {
@@ -552,6 +413,47 @@ export default function Estudiantes({ estudiantes, user }) {
         }
     };
 
+    // Guardar configuración del ciclo escolar
+    const guardarConfig = async () => {
+        setGuardandoConfig(true);
+        const csrfToken = obtenerCsrfToken();
+
+        try {
+            const response = await fetch('/estudiantes/configuracion', {
+                method: 'PUT',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    inicio_ciclo_escolar: inicioCiclo || null,
+                    importacion_activa_manual: importacionManual,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setMensaje({ tipo: 'success', texto: data.message });
+                setConfigModalOpen(false);
+                setTimeout(() => router.reload({ only: ['config'] }), 400);
+                setTimeout(() => setMensaje(null), 3500);
+            } else {
+                setMensaje({ tipo: 'error', texto: data.message || 'Error al guardar la configuración.' });
+            }
+        } catch (error) {
+            setMensaje({ tipo: 'error', texto: 'Error de conexión al guardar.' });
+        } finally {
+            setGuardandoConfig(false);
+        }
+    };
+
+    // Formatea la fecha del ciclo para mostrar en el header
+    const fechaCicloTexto = config?.inicio_ciclo_escolar
+        ? formatFecha(config.inicio_ciclo_escolar)
+        : 'sin configurar';
+
     return (
         <AuthenticatedLayout>
             <Head title="Gestión de estudiantes" />
@@ -565,14 +467,14 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button
-                            onClick={() => setConfirmEliminarTodos({ open: true, loading: false })}
-                            disabled={listaEstudiantes.length === 0}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => setConfigModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 hover:border-[#FF5900] hover:text-[#CC4700] transition-all duration-200"
+                            title={`Ciclo escolar: ${fechaCicloTexto}`}
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            Eliminar lista alumnos
+                            Ciclo escolar
                         </button>
                         <button
                             onClick={abrirModalAgregar}
@@ -592,168 +494,36 @@ export default function Estudiantes({ estudiantes, user }) {
                     </div>
                 )}
 
-                {/* Importación */}
-                <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 overflow-hidden">
-                    <button
-                        onClick={() => setImportarOpen(!importarOpen)}
-                        className="w-full flex flex-wrap items-center justify-between gap-3 px-6 py-4 hover:bg-gray-50 transition text-left"
-                    >
-                        <div className="flex flex-wrap items-center gap-3">
-                            <svg className="w-5 h-5 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
-                            <span className="text-base font-semibold text-gray-800">Importar estudiantes</span>
-                            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5 font-medium">
-                                ⚠️ Realizar al inicio de cada semestre
-                            </span>
-                        </div>
-                        <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${importarOpen ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
+                {mostrarImportacion && (
+                    <BloqueImportacion
+                        abierto={importarOpen}
+                        setAbierto={setImportarOpen}
+                        archivo={archivo}
+                        cargando={cargando}
+                        inputFileRef={inputFileRef}
+                        onFileChange={handleFileChange}
+                        onImport={handleImport}
+                        config={config}
+                        totalEstudiantes={listaEstudiantes.length}
+                        onEliminarTodos={() => setConfirmEliminarTodos({ open: true, loading: false })}
+                    />
+                )}
 
-                    <div className={`transition-all duration-300 ease-in-out ${importarOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                        <div className="px-6 pb-6 border-t border-gray-100">
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 mt-4 flex items-start gap-2 text-sm text-amber-800">
-                                <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <div>
-                                    <strong>Se recomienda realizar esta importación al inicio de cada semestre.</strong>
-                                    <div className="text-xs mt-0.5">Actualiza la lista completa de estudiantes inscritos en el ciclo actual.</div>
-                                </div>
-                            </div>
-
-                            <form onSubmit={handleImport} className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-                                <div className="flex-1 w-full">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                        Archivo (.xlsx, .xls, .csv, .txt)
-                                    </label>
-                                    <input
-                                        ref={inputFileRef}
-                                        type="file"
-                                        accept=".xlsx,.xls,.csv,.txt,.tsv"
-                                        onChange={handleFileChange}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={cargando || !archivo}
-                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 whitespace-nowrap"
-                                >
-                                    {cargando ? 'Importando...' : 'Importar'}
-                                </button>
-                            </form>
-                            <p className="text-xs text-gray-400 mt-3">
-                                Columnas esperadas: <strong>ID, Nombre, Apellido paterno, Apellido materno, Grado, Grupo, Contacto, Contacto de emergencia</strong>.
-                            </p>
-                            <p className="text-xs text-gray-400">
-                                Las filas con ID existente se actualizarán; las nuevas se insertarán. Las columnas extra se ignoran.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Filtros */}
-                <div className="bg-white rounded-2xl shadow-md mb-6 border border-gray-100 overflow-hidden">
-                    <button
-                        onClick={() => setFiltrosOpen(!filtrosOpen)}
-                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition text-left"
-                    >
-                        <div className="flex items-center gap-3">
-                            <svg className="w-5 h-5 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                            </svg>
-                            <span className="text-base font-semibold text-gray-800">Filtros de búsqueda</span>
-                            {filtrosActivos > 0 && (
-                                <span className="text-sm text-[#CC4700] bg-[#FF5900]/10 rounded-full px-2.5 py-0.5">
-                                    {filtrosActivos} activo{filtrosActivos === 1 ? '' : 's'}
-                                </span>
-                            )}
-                        </div>
-                        <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${filtrosOpen ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-
-                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                        <div className="px-6 pb-6 border-t border-gray-100 pt-5">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre, apellido o ID</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={busquedaInput}
-                                            onChange={(e) => setBusquedaInput(e.target.value)}
-                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); aplicarFiltros(); } }}
-                                            placeholder="Ej. Daniela, García o 800001"
-                                            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Grado</label>
-                                    <select
-                                        value={gradoInput}
-                                        onChange={(e) => setGradoInput(e.target.value)}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                    >
-                                        <option value="">Todos los grados</option>
-                                        {gradosDisponibles.map(g => (
-                                            <option key={g} value={g}>{g}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                        Grupo
-                                        {!gradoInput && <span className="text-gray-400 ml-1">(elige grado)</span>}
-                                    </label>
-                                    <select
-                                        value={grupoInput}
-                                        onChange={(e) => setGrupoInput(e.target.value)}
-                                        disabled={!gradoInput}
-                                        className={`w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700 ${!gradoInput ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
-                                    >
-                                        <option value="">Todos los grupos</option>
-                                        {gruposDisponiblesInput.map(g => (
-                                            <option key={g} value={g}>Grupo {g}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
-                                <button
-                                    onClick={aplicarFiltros}
-                                    className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                                        </svg>
-                                        Filtrar
-                                    </span>
-                                </button>
-                                <button
-                                    onClick={limpiarFiltros}
-                                    className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 active:scale-95"
-                                >
-                                    Limpiar filtros
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <FiltrosEstudiantes
+                    abierto={filtrosOpen}
+                    setAbierto={setFiltrosOpen}
+                    busquedaInput={busquedaInput}
+                    setBusquedaInput={setBusquedaInput}
+                    gradoInput={gradoInput}
+                    setGradoInput={setGradoInput}
+                    grupoInput={grupoInput}
+                    setGrupoInput={setGrupoInput}
+                    gradosDisponibles={gradosDisponibles}
+                    gruposDisponiblesInput={gruposDisponiblesInput}
+                    filtrosActivos={filtrosActivos}
+                    onAplicar={aplicarFiltros}
+                    onLimpiar={limpiarFiltros}
+                />
 
                 {/* Tabla */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
@@ -856,149 +626,29 @@ export default function Estudiantes({ estudiantes, user }) {
                 </div>
             </div>
 
-            {/* Modal agregar/editar */}
-            {modalAbierto && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-gray-800">
-                                {modoEdicion ? 'Editar estudiante' : 'Agregar estudiante'}
-                            </h3>
-                            <button onClick={cerrarModal} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
+            <ModalEstudiante
+                isOpen={modalAbierto}
+                onClose={cerrarModal}
+                modoEdicion={modoEdicion}
+                formData={formData}
+                onChange={handleChange}
+                onGrupoChange={handleGrupoChange}
+                onSubmit={handleSubmitModal}
+                cargando={cargandoModal}
+            />
 
-                        <form onSubmit={handleSubmitModal} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">ID Estudiante *</label>
-                                <input
-                                    type="text"
-                                    name="id_estudiante"
-                                    value={formData.id_estudiante}
-                                    onChange={handleChange}
-                                    disabled={modoEdicion}
-                                    maxLength={10}
-                                    placeholder="Ej. 625447"
-                                    className={`w-full border border-gray-300 rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white ${modoEdicion ? 'bg-gray-100 text-gray-500' : ''}`}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                                <input
-                                    type="text"
-                                    name="nombre"
-                                    value={formData.nombre}
-                                    onChange={handleChange}
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                                    required
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido paterno *</label>
-                                    <input
-                                        type="text"
-                                        name="apellido_paterno"
-                                        value={formData.apellido_paterno}
-                                        onChange={handleChange}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido materno *</label>
-                                    <input
-                                        type="text"
-                                        name="apellido_materno"
-                                        value={formData.apellido_materno}
-                                        onChange={handleChange}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Grado *</label>
-                                    <select
-                                        name="grado"
-                                        value={formData.grado}
-                                        onChange={handleChange}
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                        required
-                                    >
-                                        <option value="">Seleccionar</option>
-                                        {GRADOS.map(g => (
-                                            <option key={g} value={g}>{g}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Grupo * <span className="text-gray-400 font-normal">(A-Z)</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="grupo"
-                                        value={formData.grupo}
-                                        onChange={handleGrupoChange}
-                                        maxLength={5}
-                                        placeholder="A"
-                                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 uppercase focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Contacto</label>
-                                <input
-                                    type="text"
-                                    name="telefono_estudiante"
-                                    value={formData.telefono_estudiante}
-                                    onChange={handleChange}
-                                    maxLength={10}
-                                    placeholder="2712344587"
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Contacto de emergencia</label>
-                                <input
-                                    type="text"
-                                    name="telefono_padre"
-                                    value={formData.telefono_padre}
-                                    onChange={handleChange}
-                                    maxLength={10}
-                                    placeholder="2712344587"
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                <button
-                                    type="button"
-                                    onClick={cerrarModal}
-                                    className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={cargandoModal}
-                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50"
-                                >
-                                    {cargandoModal ? 'Guardando...' : 'Guardar'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <ModalConfigCiclo
+                isOpen={configModalOpen}
+                onClose={() => setConfigModalOpen(false)}
+                inicioCiclo={inicioCiclo}
+                setInicioCiclo={setInicioCiclo}
+                importacionManual={importacionManual}
+                setImportacionManual={setImportacionManual}
+                previewMostrar={previewMostrar}
+                config={config}
+                guardandoConfig={guardandoConfig}
+                onGuardar={guardarConfig}
+            />
 
             <ConfirmModal
                 isOpen={confirmEliminar.open}

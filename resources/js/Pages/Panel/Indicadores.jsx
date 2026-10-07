@@ -2,66 +2,24 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import SelectorSemana from '@/Components/SelectorSemana';
 
-const CLASIFICACION_COLOR_BLOCK = {
-    'académica':     'bg-blue-500',
-    'familiar':      'bg-green-500',
-    'emocional':     'bg-purple-500',
-    'espiritual':    'bg-pink-500',
-    'institucional': 'bg-amber-500',
-};
+import { SECCIONES_INFO, MESES_ES, mesTitulo, semanaTitulo } from './Indicadores/helpers';
 
-const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+import FiltrosIndicadores from './Indicadores/FiltrosIndicadores';
+import PersonalizadorVista from './Indicadores/PersonalizadorVista';
+import BannerSinDatos from './Indicadores/BannerSinDatos';
 
-// Devuelve el título del mes a partir de YYYY-MM
-function mesTitulo(mesYMD) {
-    if (!mesYMD) return '';
-    const [year, month] = mesYMD.split('-');
-    return `${MESES_ES[parseInt(month, 10) - 1]} ${year}`;
-}
+import SeccionKpis from './Indicadores/Secciones/SeccionKpis';
+import SeccionDistribucion from './Indicadores/Secciones/SeccionDistribucion';
+import SeccionTendencias from './Indicadores/Secciones/SeccionTendencias';
+import SeccionDestacados from './Indicadores/Secciones/SeccionDestacados';
+import SeccionComparativas from './Indicadores/Secciones/SeccionComparativas';
+import SeccionFormadores from './Indicadores/Secciones/SeccionFormadores';
+import SeccionEstudiantes from './Indicadores/Secciones/SeccionEstudiantes';
+import SeccionCitas from './Indicadores/Secciones/SeccionCitas';
 
-// Devuelve el título de la semana ISO
-function semanaTitulo(semanaISO) {
-    if (!semanaISO) return '';
-    const [year, weekPart] = semanaISO.split('-W');
-    return `semana ${parseInt(weekPart, 10)} de ${year}`;
-}
-
-// Convierte hora 24h a formato 12h
-function formatHora12(hora24) {
-    if (!hora24) return '';
-    const [h, m] = hora24.split(':');
-    let hNum = parseInt(h, 10);
-    const ampm = hNum >= 12 ? 'pm' : 'am';
-    if (hNum === 0) hNum = 12;
-    else if (hNum > 12) hNum -= 12;
-    return `${hNum}:${m} ${ampm}`;
-}
-
-// Capitaliza la primera letra
-function capitalizar(texto) {
-    if (!texto) return '';
-    return texto.charAt(0).toUpperCase() + texto.slice(1);
-}
-
-const SECCIONES_INFO = [
-    { key: 'kpis',         label: 'Resumen general',                        default: true },
-    { key: 'distribucion', label: 'Distribución de citas',                  default: true },
-    { key: 'tendencias',   label: 'Tendencias',                             default: true },
-    { key: 'destacados',   label: 'Formadores y estudiantes con más citas', default: true },
-    { key: 'comparativas', label: 'Comparativas',                           default: true },
-    { key: 'formadores',   label: 'Datos por formador',                     default: true },
-    { key: 'estudiantes',  label: 'Estudiantes por grado/grupo',            default: true },
-    { key: 'citas',        label: 'Tabla de citas',                         default: true },
-];
-
-const SECCIONES_KEYS = SECCIONES_INFO.map(s => s.key);
-const TODAS_COLAPSADAS   = Object.fromEntries(SECCIONES_KEYS.map(k => [k, true]));
-const TODAS_EXPANDIDAS   = Object.fromEntries(SECCIONES_KEYS.map(k => [k, false]));
-const TODOS_SUB_CERRADOS = { estado: false, clasificacion: false, asistencia: false };
-const SUB_TEND_CERRADOS  = { mes: false, dia: false, hora: false };
-const SUB_DEST_CERRADOS  = { formadores: false, estudiantes: false };
+const SUB_TEND_CERRADOS = { mes: false, dia: false, hora: false };
+const SUB_DEST_CERRADOS = { formadores: false, estudiantes: false };
 
 export default function Indicadores({
     totalFormadores, totalEstudiantes, totalCitas, promedioCitasPorFormador,
@@ -93,8 +51,8 @@ export default function Indicadores({
         return Object.fromEntries(SECCIONES_INFO.map(s => [s.key, s.default]));
     });
 
-    const [colapsadas, setColapsadas] = useState(TODAS_COLAPSADAS);
-    const [subDist, setSubDist] = useState(TODOS_SUB_CERRADOS);
+    const [seccionActiva, setSeccionActiva] = useState('kpis');
+    const [subDistExpandido, setSubDistExpandido] = useState(null);
     const [subTend, setSubTend] = useState(SUB_TEND_CERRADOS);
     const [subDest, setSubDest] = useState(SUB_DEST_CERRADOS);
     const [estudiantesExpandidos, setEstudiantesExpandidos] = useState({});
@@ -107,6 +65,13 @@ export default function Indicadores({
     }, [secciones]);
 
     useEffect(() => {
+        const visibles = SECCIONES_INFO.filter(s => secciones[s.key]);
+        if (visibles.length > 0 && !visibles.some(s => s.key === seccionActiva)) {
+            setSeccionActiva(visibles[0].key);
+        }
+    }, [secciones]);
+
+    useEffect(() => {
         if (grado && grupo) {
             const disp = gruposPorGrado[grado] || [];
             if (!disp.includes(grupo)) setGrupo('');
@@ -115,14 +80,9 @@ export default function Indicadores({
 
     const toggleSeccion = (k) => {
         setSecciones(p => ({ ...p, [k]: !p[k] }));
-        setColapsadas(TODAS_COLAPSADAS);
-        setSubDist(TODOS_SUB_CERRADOS);
-        setSubTend(SUB_TEND_CERRADOS);
-        setSubDest(SUB_DEST_CERRADOS);
     };
 
-    const toggleColapsada  = (k) => setColapsadas(p => ({ ...p, [k]: !p[k] }));
-    const toggleSubDist    = (k) => setSubDist(p => ({ ...p, [k]: !p[k] }));
+    const toggleSubDist    = (k) => setSubDistExpandido(prev => prev === k ? null : k);
     const toggleSubTend    = (k) => setSubTend(p => ({ ...p, [k]: !p[k] }));
     const toggleSubDest    = (k) => setSubDest(p => ({ ...p, [k]: !p[k] }));
     const toggleGradoGrupo = (k) => setEstudiantesExpandidos(p => ({ ...p, [k]: !p[k] }));
@@ -130,77 +90,23 @@ export default function Indicadores({
 
     const mostrarTodo = () => {
         setSecciones(Object.fromEntries(SECCIONES_INFO.map(s => [s.key, true])));
-        setColapsadas(TODAS_COLAPSADAS);
-        setSubDist(TODOS_SUB_CERRADOS);
-        setSubTend(SUB_TEND_CERRADOS);
-        setSubDest(SUB_DEST_CERRADOS);
+        setSeccionActiva('kpis');
     };
     const ocultarTodo = () => {
         setSecciones(Object.fromEntries(SECCIONES_INFO.map(s => [s.key, false])));
-        setColapsadas(TODAS_COLAPSADAS);
     };
 
-    const desplegarTodo = () => {
-        setColapsadas(TODAS_EXPANDIDAS);
-        setSubDist({ estado: true, clasificacion: true, asistencia: true });
-        setSubTend({ mes: true, dia: true, hora: true });
-        setSubDest({ formadores: true, estudiantes: true });
-    };
-
-    const contraerTodo = () => {
-        setColapsadas(TODAS_COLAPSADAS);
-        setSubDist(TODOS_SUB_CERRADOS);
-        setSubTend(SUB_TEND_CERRADOS);
-        setSubDest(SUB_DEST_CERRADOS);
-    };
-
-    // ✅ Filtros de fecha excluyentes: al elegir uno se limpian los otros dos
     const handleAnioChange = (value) => {
         setAnio(value);
-        if (value) {
-            setMes('');
-            setSemana('');
-        }
+        if (value) { setMes(''); setSemana(''); }
     };
-
     const handleMesChange = (value) => {
         setMes(value);
-        if (value) {
-            setAnio('');
-            setSemana('');
-        }
+        if (value) { setAnio(''); setSemana(''); }
     };
-
     const handleSemanaChange = (value) => {
         setSemana(value);
-        if (value) {
-            setAnio('');
-            setMes('');
-        }
-    };
-
-    const formatFecha = (f) => {
-        if (!f) return '';
-        const p = f.split('-');
-        return `${p[2]}-${p[1]}-${p[0]}`;
-    };
-
-    const estadoColores = {
-        programada:         { pill: 'bg-yellow-50 border-yellow-200 text-yellow-800', dot: 'bg-yellow-400' },
-        cancelada:          { pill: 'bg-red-50 border-red-200 text-red-800',           dot: 'bg-red-400' },
-        cancelada_liberada: { pill: 'bg-orange-50 border-orange-200 text-orange-800',  dot: 'bg-orange-400' },
-        completada:         { pill: 'bg-green-50 border-green-200 text-green-800',     dot: 'bg-green-400' },
-    };
-    const estadoLabels = {
-        programada: 'Programada',
-        cancelada: 'Cancelada',
-        cancelada_liberada: 'Cancelada (hora liberada)',
-        completada: 'Completada',
-    };
-    const asistenciaColores = {
-        pendiente:    { pill: 'bg-gray-50 border-gray-200 text-gray-700', dot: 'bg-gray-400' },
-        asistió:      { pill: 'bg-green-50 border-green-200 text-green-800', dot: 'bg-green-400' },
-        'no asistió': { pill: 'bg-red-50 border-red-200 text-red-800', dot: 'bg-red-400' },
+        if (value) { setAnio(''); setMes(''); }
     };
 
     const aplicarFiltros = () => {
@@ -262,8 +168,6 @@ export default function Indicadores({
     const gruposDisponibles = grado ? (gruposPorGrado[grado] || []) : gruposActivos;
 
     const seccionesVisibles = SECCIONES_INFO.filter(s => secciones[s.key]);
-    const todoColapsado = seccionesVisibles.length > 0 && seccionesVisibles.every(s => colapsadas[s.key]);
-    const todoExpandido = seccionesVisibles.length > 0 && seccionesVisibles.every(s => !colapsadas[s.key]);
 
     const hayFiltros = !!(filtroAnio || filtroMes || filtroSemana || filtroGrado || filtroGrupo);
     const sinDatos = totalCitas === 0;
@@ -284,7 +188,6 @@ export default function Indicadores({
         return valor;
     };
 
-    // Texto de ayuda sobre los filtros de fecha activos
     const hintFechaActiva = (() => {
         if (semana) return 'Se está filtrando por semana (año y mes se ignoran).';
         if (mes)    return 'Se está filtrando por mes (año y semana se ignoran).';
@@ -309,30 +212,6 @@ export default function Indicadores({
 
                     <div className="flex flex-wrap items-center gap-2">
                         <button
-                            onClick={desplegarTodo}
-                            disabled={todoExpandido || seccionesVisibles.length === 0}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 hover:border-[#FF5900] hover:text-[#CC4700] transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:text-gray-700 disabled:hover:bg-white"
-                            title="Desplegar todas las secciones visibles"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7M19 5l-7 7-7-7" />
-                            </svg>
-                            Desplegar todo
-                        </button>
-
-                        <button
-                            onClick={contraerTodo}
-                            disabled={todoColapsado || seccionesVisibles.length === 0}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 hover:border-[#FF5900] hover:text-[#CC4700] transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:text-gray-700 disabled:hover:bg-white"
-                            title="Contraer todas las secciones visibles"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7M5 19l7-7 7 7" />
-                            </svg>
-                            Contraer todo
-                        </button>
-
-                        <button
                             onClick={() => setPersonalizadorOpen(!personalizadorOpen)}
                             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
                         >
@@ -346,681 +225,164 @@ export default function Indicadores({
                 </div>
 
                 {personalizadorOpen && (
-                    <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-5 mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold text-gray-800">Secciones visibles</h3>
-                            <div className="flex gap-2">
-                                <button onClick={mostrarTodo} className="text-sm px-3 py-1.5 bg-[#FF5900] text-white rounded-lg hover:bg-[#CC4700] transition">Mostrar todo</button>
-                                <button onClick={ocultarTodo} className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">Ocultar todo</button>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {SECCIONES_INFO.map(sec => (
-                                <label key={sec.key} className="flex items-center gap-2 cursor-pointer select-none bg-gray-50 hover:bg-gray-100 rounded-lg px-3 py-2.5 transition">
-                                    <input type="checkbox" checked={secciones[sec.key]} onChange={() => toggleSeccion(sec.key)} className="w-4 h-4 text-[#FF5900] border-gray-300 rounded focus:ring-[#FF5900]" />
-                                    <span className="text-sm text-gray-700">{sec.label}</span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
+                    <PersonalizadorVista
+                        secciones={secciones}
+                        onToggleSeccion={toggleSeccion}
+                        onMostrarTodo={mostrarTodo}
+                        onOcultarTodo={ocultarTodo}
+                    />
                 )}
 
-                <div className="bg-white rounded-2xl shadow-md mb-6 border border-gray-100 overflow-hidden">
-                    <button onClick={() => setFiltrosOpen(!filtrosOpen)} className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition text-left">
-                        <div className="flex items-center gap-3">
-                            <svg className="w-5 h-5 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                            </svg>
-                            <span className="text-base font-semibold text-gray-800">Filtros de búsqueda</span>
-                            {(filtroAnio || filtroMes || filtroSemana || filtroGrado || filtroGrupo) && (
-                                <span className="text-sm text-[#CC4700] bg-[#FF5900]/10 rounded-full px-2.5 py-0.5">
-                                    {[filtroAnio, filtroMes, filtroSemana, filtroGrado, filtroGrupo].filter(Boolean).length} activo{[filtroAnio, filtroMes, filtroSemana, filtroGrado, filtroGrupo].filter(Boolean).length === 1 ? '' : 's'}
-                                </span>
-                            )}
-                        </div>
-                        <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${filtrosOpen ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    <div className={`transition-all duration-300 ease-in-out ${filtrosOpen ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                        <div className="px-6 pb-6">
+                <FiltrosIndicadores
+                    anio={anio} mes={mes} semana={semana} grado={grado} grupo={grupo}
+                    onChangeAnio={handleAnioChange}
+                    onChangeMes={handleMesChange}
+                    onChangeSemana={handleSemanaChange}
+                    setGrado={setGrado}
+                    setGrupo={setGrupo}
+                    aniosDisponibles={aniosDisponibles}
+                    gradosActivos={gradosActivos}
+                    gruposDisponibles={gruposDisponibles}
+                    filtroAnio={filtroAnio}
+                    filtroMes={filtroMes}
+                    filtroSemana={filtroSemana}
+                    filtroGrado={filtroGrado}
+                    filtroGrupo={filtroGrupo}
+                    hintFechaActiva={hintFechaActiva}
+                    onAplicar={aplicarFiltros}
+                    onLimpiar={limpiarFiltros}
+                    abierto={filtrosOpen}
+                    setAbierto={setFiltrosOpen}
+                />
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por año</label>
-                                    <select
-                                        value={anio}
-                                        onChange={(e) => handleAnioChange(e.target.value)}
-                                        className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700"
-                                    >
-                                        <option value="">Todos</option>
-                                        {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por mes</label>
-                                    <input
-                                        type="month"
-                                        value={mes}
-                                        onChange={(e) => handleMesChange(e.target.value)}
-                                        className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por semana</label>
-                                    <SelectorSemana value={semana} onChange={(n) => handleSemanaChange(n)} label="" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600 mb-1.5">Filtrar por grado</label>
-                                    <select value={grado} onChange={(e) => setGrado(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700">
-                                        <option value="">Todos los grados</option>
-                                        {gradosActivos.map(g => <option key={g} value={g}>{g}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600 mb-1.5">
-                                        Filtrar por grupo
-                                        {!grado && <span className="text-gray-400 ml-1">(elige grado)</span>}
-                                    </label>
-                                    <select
-                                        value={grupo}
-                                        onChange={(e) => setGrupo(e.target.value)}
-                                        disabled={!grado}
-                                        className={`w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700 ${!grado ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
-                                    >
-                                        <option value="">Todos los grupos</option>
-                                        {gruposDisponibles.map(g => <option key={g} value={g}>Grupo {g}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Hint dinámico según filtro de fecha activo */}
-                            <p className="text-xs text-gray-500 mb-4">
-                                {hintFechaActiva}
-                            </p>
-
-                            <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-gray-100">
-                                <button onClick={aplicarFiltros} className="px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] transition active:scale-95">Aplicar filtros</button>
-                                <button onClick={limpiarFiltros} className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition active:scale-95">Limpiar filtros</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Banner de "sin datos" cuando el filtro no encuentra */}
                 {sinDatos && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
-                        <div className="flex-shrink-0 mt-0.5">
-                            <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
-                            </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-yellow-800">
-                                No hay citas para generar información
-                            </p>
-                            <p className="text-sm text-yellow-700 mt-1">
-                                {hayFiltros ? (
-                                    <>Con los filtros aplicados (<strong>{descripcionFiltros}</strong>) no se encontraron citas registradas en el sistema.</>
-                                ) : (
-                                    <>Durante <strong>{periodoTexto}</strong> no se encontraron citas registradas en el sistema.</>
-                                )}
-                                {' '}Por eso los indicadores se muestran como <strong>—</strong> en lugar de mostrar números: no hay datos que analizar en este periodo.
-                            </p>
-                            <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <button
-                                    onClick={limpiarFiltros}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-xl hover:bg-yellow-700 transition"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                    </svg>
-                                    Limpiar filtros y ver todo
-                                </button>
-                                <span className="text-xs text-yellow-700">
-                                    ¿Esperabas ver datos aquí? Revisa que el periodo y los filtros sean correctos.
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    <BannerSinDatos
+                        hayFiltros={hayFiltros}
+                        descripcionFiltros={descripcionFiltros}
+                        periodoTexto={periodoTexto}
+                        onLimpiarFiltros={limpiarFiltros}
+                    />
                 )}
 
-                {/* 1. Resumen general */}
-                {secciones.kpis && (
-                    <SeccionColapsable titulo={`Resumen general de ${periodoTexto}${contextoGradoGrupo}`} abierta={!colapsadas.kpis} onToggle={() => toggleColapsada('kpis')}>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <KpiCard value={kpiValue(totalCitas)} titulo="Citas registradas" subtitulo={`En ${periodoTexto}`} />
-                            <KpiCard value={totalFormadores} titulo="Formadores activos" subtitulo="Cuentas habilitadas" />
-                            <KpiCard value={totalEstudiantes} titulo="Estudiantes inscritos" subtitulo="Registrados en el sistema" />
-                            <KpiCard value={kpiValue(promedioCitasPorFormador)} titulo="Citas por formador" subtitulo="Promedio del periodo" />
-                            <KpiCard value={kpiValue(estudiantesAtendidos)} titulo="Estudiantes atendidos" subtitulo="Con al menos 1 cita" accent="blue" />
-                            <KpiCard value={kpiValue(`${tasaCompletacion}%`)} titulo="Citas completadas" subtitulo={`${tasaCompletacion}% del total`} accent="green" />
-                            <KpiCard value={kpiValue(`${tasaCancelacion}%`)} titulo="Citas canceladas" subtitulo={`${tasaCancelacion}% del total`} accent="red" />
-                            <KpiCard value={kpiValue(`${tasaAsistencia}%`)} titulo="Tasa de asistencia" subtitulo="De citas atendidas" accent="orange" />
-                            <KpiCard value={kpiValue(citasPorEstudiante)} titulo="Citas por estudiante" subtitulo="Promedio del periodo" accent="blue" />
-                        </div>
-                    </SeccionColapsable>
-                )}
-
-                {/* 2. Distribución */}
-                {secciones.distribucion && (
-                    <SeccionColapsable
-                        titulo={`Distribución de citas de ${periodoTexto}${contextoGradoGrupo}`}
-                        abierta={!colapsadas.distribucion}
-                        onToggle={() => toggleColapsada('distribucion')}
-                    >
-                        <SubDesplegable titulo="Cantidad de citas por estado" abierta={subDist.estado} onToggle={() => toggleSubDist('estado')}>
-                            {Object.keys(citasPorEstado).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {['completada', 'programada', 'cancelada', 'cancelada_liberada'].map(estado => {
-                                        if (!citasPorEstado[estado]) return null;
-                                        const col = estadoColores[estado];
-                                        return (
-                                            <div key={estado} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
-                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
-                                                <span className="text-sm font-medium">{estadoLabels[estado]}</span>
-                                                <span className="text-base font-bold">{citasPorEstado[estado]}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-
-                        <SubDesplegable titulo="Cantidad de citas por tipo de clasificación" abierta={subDist.clasificacion} onToggle={() => toggleSubDist('clasificacion')}>
-                            {Object.keys(citasPorClasificacion).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
-                                        <div
-                                            key={`c-${clasif}`}
-                                            className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 cursor-help"
-                                            title={capitalizar(clasif)}
-                                        >
-                                            <div className={`w-4 h-4 rounded ${CLASIFICACION_COLOR_BLOCK[clasif] || 'bg-gray-400'}`}></div>
-                                            <span className="text-base font-bold text-gray-800">{total}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-
-                        <SubDesplegable titulo="Cantidad de citas por asistencia del estudiante" abierta={subDist.asistencia} onToggle={() => toggleSubDist('asistencia')}>
-                            {Object.keys(citasPorAsistencia).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {['asistió', 'no asistió', 'pendiente'].map(asis => {
-                                        if (!citasPorAsistencia[asis]) return null;
-                                        const col = asistenciaColores[asis];
-                                        return (
-                                            <div key={asis} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
-                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
-                                                <span className="text-sm font-medium capitalize">{asis}</span>
-                                                <span className="text-base font-bold">{citasPorAsistencia[asis]}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-                    </SeccionColapsable>
-                )}
-
-                {/* 3. Tendencias */}
-                {secciones.tendencias && (
-                    <SeccionColapsable
-                        titulo={`Tendencias de citas de ${periodoTexto}${contextoGradoGrupo}`}
-                        abierta={!colapsadas.tendencias}
-                        onToggle={() => toggleColapsada('tendencias')}
-                    >
-                        <SubDesplegable
-                            titulo="Distribución mensual de citas"
-                            abierta={subTend.mes}
-                            onToggle={() => toggleSubTend('mes')}
-                        >
-                            {citasPorMes.length > 0 ? (
-                                <div className="space-y-2">
-                                    {citasPorMes.map(item => (
-                                        <TrendItem
-                                            key={`m-${item.mes}`}
-                                            titulo={mesTitulo(item.mes)}
-                                            descripcion={`${item.total} ${item.total === 1 ? 'cita registrada' : 'citas registradas'}`}
-                                            total={item.total}
-                                        />
-                                    ))}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-
-                        <SubDesplegable
-                            titulo="Distribución de citas por día de la semana"
-                            abierta={subTend.dia}
-                            onToggle={() => toggleSubTend('dia')}
-                        >
-                            {Object.keys(citasPorDiaSemana).length > 0 ? (
-                                <div className="space-y-2">
-                                    {Object.entries(citasPorDiaSemana).map(([dia, total]) => {
-                                        const plural = total === 1 ? 'cita' : 'citas';
-                                        const diaLower = dia.toLowerCase();
-                                        const descripcion = filtroSemana
-                                            ? `${total} ${plural} el ${diaLower} ${contextoSingular}`
-                                            : `${total} ${plural} los ${diaLower} ${contextoSingular}`;
-                                        return (
-                                            <TrendItem
-                                                key={`d-${dia}`}
-                                                titulo={dia}
-                                                descripcion={descripcion}
-                                                total={total}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-
-                        <SubDesplegable
-                            titulo="Distribución de citas por hora del día"
-                            abierta={subTend.hora}
-                            onToggle={() => toggleSubTend('hora')}
-                        >
-                            {Object.keys(citasPorHora).length > 0 ? (
-                                <div className="space-y-2">
-                                    {Object.entries(citasPorHora).map(([hora, total]) => {
-                                        const plural = total === 1 ? 'cita' : 'citas';
-                                        const descripcion = `${total} ${plural} a las ${formatHora12(hora)} ${contextoTexto}`;
-                                        return (
-                                            <TrendItem
-                                                key={`h-${hora}`}
-                                                titulo={formatHora12(hora)}
-                                                descripcion={descripcion}
-                                                total={total}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-                    </SeccionColapsable>
-                )}
-
-                {/* 4. Destacados */}
-                {secciones.destacados && (
-                    <SeccionColapsable
-                        titulo={`Formadores y estudiantes con más citas de ${periodoTexto}${contextoGradoGrupo}`}
-                        abierta={!colapsadas.destacados}
-                        onToggle={() => toggleColapsada('destacados')}
-                    >
-                        <SubDesplegable
-                            titulo="Formadores con más citas atendidas"
-                            abierta={subDest.formadores}
-                            onToggle={() => toggleSubDest('formadores')}
-                        >
-                            {formadoresTop.length > 0 ? (
-                                <div className="space-y-2">
-                                    {formadoresTop.map((item, i) => (
-                                        <RankingItem
-                                            key={`f-${i}`}
-                                            posicion={i}
-                                            nombre={item.nombre}
-                                            etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
-                                            total={item.total}
-                                            unidad="cita"
-                                        />
-                                    ))}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-
-                        <SubDesplegable
-                            titulo="Estudiantes con más citas recibidas"
-                            abierta={subDest.estudiantes}
-                            onToggle={() => toggleSubDest('estudiantes')}
-                        >
-                            {estudiantesTop.length > 0 ? (
-                                <div className="space-y-2">
-                                    {estudiantesTop.map((item, i) => (
-                                        <RankingItem
-                                            key={`e-${i}`}
-                                            posicion={i}
-                                            nombre={item.nombre_estudiante}
-                                            etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
-                                            total={item.total}
-                                            unidad="cita"
-                                        />
-                                    ))}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </SubDesplegable>
-                    </SeccionColapsable>
-                )}
-
-                {/* 5. Comparativas */}
-                {secciones.comparativas && (
-                    <SeccionColapsable
-                        titulo={`Comparativas de citas de ${periodoTexto}${contextoGradoGrupo}`}
-                        abierta={!colapsadas.comparativas}
-                        onToggle={() => toggleColapsada('comparativas')}
-                    >
-                        <div className={`grid grid-cols-1 gap-6 ${comparativaSemana.mostrar && comparativaMes.mostrar ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
-                            {comparativaSemana.mostrar && (
-                                <ComparativaCard
-                                    titulo={`Citas registradas: ${comparativaSemana.titulo}`}
-                                    labelActual={comparativaSemana.labelActual}
-                                    labelAnterior={comparativaSemana.labelAnterior}
-                                    actual={comparativaSemana.actual}
-                                    anterior={comparativaSemana.anterior}
-                                    diff={comparativaSemana.diff}
-                                    pct={comparativaSemana.pct}
-                                    claseDiff={claseDiff}
-                                />
-                            )}
-                            {comparativaMes.mostrar && (
-                                <ComparativaCard
-                                    titulo={`Citas registradas: ${comparativaMes.titulo}`}
-                                    labelActual={comparativaMes.labelActual}
-                                    labelAnterior={comparativaMes.labelAnterior}
-                                    actual={comparativaMes.actual}
-                                    anterior={comparativaMes.anterior}
-                                    diff={comparativaMes.diff}
-                                    pct={comparativaMes.pct}
-                                    claseDiff={claseDiff}
-                                />
-                            )}
-                        </div>
-                    </SeccionColapsable>
-                )}
-
-                {/* 6. Datos por formador */}
-                {secciones.formadores && detalleFormadores.length > 0 && (
-                    <SeccionColapsable
-                        titulo={`Datos por formador de ${periodoTexto}${contextoGradoGrupo}`}
-                        abierta={!colapsadas.formadores}
-                        onToggle={() => toggleColapsada('formadores')}
-                    >
-                        <div className="space-y-3">
-                            {detalleFormadores.map((f, idx) => {
-                                const expandido = !!formadoresExpandidos[f.nombre];
+                {seccionesVisibles.length > 0 ? (
+                    <>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+                            {seccionesVisibles.map(sec => {
+                                const activa = seccionActiva === sec.key;
                                 return (
-                                    <div key={`det-${f.nombre}-${idx}`} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                                        <button onClick={() => toggleFormador(f.nombre)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition text-left">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <Medal position={idx} />
-                                                <div className="min-w-0">
-                                                    <div className="text-base font-semibold text-gray-800 truncate">{f.nombre}</div>
-                                                    <div className="text-sm text-gray-500 mt-0.5">
-                                                        Atendió a {f.estudiantesUnicos} estudiante{f.estudiantesUnicos === 1 ? '' : 's'} en el periodo
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <span className="inline-flex items-center gap-1 text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1 whitespace-nowrap">
-                                                    <span className="font-bold text-gray-800">{f.total}</span>
-                                                    <span>cita{f.total === 1 ? '' : 's'}</span>
-                                                </span>
-                                                <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                            </div>
-                                        </button>
-                                        <div className={`overflow-hidden transition-all duration-300 ${expandido ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/50">
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                                    <MiniStat label="Completadas" value={f.completadas} accent="green" />
-                                                    <MiniStat label="Programadas" value={f.programadas} accent="yellow" />
-                                                    <MiniStat label="Canceladas" value={f.canceladas} accent="red" />
-                                                    <MiniStat label="Tasa de asistencia" value={`${f.tasaAsistencia}%`} accent="orange" />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3 mb-4">
-                                                    <MiniStat label="Sí asistió" value={f.asistencias} />
-                                                    <MiniStat label="No asistió" value={f.faltas} />
-                                                </div>
-                                                {f.clasificaciones.length > 0 && (
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-600 mb-2">Temas más tratados</div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {f.clasificaciones.map((c, i) => (
-                                                                <div
-                                                                    key={i}
-                                                                    className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 cursor-help"
-                                                                    title={capitalizar(c.clasificacion)}
-                                                                >
-                                                                    <div className={`w-4 h-4 rounded ${CLASIFICACION_COLOR_BLOCK[c.clasificacion] || 'bg-gray-400'}`}></div>
-                                                                    <span className="text-base font-bold text-gray-800">{c.total}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <button
+                                        key={sec.key}
+                                        onClick={() => setSeccionActiva(sec.key)}
+                                        className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-left transition-all duration-200 ${
+                                            activa
+                                                ? 'bg-[#FF5900] text-white border-[#FF5900] shadow-md shadow-[#FF5900]/25'
+                                                : 'bg-white text-gray-700 border-gray-200 hover:border-[#FF5900] hover:bg-[#FF5900]/5'
+                                        }`}
+                                    >
+                                        <span className={`w-1 h-5 rounded-full shrink-0 ${activa ? 'bg-white' : 'bg-[#FF5900]'}`}></span>
+                                        <span className="text-sm font-medium truncate">{sec.label}</span>
+                                    </button>
                                 );
                             })}
                         </div>
-                    </SeccionColapsable>
-                )}
 
-                {/* 7. Estudiantes por grado/grupo */}
-                {secciones.estudiantes && (
-                    <SeccionColapsable titulo="Estudiantes atendidos por grado y grupo" abierta={!colapsadas.estudiantes} onToggle={() => toggleColapsada('estudiantes')}>
-                        <div className="space-y-4">
-                            {Object.entries(estudiantesAgrupados).map(([gradoKey, grupos]) => (
-                                <div key={`grado-${gradoKey}`} className="border border-gray-100 rounded-xl overflow-hidden">
-                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 flex items-center justify-between">
-                                        <span className="text-base font-semibold text-gray-800">Grado {gradoKey}</span>
-                                        <span className="text-sm text-gray-500">{grupos.reduce((s, g) => s + g.total, 0)} estudiantes atendidos</span>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-4">
-                                        {grupos.map((g) => {
-                                            const key = `${gradoKey}-${g.grupo}`;
-                                            const expandido = !!estudiantesExpandidos[key];
-                                            return (
-                                                <div key={key} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                                                    <button onClick={() => toggleGradoGrupo(key)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition text-left">
-                                                        <div>
-                                                            <div className="text-base font-semibold text-gray-800">Grupo {g.grupo}</div>
-                                                            <div className="text-sm text-gray-500">{g.total} estudiantes</div>
-                                                        </div>
-                                                        <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                        </svg>
-                                                    </button>
-                                                    <div className={`overflow-hidden transition-all duration-300 ${expandido ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                                        <ul className="border-t border-gray-100 divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
-                                                            {g.alumnos.map((al) => (
-                                                                <li key={al.id_estudiante} className="px-4 py-2.5 text-sm text-gray-700 flex justify-between">
-                                                                    <span>{al.nombre}</span>
-                                                                    <span className="text-gray-400 font-mono text-xs">{al.id_estudiante}</span>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                            {Object.keys(estudiantesAgrupados).length === 0 && (
-                                <p className="text-gray-400 text-sm text-center py-4">
-                                    No hay estudiantes atendidos para el filtro seleccionado.
-                                </p>
-                            )}
-                        </div>
-                    </SeccionColapsable>
-                )}
-
-                {/* 8. Tabla de citas */}
-                {secciones.citas && (
-                    <SeccionColapsable titulo={tituloCitas} abierta={!colapsadas.citas} onToggle={() => toggleColapsada('citas')}>
-                        {citasDelPeriodo.length > 0 ? (
-                            <div className="overflow-x-auto -mx-6 -mb-6">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Estudiante</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Formador</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                            <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hora</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-100">
-                                        {citasDelPeriodo.map(c => (
-                                            <tr key={`cita-${c.id_cita}`} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_estudiante}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.nombre_formador}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{formatFecha(c.fecha)}</td>
-                                                <td className="px-6 py-3.5 text-base text-gray-700">{c.hora?.substring(0,5)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="py-12 text-center"><p className="text-gray-500 text-base">{mensajeSinCitas}</p></div>
+                        {seccionActiva === 'kpis' && secciones.kpis && (
+                            <SeccionKpis
+                                kpiValue={kpiValue}
+                                totalCitas={totalCitas}
+                                totalFormadores={totalFormadores}
+                                totalEstudiantes={totalEstudiantes}
+                                promedioCitasPorFormador={promedioCitasPorFormador}
+                                estudiantesAtendidos={estudiantesAtendidos}
+                                tasaCompletacion={tasaCompletacion}
+                                tasaCancelacion={tasaCancelacion}
+                                tasaAsistencia={tasaAsistencia}
+                                citasPorEstudiante={citasPorEstudiante}
+                                periodoTexto={periodoTexto}
+                                contextoGradoGrupo={contextoGradoGrupo}
+                            />
                         )}
-                    </SeccionColapsable>
+
+                        {seccionActiva === 'distribucion' && secciones.distribucion && (
+                            <SeccionDistribucion
+                                citasPorEstado={citasPorEstado}
+                                citasPorClasificacion={citasPorClasificacion}
+                                citasPorAsistencia={citasPorAsistencia}
+                                subDistExpandido={subDistExpandido}
+                                toggleSubDist={toggleSubDist}
+                                periodoTexto={periodoTexto}
+                                contextoGradoGrupo={contextoGradoGrupo}
+                            />
+                        )}
+
+                        {seccionActiva === 'tendencias' && secciones.tendencias && (
+                            <SeccionTendencias
+                                citasPorMes={citasPorMes}
+                                citasPorDiaSemana={citasPorDiaSemana}
+                                citasPorHora={citasPorHora}
+                                subTend={subTend}
+                                toggleSubTend={toggleSubTend}
+                                periodoTexto={periodoTexto}
+                                contextoGradoGrupo={contextoGradoGrupo}
+                                contextoSingular={contextoSingular}
+                                contextoTexto={contextoTexto}
+                                filtroSemana={filtroSemana}
+                            />
+                        )}
+
+                        {seccionActiva === 'destacados' && secciones.destacados && (
+                            <SeccionDestacados
+                                formadoresTop={formadoresTop}
+                                estudiantesTop={estudiantesTop}
+                                subDest={subDest}
+                                toggleSubDest={toggleSubDest}
+                                periodoTexto={periodoTexto}
+                                contextoGradoGrupo={contextoGradoGrupo}
+                            />
+                        )}
+
+                        {seccionActiva === 'comparativas' && secciones.comparativas && (
+                            <SeccionComparativas
+                                comparativaSemana={comparativaSemana}
+                                comparativaMes={comparativaMes}
+                                claseDiff={claseDiff}
+                                periodoTexto={periodoTexto}
+                                contextoGradoGrupo={contextoGradoGrupo}
+                            />
+                        )}
+
+                        {seccionActiva === 'formadores' && secciones.formadores && detalleFormadores.length > 0 && (
+                            <SeccionFormadores
+                                detalleFormadores={detalleFormadores}
+                                formadoresExpandidos={formadoresExpandidos}
+                                toggleFormador={toggleFormador}
+                                periodoTexto={periodoTexto}
+                                contextoGradoGrupo={contextoGradoGrupo}
+                            />
+                        )}
+
+                        {seccionActiva === 'estudiantes' && secciones.estudiantes && (
+                            <SeccionEstudiantes
+                                estudiantesAgrupados={estudiantesAgrupados}
+                                estudiantesExpandidos={estudiantesExpandidos}
+                                toggleGradoGrupo={toggleGradoGrupo}
+                            />
+                        )}
+
+                        {seccionActiva === 'citas' && secciones.citas && (
+                            <SeccionCitas
+                                citasDelPeriodo={citasDelPeriodo}
+                                tituloCitas={tituloCitas}
+                                mensajeSinCitas={mensajeSinCitas}
+                            />
+                        )}
+                    </>
+                ) : (
+                    <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-12 text-center">
+                        <p className="text-gray-500">No hay secciones visibles. Usa "Personalizar vista" para activar alguna.</p>
+                    </div>
                 )}
             </div>
         </AuthenticatedLayout>
-    );
-}
-
-// Sección colapsable principal
-function SeccionColapsable({ titulo, abierta, onToggle, children }) {
-    return (
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 mb-6 overflow-hidden">
-            <button onClick={onToggle} className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition text-left">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <span className="w-1 h-6 bg-[#FF5900] rounded-full"></span>
-                    {titulo}
-                </h2>
-                <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${abierta ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-            <div className={`transition-all duration-300 ease-in-out ${abierta ? 'max-h-[8000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                <div className="px-6 pb-6">{children}</div>
-            </div>
-        </div>
-    );
-}
-
-// Sub-desplegable dentro de una sección
-function SubDesplegable({ titulo, abierta, onToggle, children }) {
-    return (
-        <div className="border border-gray-100 rounded-xl mb-3 overflow-hidden bg-gray-50/40">
-            <button onClick={onToggle} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/60 transition text-left">
-                <span className="text-base font-medium text-gray-700">{titulo}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${abierta ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-            <div className={`transition-all duration-300 ease-in-out ${abierta ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                <div className="px-4 pb-4 pt-1">{children}</div>
-            </div>
-        </div>
-    );
-}
-
-// Elemento de tendencia (fila con título, descripción y total)
-function TrendItem({ titulo, descripcion, total }) {
-    return (
-        <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow flex items-center justify-between gap-4">
-            <div className="min-w-0 flex-1">
-                <div className="text-base font-semibold text-gray-800">{titulo}</div>
-                <div className="text-sm text-gray-500 mt-0.5">{descripcion}</div>
-            </div>
-            <div className="text-2xl font-bold text-[#FF5900] shrink-0">{total}</div>
-        </div>
-    );
-}
-
-// Elemento de ranking (posición + nombre + total)
-function RankingItem({ posicion, nombre, etiqueta, total, unidad = 'cita' }) {
-    const colores = ['bg-yellow-400', 'bg-gray-400', 'bg-orange-400'];
-    const colorMedalla = posicion < 3 ? colores[posicion] : 'bg-gray-300';
-    const plural = total === 1 ? '' : 's';
-
-    return (
-        <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold text-white shrink-0 ${colorMedalla}`}>
-                    {posicion + 1}
-                </span>
-                <div className="min-w-0">
-                    <div className="text-base font-semibold text-gray-800 truncate">{nombre}</div>
-                    <div className="text-sm text-gray-500 mt-0.5">{etiqueta}</div>
-                </div>
-            </div>
-            <div className="flex items-baseline gap-1.5 shrink-0">
-                <span className="text-2xl font-bold text-[#FF5900]">{total}</span>
-                <span className="text-sm text-gray-500">{unidad}{plural}</span>
-            </div>
-        </div>
-    );
-}
-
-// Tarjeta de KPI
-function KpiCard({ value, titulo, subtitulo, accent = 'orange' }) {
-    const accents = { orange: 'text-[#FF5900]', blue: 'text-blue-600', green: 'text-green-600', red: 'text-red-600' };
-    return (
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 text-center hover:shadow-lg transition-shadow">
-            <div className={`text-3xl font-bold ${accents[accent]}`}>{value}</div>
-            <div className="text-sm font-medium text-gray-700 mt-1.5 leading-tight">{titulo}</div>
-            {subtitulo && <div className="text-xs text-gray-400 mt-1 leading-tight">{subtitulo}</div>}
-        </div>
-    );
-}
-
-// Mini estadística dentro de una tarjeta expandible
-function MiniStat({ label, value, accent = 'gray' }) {
-    const accents = { gray: 'text-gray-700', green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600', orange: 'text-[#FF5900]' };
-    return (
-        <div className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-center">
-            <div className={`text-xl font-bold ${accents[accent]}`}>{value}</div>
-            <div className="text-xs text-gray-500 mt-1 leading-tight uppercase tracking-wide">{label}</div>
-        </div>
-    );
-}
-
-// Medalla de posición en un ranking
-function Medal({ position }) {
-    const colors = ['bg-yellow-400', 'bg-gray-300', 'bg-orange-300'];
-    const color = position < 3 ? colors[position] : 'bg-gray-200';
-    return (
-        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold text-white shrink-0 ${color}`}>
-            {position + 1}
-        </span>
-    );
-}
-
-// Tarjeta comparativa entre dos periodos
-function ComparativaCard({ titulo, labelActual, labelAnterior, actual, anterior, diff, pct, claseDiff }) {
-    return (
-        <div className="border border-gray-100 rounded-xl p-5 bg-white">
-            <div className="mb-1">
-                <h3 className="text-base font-semibold text-gray-800">{titulo}</h3>
-                <p className="text-sm text-gray-500 mt-0.5">Cantidad de citas registradas en cada periodo</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-4 mb-4">
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-500 mb-1.5">{labelActual}</div>
-                    <div className="text-3xl font-bold text-[#FF5900]">{actual}</div>
-                    <div className="text-xs text-gray-400 mt-1">citas registradas</div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
-                    <div className="text-sm text-gray-500 mb-1.5">{labelAnterior}</div>
-                    <div className="text-3xl font-bold text-gray-600">{anterior}</div>
-                    <div className="text-xs text-gray-400 mt-1">citas registradas</div>
-                </div>
-            </div>
-            <div className="flex items-center justify-between text-base border-t border-gray-100 pt-3">
-                <span className="text-gray-500">
-                    Diferencia de citas
-                </span>
-                <span className={`font-bold ${claseDiff(diff)}`}>
-                    {diff > 0 ? '+' : ''}{diff} ({pct > 0 ? '+' : ''}{pct}%)
-                </span>
-            </div>
-        </div>
     );
 }

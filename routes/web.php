@@ -105,6 +105,8 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
     Route::prefix('estudiantes')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [EstudianteController::class, 'index'])->name('estudiantes.index');
         Route::post('/', [EstudianteController::class, 'store'])->name('estudiantes.store');
+        // ✅ NUEVA: guarda la configuración del ciclo escolar (fecha + modo manual)
+        Route::put('/configuracion', [EstudianteController::class, 'updateConfiguracion'])->name('estudiantes.configuracion');
         Route::post('/importar', [EstudianteController::class, 'import'])->name('estudiantes.importar');
         Route::delete('/todos', [EstudianteController::class, 'destroyAll'])->name('estudiantes.destroyAll');
         Route::put('/{id_estudiante}', [EstudianteController::class, 'update'])->name('estudiantes.update');
