@@ -403,7 +403,7 @@ class ReporteController extends Controller
         // ---- Números principales ----
         $totalCitas = DB::table('citas')->whereBetween('fecha', [$fechaInicio, $fechaFin])->count();
 
-        $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->where('activo', 1)->count();
+        $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->where('visibilidad_usuario', 1)->count();
         $totalEstudiantes = DB::table('estudiantes')->count();
 
         $estudiantesAtendidos = DB::table('citas')
@@ -495,6 +495,8 @@ class ReporteController extends Controller
         $promedio = $formadoresActivos > 0 ? round($totalCitas / $formadoresActivos, 1) : 0;
 
         // ---- Ranking de estudiantes (enriquecido con temas y última sesión) ----
+        // ✅ Optimización: antes se hacían 2 queries por cada estudiante del top (20 queries totales).
+        //    Ahora se hacen 2 queries agregadas para todos los del top.
         $topEstudiantesRaw = DB::table('citas')
             ->select('nombre_estudiante', DB::raw('count(*) as total_citas'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -503,25 +505,35 @@ class ReporteController extends Controller
             ->limit(10)
             ->get();
 
-        $topEstudiantes = [];
-        foreach ($topEstudiantesRaw as $e) {
-            // Temas distintos tratados en el periodo
-            $temas = DB::table('citas')
-                ->where('nombre_estudiante', $e->nombre_estudiante)
+        $nombresTop = $topEstudiantesRaw->pluck('nombre_estudiante')->toArray();
+
+        // 1 query: temas distintos por estudiante del top
+        $temasPorEstudiante = empty($nombresTop)
+            ? collect()
+            : DB::table('citas')
+                ->select('nombre_estudiante', 'clasificacion')
+                ->whereIn('nombre_estudiante', $nombresTop)
                 ->whereBetween('fecha', [$fechaInicio, $fechaFin])
                 ->whereNotNull('clasificacion')
                 ->distinct()
-                ->pluck('clasificacion')
-                ->toArray();
+                ->get()
+                ->groupBy('nombre_estudiante')
+                ->map(fn($rows) => $rows->pluck('clasificacion')->toArray());
 
-            // Última sesión registrada en el periodo
-            $ultima = DB::table('citas')
-                ->where('nombre_estudiante', $e->nombre_estudiante)
+        // 1 query: última sesión por estudiante del top
+        $ultimaSesionPorEstudiante = empty($nombresTop)
+            ? collect()
+            : DB::table('citas')
+                ->select('nombre_estudiante', DB::raw('MAX(fecha) as ultima'))
+                ->whereIn('nombre_estudiante', $nombresTop)
                 ->whereBetween('fecha', [$fechaInicio, $fechaFin])
-                ->max('fecha');
+                ->groupBy('nombre_estudiante')
+                ->pluck('ultima', 'nombre_estudiante');
 
-            $e->temas = $temas;
-            $e->ultima_sesion = $ultima;
+        $topEstudiantes = [];
+        foreach ($topEstudiantesRaw as $e) {
+            $e->temas = $temasPorEstudiante[$e->nombre_estudiante] ?? [];
+            $e->ultima_sesion = $ultimaSesionPorEstudiante[$e->nombre_estudiante] ?? null;
             $topEstudiantes[] = $e;
         }
 

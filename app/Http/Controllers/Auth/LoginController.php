@@ -56,6 +56,14 @@ class LoginController extends Controller
             ]);
         }
 
+        // ✅ Chequeo de acceso ANTES de contar como intento válido.
+        //    No se incrementa el rate limiter porque las credenciales fueron correctas.
+        if ((int) $user->acceso_usuario === 0) {
+            return back()->withErrors([
+                'usuario' => 'Acceso deshabilitado. Contacta al coordinador del programa.',
+            ]);
+        }
+
         // Login exitoso: limpiamos el contador
         RateLimiter::clear($throttleKey);
 

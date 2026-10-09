@@ -36,7 +36,7 @@ export default function ModalConfigCiclo({
                             className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
                         />
                         <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                            El bloque de importación se mostrará automáticamente desde <strong>{config?.dias_antes_ciclo ?? 7} días antes</strong> hasta <strong>{config?.dias_despues_ciclo ?? 14} días después</strong> de esta fecha. Fuera de ese rango, el bloque permanecerá oculto.
+                            Esta fecha determina cuándo se activa el aviso de "Actualización pendiente" en el menú lateral. Una vez que se importe el archivo de estudiantes, el aviso se ocultará automáticamente.
                         </p>
                     </div>
 

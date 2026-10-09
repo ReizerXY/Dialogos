@@ -19,7 +19,7 @@ class HorarioController extends Controller
         $query = DB::table('horarios')
             ->join('usuarios', 'horarios.id_usuario', '=', 'usuarios.id_usuario')
             ->where('usuarios.rol', 'Formador')
-            ->where('usuarios.activo', 1)
+            ->where('usuarios.visibilidad_usuario', 1)
             ->select('horarios.*', 'usuarios.nombre as nombre_formador');
 
         // Filtro por formador
@@ -46,10 +46,10 @@ class HorarioController extends Controller
             ->orderBy('horarios.hora_inicio')
             ->get();
 
-        // Solo formadores ACTIVOS para el selector
+        // Solo formadores VISIBLES para el selector (aparecen en citas)
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
-            ->where('activo', 1)
+            ->where('visibilidad_usuario', 1)
             ->select('id_usuario', 'nombre')
             ->orderBy('nombre')
             ->get();

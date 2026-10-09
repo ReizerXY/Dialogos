@@ -117,7 +117,10 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         Route::get('/', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::put('/{id_usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
-        Route::put('/{id_usuario}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.toggleActivo');
+        // ✅ Cambió: toggle-activo → toggle-visibilidad (aplica solo a Formadores)
+        Route::put('/{id_usuario}/toggle-visibilidad', [UsuarioController::class, 'toggleVisibilidad'])->name('usuarios.toggleVisibilidad');
+        // ✅ Nuevo: suspende/reactiva el acceso a la plataforma
+        Route::put('/{id_usuario}/toggle-acceso', [UsuarioController::class, 'toggleAcceso'])->name('usuarios.toggleAcceso');
         Route::delete('/{id_usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
     });
 

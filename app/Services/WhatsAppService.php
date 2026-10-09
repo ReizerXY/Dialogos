@@ -110,8 +110,9 @@ class WhatsAppService
 
         $estudiante = $query->first();
 
-        if ($estudiante && !empty($estudiante->telefono_estudiante)) {
-            return $this->normalizarTelefono($estudiante->telefono_estudiante);
+        // ✅ Cambió: telefono_estudiante → contacto
+        if ($estudiante && !empty($estudiante->contacto)) {
+            return $this->normalizarTelefono($estudiante->contacto);
         }
 
         return null;

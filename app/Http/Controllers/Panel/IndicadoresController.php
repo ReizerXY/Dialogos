@@ -180,7 +180,7 @@ class IndicadoresController extends Controller
                 ->distinct('nombre_estudiante')
                 ->count('nombre_estudiante');
 
-            $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->where('activo', 1)->count();
+            $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->where('visibilidad_usuario', 1)->count();
 
             $qTotalEst = DB::table('estudiantes');
             if ($grado) $qTotalEst->where('grado', $grado);

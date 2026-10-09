@@ -17,11 +17,80 @@ use App\Services\CacheInvalidator;
 class EstudianteController extends Controller
 {
     private const GRADOS_VALIDOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
+    private const DIAS_VENTANA_CICLO = 7;
 
-    // Días antes del inicio del ciclo en que se muestra la importación
-    private const DIAS_ANTES_CICLO = 7;
-    // Días después del inicio del ciclo en que se muestra la importación
-    private const DIAS_DESPUES_CICLO = 14;
+    // ============================================================
+    // Estado público de la importación (reutilizable desde
+    // HandleInertiaRequests para el sidebar global)
+    // ============================================================
+
+    // Devuelve el estado completo de la importación del ciclo escolar.
+    // - mostrar_importacion: bloque visible en /estudiantes.
+    //     * true si el Coordinador forzó manualmente (siempre, aunque ya haya importado).
+    //     * true si está en la ventana natural Y no se ha importado todavía.
+    // - mostrar_alerta_sidebar: aviso del menú lateral (SOLO natural, sin manual y sin importar).
+    public static function estadoImportacion(): array
+    {
+        $inicioCiclo = null;
+        $importacionManual = '0';
+        $importacionCompletada = '0';
+
+        try {
+            $inicioCiclo = DB::table('configuracion')->where('clave', 'inicio_ciclo_escolar')->value('valor');
+            $importacionManual = DB::table('configuracion')->where('clave', 'importacion_activa_manual')->value('valor') ?? '0';
+            $importacionCompletada = DB::table('configuracion')->where('clave', 'importacion_completada')->value('valor') ?? '0';
+        } catch (\Exception $e) {
+            // Tabla no existe aún
+        }
+
+        $manualBool       = $importacionManual === '1';
+        $completadaBool   = $importacionCompletada === '1';
+        $enVentanaNatural = self::estaEnVentanaCiclo($inicioCiclo);
+
+        // ✅ Bloque visible si:
+        //    a) El Coordinador forzó manualmente (aunque ya se haya importado antes), O
+        //    b) Está en la ventana natural Y todavía no se ha importado.
+        $mostrarBloque = $manualBool || (!$completadaBool && $enVentanaNatural);
+
+        // Sidebar: SOLO cuando es natural (sin forzar) y no se ha importado
+        $mostrarAlertaSidebar = !$completadaBool && !$manualBool && $enVentanaNatural;
+
+        return [
+            'inicio_ciclo_escolar'      => $inicioCiclo,
+            'importacion_activa_manual' => $manualBool,
+            'importacion_completada'    => $completadaBool,
+            'mostrar_importacion'       => $mostrarBloque,
+            'mostrar_alerta_sidebar'    => $mostrarAlertaSidebar,
+            'dias_ventana_ciclo'        => self::DIAS_VENTANA_CICLO,
+        ];
+    }
+
+    // Determina si hoy está dentro de la ventana natural del ciclo escolar
+    // (0 a DIAS_VENTANA_CICLO días después de inicio_ciclo_escolar).
+    private static function estaEnVentanaCiclo($inicioCiclo): bool
+    {
+        if (!$inicioCiclo) {
+            return false;
+        }
+
+        try {
+            $inicio = new \DateTime($inicioCiclo);
+            $inicio->setTime(0, 0, 0);
+            $hoy = new \DateTime();
+            $hoy->setTime(0, 0, 0);
+
+            $diff = $inicio->diff($hoy);
+            $dias = (int) $diff->format('%r%a');
+
+            return $dias >= 0 && $dias <= self::DIAS_VENTANA_CICLO;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    // ============================================================
+    // Vistas y acciones
+    // ============================================================
 
     // Lista todos los estudiantes y pasa la configuración del ciclo escolar
     public function index()
@@ -39,60 +108,17 @@ class EstudianteController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        // Lee la configuración (con fallback si la tabla aún no existe)
-        $inicioCiclo = null;
-        $importacionManual = '0';
-        try {
-            $inicioCiclo = DB::table('configuracion')->where('clave', 'inicio_ciclo_escolar')->value('valor');
-            $importacionManual = DB::table('configuracion')->where('clave', 'importacion_activa_manual')->value('valor');
-        } catch (\Exception $e) {
-            // Tabla no existe aún
-        }
-
-        $mostrarImportacion = $this->calcularMostrarImportacion($inicioCiclo, $importacionManual === '1');
-
         return inertia('Panel/Estudiantes', [
             'estudiantes' => $estudiantes,
-            'user' => $user,
-            'config' => [
-                'inicio_ciclo_escolar'      => $inicioCiclo,
-                'importacion_activa_manual' => $importacionManual === '1',
-                'mostrar_importacion'       => $mostrarImportacion,
-                'dias_antes_ciclo'          => self::DIAS_ANTES_CICLO,
-                'dias_despues_ciclo'        => self::DIAS_DESPUES_CICLO,
-            ],
+            'user'        => $user,
+            'config'      => self::estadoImportacion(),
         ]);
     }
 
-    // Determina si se debe mostrar el bloque de importación según la fecha y el modo manual
-    private function calcularMostrarImportacion($inicioCiclo, $importacionManual)
-    {
-        // Modo manual: siempre mostrar
-        if ($importacionManual) {
-            return true;
-        }
-
-        // Sin fecha configurada: no mostrar
-        if (!$inicioCiclo) {
-            return false;
-        }
-
-        try {
-            $inicio = new \DateTime($inicioCiclo);
-            $inicio->setTime(0, 0, 0);
-            $hoy = new \DateTime();
-            $hoy->setTime(0, 0, 0);
-
-            $diff = $inicio->diff($hoy);
-            $dias = (int) $diff->format('%r%a'); // %r da signo: -5 = 5 días antes, +3 = 3 días después
-
-            return $dias >= -self::DIAS_ANTES_CICLO && $dias <= self::DIAS_DESPUES_CICLO;
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
-    // Guarda la configuración del ciclo escolar (fecha y modo manual)
+    // Guarda la configuración del ciclo escolar (fecha y modo manual).
+    //
+    // IMPORTANTE: solo resetea importacion_completada cuando la FECHA del ciclo cambia.
+    // Si solo se marca/desmarca la casilla manual, se preserva el estado de importación.
     public function updateConfiguracion(Request $request)
     {
         $user = Session::get('user');
@@ -106,15 +132,32 @@ class EstudianteController extends Controller
         ]);
 
         try {
+            // Leer fecha actual ANTES de actualizarla (para detectar cambios)
+            $fechaAnterior = DB::table('configuracion')
+                ->where('clave', 'inicio_ciclo_escolar')
+                ->value('valor');
+
+            $fechaNueva = $request->inicio_ciclo_escolar ?: null;
+
             DB::table('configuracion')->updateOrInsert(
                 ['clave' => 'inicio_ciclo_escolar'],
-                ['valor' => $request->inicio_ciclo_escolar ?: null]
+                ['valor' => $fechaNueva]
             );
 
             DB::table('configuracion')->updateOrInsert(
                 ['clave' => 'importacion_activa_manual'],
                 ['valor' => $request->importacion_activa_manual ? '1' : '0']
             );
+
+            // ✅ Solo resetear importacion_completada si la fecha del ciclo cambió.
+            //    Esto permite marcar/desmarcar la casilla manual sin perder el estado
+            //    de "ya se importó".
+            if ($fechaAnterior !== $fechaNueva) {
+                DB::table('configuracion')->updateOrInsert(
+                    ['clave' => 'importacion_completada'],
+                    ['valor' => '0']
+                );
+            }
 
             return response()->json([
                 'success' => true,
@@ -158,17 +201,21 @@ class EstudianteController extends Controller
 
             $tipo = $this->detectarTipo($magicBytes);
 
-            Log::info('Import archivo:', [
-                'nombre' => $file->getClientOriginalName(),
-                'ext' => $file->getClientOriginalExtension(),
-                'magic_hex' => bin2hex(substr($magicBytes, 0, 4)),
-                'tipo_detectado' => $tipo,
-            ]);
+            // Solo se registra en modo debug para no llenar los logs en producción
+            if (config('app.debug')) {
+                Log::debug('Import archivo:', [
+                    'nombre' => $file->getClientOriginalName(),
+                    'ext' => $file->getClientOriginalExtension(),
+                    'magic_hex' => bin2hex(substr($magicBytes, 0, 4)),
+                    'tipo_detectado' => $tipo,
+                ]);
+            }
 
             if ($tipo === 'xlsx') {
                 $import = new EstudiantesExcelImport();
                 Excel::import($import, $file, null, ExcelFormat::XLSX);
                 CacheInvalidator::indicadores();
+                $this->marcarImportacionCompletada();
                 return response()->json([
                     'success' => true,
                     'message' => $import->getMensaje(),
@@ -180,6 +227,7 @@ class EstudianteController extends Controller
                 $import = new EstudiantesExcelImport();
                 Excel::import($import, $file, null, ExcelFormat::XLS);
                 CacheInvalidator::indicadores();
+                $this->marcarImportacionCompletada();
                 return response()->json([
                     'success' => true,
                     'message' => $import->getMensaje(),
@@ -190,6 +238,7 @@ class EstudianteController extends Controller
             $import = new EstudiantesCsvImport();
             $import->import($path);
             CacheInvalidator::indicadores();
+            $this->marcarImportacionCompletada();
             return response()->json([
                 'success' => true,
                 'message' => $import->getMensaje(),
@@ -222,6 +271,25 @@ class EstudianteController extends Controller
         }
     }
 
+    // Marca la importación como completada Y desactiva el modo manual forzado
+    private function marcarImportacionCompletada()
+    {
+        try {
+            DB::table('configuracion')->updateOrInsert(
+                ['clave' => 'importacion_completada'],
+                ['valor' => '1']
+            );
+
+            // Resetear el modo manual al terminar la importación
+            DB::table('configuracion')->updateOrInsert(
+                ['clave' => 'importacion_activa_manual'],
+                ['valor' => '0']
+            );
+        } catch (\Exception $e) {
+            Log::warning('No se pudo marcar la importación como completada: ' . $e->getMessage());
+        }
+    }
+
     // Detecta el tipo de archivo por sus magic bytes
     private function detectarTipo($magicBytes)
     {
@@ -246,8 +314,8 @@ class EstudianteController extends Controller
             'apellido_materno'    => 'required|string|max:100',
             'grado'               => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'               => 'required|string|max:5',
-            'telefono_estudiante' => 'nullable|string|max:10',
-            'telefono_padre'      => 'nullable|string|max:10',
+            'contacto'            => 'nullable|string|max:10',
+            'contacto_emergencia' => 'nullable|string|max:10',
         ]);
 
         DB::table('estudiantes')->insert([
@@ -257,8 +325,8 @@ class EstudianteController extends Controller
             'apellido_materno'    => $request->apellido_materno,
             'grado'               => $request->grado,
             'grupo'               => strtoupper(trim($request->grupo)),
-            'telefono_estudiante' => $request->telefono_estudiante,
-            'telefono_padre'      => $request->telefono_padre,
+            'contacto'            => $request->contacto,
+            'contacto_emergencia' => $request->contacto_emergencia,
         ]);
 
         CacheInvalidator::indicadores();
@@ -284,8 +352,8 @@ class EstudianteController extends Controller
             'apellido_materno'    => 'required|string|max:100',
             'grado'               => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'               => 'required|string|max:5',
-            'telefono_estudiante' => 'nullable|string|max:10',
-            'telefono_padre'      => 'nullable|string|max:10',
+            'contacto'            => 'nullable|string|max:10',
+            'contacto_emergencia' => 'nullable|string|max:10',
         ]);
 
         $existe = DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->exists();
@@ -301,8 +369,8 @@ class EstudianteController extends Controller
                 'apellido_materno'    => $request->apellido_materno,
                 'grado'               => $request->grado,
                 'grupo'               => strtoupper(trim($request->grupo)),
-                'telefono_estudiante' => $request->telefono_estudiante,
-                'telefono_padre'      => $request->telefono_padre,
+                'contacto'            => $request->contacto,
+                'contacto_emergencia' => $request->contacto_emergencia,
             ]);
 
         CacheInvalidator::indicadores();

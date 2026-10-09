@@ -11,8 +11,8 @@ const FilaEstudiante = memo(function FilaEstudiante({ estudiante, onEditar, onEl
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.apellido_materno}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grado}</td>
             <td className="px-4 py-3 text-sm text-gray-700">{estudiante.grupo}</td>
-            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_estudiante || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.telefono_padre || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.contacto || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-700 font-mono">{estudiante.contacto_emergencia || '-'}</td>
             <td className="px-4 py-3">
                 <div className="flex flex-wrap gap-2">
                     <button

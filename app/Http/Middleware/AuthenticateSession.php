@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -39,7 +40,31 @@ class AuthenticateSession
             ]);
         }
 
-        // 3) ✅ Refrescar el timestamp: la sesión caduca a los 30 min
+        // 3) ✅ Verificar que el acceso siga habilitado en la BD.
+        //    Se consulta la BD (no la sesión) para que suspender el acceso
+        //    tenga efecto inmediato, sin esperar a que expire la sesión.
+        $user = Session::get('user');
+        $idUsuario = $user['id_usuario'] ?? null;
+
+        $usuarioActual = $idUsuario
+            ? DB::table('usuarios')->where('id_usuario', $idUsuario)->select('acceso_usuario')->first()
+            : null;
+
+        if (!$usuarioActual || (int) $usuarioActual->acceso_usuario !== 1) {
+            Session::forget('user');
+            Session::forget('last_activity_at');
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Acceso suspendido'], 401);
+            }
+            return redirect()->route('login')->withErrors([
+                'usuario' => 'Tu acceso a la plataforma ha sido suspendido. Contacta al coordinador del programa.',
+            ]);
+        }
+
+        // 4) Refrescar el timestamp: la sesión caduca a los 30 min
         //    de INACTIVIDAD, no desde el login.
         Session::put('last_activity_at', time());
 

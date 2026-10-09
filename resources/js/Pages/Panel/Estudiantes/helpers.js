@@ -20,16 +20,8 @@ export function formatFecha(fecha) {
     return `${p[2]}-${p[1]}-${p[0]}`;
 }
 
-// ✅ Lee el token CSRF del meta tag O del cookie XSRF-TOKEN (más fresco).
-//    Laravel refresca el cookie en cada respuesta, así que siempre está actualizado.
-//    Esto evita el error "CSRF token mismatch" (419).
+// Lee el token CSRF del meta tag (token plano, válido para X-CSRF-TOKEN).
+// El cookie XSRF-TOKEN está encriptado, así que NO sirve para X-CSRF-TOKEN.
 export function obtenerCsrfToken() {
-    // 1) Intenta leer el cookie (fuente principal, siempre fresco)
-    const match = document.cookie.match(/(^|;\s*)XSRF-TOKEN=([^;]+)/);
-    if (match && match[2]) {
-        return decodeURIComponent(match[2]);
-    }
-
-    // 2) Fallback: meta tag (por si el cookie no está disponible)
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }

@@ -121,7 +121,8 @@ class CitasController extends Controller
 
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
-            ->where('activo', 1)
+            ->where('visibilidad_usuario', 1)
+            ->where('acceso_usuario', 1)
             ->select('id_usuario', 'nombre')
             ->get();
 

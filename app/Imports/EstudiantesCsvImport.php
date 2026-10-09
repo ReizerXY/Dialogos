@@ -17,8 +17,8 @@ class EstudiantesCsvImport
         'apellido_materno',
         'grado',
         'grupo',
-        'telefono_estudiante',
-        'telefono_padre',
+        'contacto',
+        'contacto_emergencia',
     ];
 
     private const CAMPOS_OBLIGATORIOS = [
@@ -30,17 +30,18 @@ class EstudiantesCsvImport
         'grupo',
     ];
 
+    // Aliases: acepta headers viejos y nuevos (retrocompatible)
     private const ALIAS_ENCABEZADOS = [
         'id'                     => 'id_estudiante',
         'paterno'                => 'apellido_paterno',
         'materno'                => 'apellido_materno',
-        'contacto'               => 'telefono_estudiante',
-        'contacto_de_emergencia' => 'telefono_padre',
-        'contacto_emergencia'    => 'telefono_padre',
-        'telefono'               => 'telefono_estudiante',
-        'tel_estudiante'         => 'telefono_estudiante',
-        'tel_padre'              => 'telefono_padre',
-        'telefono_tutor'         => 'telefono_padre',
+        'contacto_de_emergencia' => 'contacto_emergencia',
+        'telefono'               => 'contacto',
+        'tel_estudiante'         => 'contacto',
+        'telefono_estudiante'    => 'contacto',           // compat. archivos viejos
+        'tel_padre'              => 'contacto_emergencia',
+        'telefono_tutor'         => 'contacto_emergencia',
+        'telefono_padre'         => 'contacto_emergencia', // compat. archivos viejos
     ];
 
     // Importa un archivo CSV/TXT con estudiantes
@@ -107,11 +108,11 @@ class EstudiantesCsvImport
             $apellidoMaterno  = $this->valorFila($fila, $idx, 'apellido_materno') ?? '';
             $grado            = $this->valorFila($fila, $idx, 'grado') ?? '';
             $grupo            = $this->valorFila($fila, $idx, 'grupo') ?? '';
-            $telEstudiante    = $this->valorFila($fila, $idx, 'telefono_estudiante');
-            $telPadre         = $this->valorFila($fila, $idx, 'telefono_padre');
+            $contacto         = $this->valorFila($fila, $idx, 'contacto');
+            $contactoEmerg    = $this->valorFila($fila, $idx, 'contacto_emergencia');
 
-            $telEstudiante = $this->normalizarTelefono($telEstudiante);
-            $telPadre      = $this->normalizarTelefono($telPadre);
+            $contacto      = $this->normalizarTelefono($contacto);
+            $contactoEmerg = $this->normalizarTelefono($contactoEmerg);
 
             if (empty($idEstudiante) || $nombre === '' || $apellidoPaterno === '' || $apellidoMaterno === '' || $grado === '' || $grupo === '') {
                 $saltados++;
@@ -126,8 +127,8 @@ class EstudiantesCsvImport
                 'apellido_materno'    => $apellidoMaterno,
                 'grado'               => $grado,
                 'grupo'               => strtoupper($grupo),
-                'telefono_estudiante' => $telEstudiante ?: null,
-                'telefono_padre'      => $telPadre ?: null,
+                'contacto'            => $contacto ?: null,
+                'contacto_emergencia' => $contactoEmerg ?: null,
             ];
 
             if ($existe) {

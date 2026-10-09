@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use App\Services\WhatsAppService;
 use App\Services\CacheInvalidator;
 
@@ -16,7 +17,8 @@ class CitaController extends Controller
     {
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
-            ->where('activo', 1)
+            ->where('visibilidad_usuario', 1)
+            ->where('acceso_usuario', 1)
             ->select('id_usuario', 'nombre')
             ->get()
             ->map(function ($item) {
@@ -146,11 +148,19 @@ class CitaController extends Controller
     public function store(Request $request)
     {
         try {
+            // ✅ FIX: la validación ya no depende de la columna inexistente 'activo'.
+            //    Ahora exige que el formador tenga visibilidad Y acceso habilitados.
             $validated = $request->validate([
                 'nombre_estudiante' => 'required|string|max:100',
-                'usuario_id'        => 'required|integer|exists:usuarios,id_usuario,activo,1',
-                'fecha'             => 'required|date',
-                'hora'              => 'required|date_format:H:i',
+                'usuario_id' => [
+                    'required',
+                    'integer',
+                    Rule::exists('usuarios', 'id_usuario')
+                        ->where('visibilidad_usuario', 1)
+                        ->where('acceso_usuario', 1),
+                ],
+                'fecha' => 'required|date',
+                'hora'  => 'required|date_format:H:i',
             ]);
 
             // Busca al estudiante por su nombre completo (nombre + apellidos concatenados)

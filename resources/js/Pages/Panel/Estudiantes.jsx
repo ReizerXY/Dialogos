@@ -20,8 +20,8 @@ const FORM_DATA_VACIO = {
     apellido_materno: '',
     grado: '',
     grupo: '',
-    telefono_estudiante: '',
-    telefono_padre: '',
+    contacto: '',
+    contacto_emergencia: '',
 };
 
 export default function Estudiantes({ estudiantes, user, config }) {
@@ -76,20 +76,19 @@ export default function Estudiantes({ estudiantes, user, config }) {
         setImportacionManual(!!config?.importacion_activa_manual);
     }, [config]);
 
-    const mostrarImportacion = !!config?.mostrar_importacion;
+    // ✅ Visibilidad del bloque de importación (mismo flag que el sidebar)
+    const mostrarImportacion = config?.mostrar_importacion === true;
 
-    // Preview en vivo: ¿se mostraría la importación con esta config?
+    // ✅ Preview en vivo alineado con el backend: ventana [0, +7 días] desde inicio_ciclo
     const previewMostrar = useMemo(() => {
         if (importacionManual) return true;
         if (!inicioCiclo) return false;
         const inicio = new Date(inicioCiclo + 'T00:00:00');
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
-        const diffMs = hoy - inicio;
-        const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        const antes = config?.dias_antes_ciclo ?? 7;
-        const despues = config?.dias_despues_ciclo ?? 14;
-        return dias >= -antes && dias <= despues;
+        const dias = Math.floor((hoy - inicio) / (1000 * 60 * 60 * 24));
+        const ventana = config?.dias_ventana_ciclo ?? 7;
+        return dias >= 0 && dias <= ventana;
     }, [inicioCiclo, importacionManual, config]);
 
     // Grados y grupos disponibles para los filtros
@@ -209,8 +208,8 @@ export default function Estudiantes({ estudiantes, user, config }) {
             apellido_materno: estudiante.apellido_materno,
             grado: estudiante.grado,
             grupo: (estudiante.grupo || '').toUpperCase(),
-            telefono_estudiante: estudiante.telefono_estudiante || '',
-            telefono_padre: estudiante.telefono_padre || '',
+            contacto: estudiante.contacto || '',
+            contacto_emergencia: estudiante.contacto_emergencia || '',
         });
         setModalAbierto(true);
     }, []);
@@ -334,7 +333,9 @@ export default function Estudiantes({ estudiantes, user, config }) {
 
             if (data.success) {
                 setMensaje({ tipo: 'success', texto: data.message });
-                setTimeout(() => router.reload({ only: ['estudiantes'] }), 800);
+                // ✅ Recargamos estudiantes Y config (para que el bloque de importación
+                //    y el aviso del sidebar desaparezcan de inmediato).
+                setTimeout(() => router.reload({ only: ['estudiantes', 'config', 'alerta_importacion'] }), 800);
             } else {
                 setMensaje({ tipo: 'error', texto: data.message || 'Error al importar.' });
             }
@@ -437,7 +438,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
             if (data.success) {
                 setMensaje({ tipo: 'success', texto: data.message });
                 setConfigModalOpen(false);
-                setTimeout(() => router.reload({ only: ['config'] }), 400);
+                setTimeout(() => router.reload({ only: ['config', 'alerta_importacion'] }), 400);
                 setTimeout(() => setMensaje(null), 3500);
             } else {
                 setMensaje({ tipo: 'error', texto: data.message || 'Error al guardar la configuración.' });
@@ -494,6 +495,8 @@ export default function Estudiantes({ estudiantes, user, config }) {
                     </div>
                 )}
 
+                {/* ✅ Bloque de importación SOLO visible si mostrar_importacion === true
+                    (dentro de la ventana del ciclo o forzado manualmente, y no importado aún) */}
                 {mostrarImportacion && (
                     <BloqueImportacion
                         abierto={importarOpen}

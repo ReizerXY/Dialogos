@@ -6,6 +6,7 @@ import BotonVolverArriba from '@/Components/BotonVolverArriba';
 export default function AuthenticatedLayout({ children }) {
     const { props } = usePage();
     const user = props.user;
+    const alertaImportacion = props.alerta_importacion;
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
@@ -35,13 +36,42 @@ export default function AuthenticatedLayout({ children }) {
     const nombreMostrado = user?.nombre || user?.usuario || 'Usuario';
     const rolMostrado = user?.rol || '';
 
-    const atencionSuspendida = Number(user?.activo) === 0;
+    const atencionSuspendida = Number(user?.visibilidad_usuario) === 0;
 
     const rolBadgeClases = isCoordinador
         ? 'bg-purple-100 text-purple-800 border border-purple-200'
         : isFormador
             ? 'bg-blue-100 text-blue-800 border border-blue-200'
             : 'bg-gray-100 text-gray-700 border border-gray-200';
+
+    // Muestra la alerta de importación pendiente en el sidebar (solo Coordinador)
+    const mostrarAlertaImportacion =
+        isCoordinador && alertaImportacion?.mostrar_importacion === true;
+
+    // Navega a /estudiantes y hace scroll al bloque de importación
+    const irAImportar = () => {
+        const scrollAlBloque = () => {
+            const el = document.getElementById('bloque-importacion');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+
+        if (window.location.pathname === '/estudiantes') {
+            scrollAlBloque();
+        } else {
+            router.visit(route('estudiantes.index'), {
+                onSuccess: () => {
+                    // Pequeño delay para que Inertia monte el DOM antes de hacer scroll
+                    setTimeout(scrollAlBloque, 150);
+                },
+            });
+        }
+
+        if (window.innerWidth < 1024) {
+            setSidebarOpen(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col lg:flex-row">
@@ -87,6 +117,37 @@ export default function AuthenticatedLayout({ children }) {
                 </div>
 
                 <nav className="p-4 space-y-1 overflow-y-auto" style={{ height: 'calc(100vh - 150px)' }}>
+                    {/* ─── ALERTA DE IMPORTACIÓN PENDIENTE (solo Coordinador) ─── */}
+                    {mostrarAlertaImportacion && (
+                        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 mb-3">
+                            <div className="flex items-start gap-2.5">
+                                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-amber-900 leading-tight">
+                                        Actualización pendiente
+                                    </p>
+                                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                                        Es momento de actualizar la lista de estudiantes del ciclo actual.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={irAImportar}
+                                        className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF5900] hover:text-[#CC4700] transition-colors active:scale-95"
+                                    >
+                                        Importar ahora
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {isCoordinador && (
                         <>
                             {/* ─── GRUPO: ANÁLISIS ─── */}

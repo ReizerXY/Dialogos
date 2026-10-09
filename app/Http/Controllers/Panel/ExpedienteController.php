@@ -56,8 +56,8 @@ class ExpedienteController extends Controller
                 'apellido_materno'    => null,
                 'grado'               => '—',
                 'grupo'               => '—',
-                'telefono_estudiante' => null,
-                'telefono_padre'      => null,
+                'contacto'            => null,
+                'contacto_emergencia' => null,
             ];
         }
 

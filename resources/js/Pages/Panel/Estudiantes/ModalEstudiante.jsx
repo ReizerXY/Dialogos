@@ -114,8 +114,8 @@ export default function ModalEstudiante({
                         <label className="block text-sm font-medium text-gray-700 mb-1">Contacto</label>
                         <input
                             type="text"
-                            name="telefono_estudiante"
-                            value={formData.telefono_estudiante}
+                            name="contacto"
+                            value={formData.contacto}
                             onChange={onChange}
                             maxLength={10}
                             placeholder="2712344587"
@@ -126,8 +126,8 @@ export default function ModalEstudiante({
                         <label className="block text-sm font-medium text-gray-700 mb-1">Contacto de emergencia</label>
                         <input
                             type="text"
-                            name="telefono_padre"
-                            value={formData.telefono_padre}
+                            name="contacto_emergencia"
+                            value={formData.contacto_emergencia}
                             onChange={onChange}
                             maxLength={10}
                             placeholder="2712344587"

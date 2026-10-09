@@ -98,6 +98,8 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
     const [buscando, setBuscando] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [error, setError] = useState(null);
+    // ✅ Aviso inline (reemplaza el alert nativo del navegador)
+    const [avisoBusqueda, setAvisoBusqueda] = useState('');
 
     // Sincroniza el estudiante recibido del backend con el select
     useEffect(() => {
@@ -155,11 +157,13 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
         return () => clearTimeout(delay);
     }, [inputValue]);
 
+    // ✅ Reemplazo del alert() por un aviso inline que se auto-oculta
     const handleBuscar = () => {
         if (estudianteSeleccionado) {
             window.location.href = `/expediente/${estudianteSeleccionado.value}`;
         } else {
-            alert('Por favor, selecciona un estudiante de la lista.');
+            setAvisoBusqueda('Por favor, selecciona un estudiante de la lista antes de buscar.');
+            setTimeout(() => setAvisoBusqueda(''), 4000);
         }
     };
 
@@ -234,6 +238,17 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                         </button>
                     </div>
                     {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+
+                    {/* ✅ Aviso inline cuando se intenta buscar sin selección */}
+                    {avisoBusqueda && (
+                        <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl flex items-start gap-2 text-sm">
+                            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                            </svg>
+                            <span>{avisoBusqueda}</span>
+                        </div>
+                    )}
+
                     <p className="mt-3 text-sm text-gray-400">
                         Escribe al menos 1 carácter. Puedes buscar por nombre, apellidos, ID o combinaciones (ej. "Eduardo Ruiz", "Eduardo", "800211"). Se incluyen estudiantes egresados.
                     </p>
@@ -303,11 +318,11 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
 
                                 <div className="bg-gray-50 rounded-xl p-3">
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">Contacto</span>
-                                    <p className="font-semibold text-gray-800 font-mono">{estudiante.telefono_estudiante || 'No registrado'}</p>
+                                    <p className="font-semibold text-gray-800 font-mono">{estudiante.contacto || 'No registrado'}</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
                                     <span className="text-xs text-gray-400 uppercase tracking-wider">Contacto de emergencia</span>
-                                    <p className="font-semibold text-gray-800 font-mono">{estudiante.telefono_padre || 'No registrado'}</p>
+                                    <p className="font-semibold text-gray-800 font-mono">{estudiante.contacto_emergencia || 'No registrado'}</p>
                                 </div>
                             </div>
                         </div>
@@ -429,7 +444,7 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                 ) : (
                     <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-16 text-center">
                         <svg className="mx-auto h-20 w-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <h3 className="mt-4 text-lg font-medium text-gray-600">Busca un estudiante</h3>
                         <p className="text-gray-400 mt-1">Escribe el nombre o el ID y haz clic en "Buscar" para ver su expediente completo.</p>

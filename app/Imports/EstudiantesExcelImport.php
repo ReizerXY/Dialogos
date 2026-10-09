@@ -20,8 +20,8 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
         'apellido_materno',
         'grado',
         'grupo',
-        'telefono_estudiante',
-        'telefono_padre',
+        'contacto',
+        'contacto_emergencia',
     ];
 
     private const CAMPOS_OBLIGATORIOS = [
@@ -33,17 +33,18 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
         'grupo',
     ];
 
+    // Aliases: acepta headers viejos y nuevos (retrocompatible)
     private const ALIAS_ENCABEZADOS = [
         'id'                     => 'id_estudiante',
         'paterno'                => 'apellido_paterno',
         'materno'                => 'apellido_materno',
-        'contacto'               => 'telefono_estudiante',
-        'contacto_de_emergencia' => 'telefono_padre',
-        'contacto_emergencia'    => 'telefono_padre',
-        'telefono'               => 'telefono_estudiante',
-        'tel_estudiante'         => 'telefono_estudiante',
-        'tel_padre'              => 'telefono_padre',
-        'telefono_tutor'         => 'telefono_padre',
+        'contacto_de_emergencia' => 'contacto_emergencia',
+        'telefono'               => 'contacto',
+        'tel_estudiante'         => 'contacto',
+        'telefono_estudiante'    => 'contacto',           // compat. archivos viejos
+        'tel_padre'              => 'contacto_emergencia',
+        'telefono_tutor'         => 'contacto_emergencia',
+        'telefono_padre'         => 'contacto_emergencia', // compat. archivos viejos
     ];
 
     // Procesa las filas del Excel importado
@@ -84,11 +85,11 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
             $apellidoMaterno = $this->clean($data['apellido_materno'] ?? '') ?? '';
             $grado           = $this->clean($data['grado'] ?? '') ?? '';
             $grupo           = $this->clean($data['grupo'] ?? '') ?? '';
-            $telEstudiante   = $this->clean($data['telefono_estudiante'] ?? null);
-            $telPadre        = $this->clean($data['telefono_padre'] ?? null);
+            $contacto        = $this->clean($data['contacto'] ?? null);
+            $contactoEmerg   = $this->clean($data['contacto_emergencia'] ?? null);
 
-            $telEstudiante = $this->normalizarTelefono($telEstudiante);
-            $telPadre      = $this->normalizarTelefono($telPadre);
+            $contacto      = $this->normalizarTelefono($contacto);
+            $contactoEmerg = $this->normalizarTelefono($contactoEmerg);
 
             if (empty($idEstudiante) || $nombre === '' || $apellidoPaterno === '' || $apellidoMaterno === '' || $grado === '' || $grupo === '') {
                 $saltados++;
@@ -103,8 +104,8 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
                 'apellido_materno'    => $apellidoMaterno,
                 'grado'               => $grado,
                 'grupo'               => strtoupper($grupo),
-                'telefono_estudiante' => $telEstudiante ?: null,
-                'telefono_padre'      => $telPadre ?: null,
+                'contacto'            => $contacto ?: null,
+                'contacto_emergencia' => $contactoEmerg ?: null,
             ];
 
             if ($existe) {

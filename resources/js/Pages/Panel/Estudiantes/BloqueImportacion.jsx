@@ -1,7 +1,7 @@
 // resources/js/Pages/Panel/Estudiantes/BloqueImportacion.jsx
 import { formatFecha } from './helpers';
 
-// Bloque condicional de actualización de estudiantes (solo visible en la ventana del ciclo escolar)
+// Bloque condicional de actualización de estudiantes (solo visible durante la ventana del ciclo escolar)
 export default function BloqueImportacion({
     abierto, setAbierto,
     archivo, cargando, inputFileRef,
@@ -11,7 +11,10 @@ export default function BloqueImportacion({
     onEliminarTodos,
 }) {
     return (
-        <div className="bg-white rounded-2xl shadow-md border-2 border-amber-200 mb-6 overflow-hidden">
+        <div
+            id="bloque-importacion"
+            className="bg-white rounded-2xl shadow-md border-2 border-amber-300 mb-6 overflow-hidden scroll-mt-6"
+        >
             <button
                 onClick={() => setAbierto(!abierto)}
                 className="w-full flex flex-wrap items-center justify-between gap-3 px-6 py-4 hover:bg-amber-50/50 transition text-left"
@@ -36,6 +39,7 @@ export default function BloqueImportacion({
 
             <div className={`transition-all duration-300 ease-in-out ${abierto ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                 <div className="px-6 pb-6 border-t border-amber-100 bg-amber-50/30">
+                    {/* Aviso principal */}
                     <div className="bg-amber-100 border border-amber-300 rounded-xl p-4 mb-4 mt-4 flex items-start gap-3">
                         <svg className="w-6 h-6 flex-shrink-0 mt-0.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />

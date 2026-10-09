@@ -7,10 +7,12 @@ export default function Usuarios({ usuarios, user }) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editUser, setEditUser] = useState(null);
 
-    const [confirmModal, setConfirmModal] = useState({
+    // Acción de suspender/reactivar: maneja 4 combinaciones (visibilidad|acceso) x (suspender|reactivar)
+    const [confirmAccion, setConfirmAccion] = useState({
         open: false,
         usuario: null,
-        accion: null,
+        tipo: null,      // 'visibilidad' | 'acceso'
+        accion: null,    // 'suspender' | 'reactivar'
         procesando: false,
     });
 
@@ -65,37 +67,44 @@ export default function Usuarios({ usuarios, user }) {
         }
     };
 
-    const abrirConfirmacion = (usuario) => {
-        setConfirmModal({
+    // Abre el modal de confirmación para visibilidad o acceso
+    const abrirConfirmacion = (usuario, tipo) => {
+        const activoAhora = tipo === 'visibilidad'
+            ? usuario.visibilidad_usuario == 1
+            : usuario.acceso_usuario == 1;
+
+        setConfirmAccion({
             open: true,
             usuario,
-            accion: usuario.activo == 1 ? 'suspender' : 'reactivar',
+            tipo,
+            accion: activoAhora ? 'suspender' : 'reactivar',
             procesando: false,
         });
     };
 
     const cerrarConfirmacion = () => {
-        if (confirmModal.procesando) return;
-        setConfirmModal({ open: false, usuario: null, accion: null, procesando: false });
+        if (confirmAccion.procesando) return;
+        setConfirmAccion({ open: false, usuario: null, tipo: null, accion: null, procesando: false });
     };
 
     const confirmarAccion = () => {
-        if (!confirmModal.usuario) return;
-        setConfirmModal((prev) => ({ ...prev, procesando: true }));
-        router.put(route('usuarios.toggleActivo', confirmModal.usuario.id_usuario), {}, {
+        if (!confirmAccion.usuario) return;
+        setConfirmAccion((prev) => ({ ...prev, procesando: true }));
+
+        const routeName = confirmAccion.tipo === 'visibilidad'
+            ? 'usuarios.toggleVisibilidad'
+            : 'usuarios.toggleAcceso';
+
+        router.put(route(routeName, confirmAccion.usuario.id_usuario), {}, {
             preserveScroll: true,
             onFinish: () => {
-                setConfirmModal({ open: false, usuario: null, accion: null, procesando: false });
+                setConfirmAccion({ open: false, usuario: null, tipo: null, accion: null, procesando: false });
             },
         });
     };
 
     const abrirEliminar = (usuario) => {
-        setDeleteModal({
-            open: true,
-            usuario,
-            procesando: false,
-        });
+        setDeleteModal({ open: true, usuario, procesando: false });
     };
 
     const cerrarEliminar = () => {
@@ -113,6 +122,40 @@ export default function Usuarios({ usuarios, user }) {
             },
         });
     };
+
+    // Textos del modal según tipo + acción
+    const textosModal = () => {
+        const { tipo, accion, usuario } = confirmAccion;
+        if (!usuario || !tipo) return {};
+
+        const esAcceso = tipo === 'acceso';
+        const esSuspender = accion === 'suspender';
+
+        if (esAcceso) {
+            return {
+                titulo: esSuspender ? 'Suspender acceso' : 'Restaurar acceso',
+                pregunta: esSuspender ? 'suspender el acceso a la plataforma' : 'restaurar el acceso a la plataforma',
+                aviso: esSuspender
+                    ? 'El usuario NO podrá iniciar sesión a partir del próximo intento. Si tiene una sesión activa, seguirá vigente hasta que expire.'
+                    : 'El usuario podrá iniciar sesión en la plataforma con normalidad.',
+                color: esSuspender ? 'red' : 'green',
+                textoBoton: esSuspender ? 'Sí, suspender acceso' : 'Sí, restaurar acceso',
+            };
+        }
+        return {
+            titulo: esSuspender ? 'Suspender atención de citas' : 'Reactivar atención de citas',
+            pregunta: esSuspender ? 'suspender la atención de citas' : 'reactivar la atención de citas',
+            aviso: esSuspender
+                ? 'El usuario seguirá pudiendo ingresar a la plataforma. Sin embargo, ya no aparecerá como opción al agendar nuevas citas.'
+                : 'El usuario volverá a aparecer como opción al agendar nuevas citas.',
+            color: esSuspender ? 'yellow' : 'green',
+            textoBoton: esSuspender ? 'Sí, suspender citas' : 'Sí, reactivar citas',
+        };
+    };
+
+    const t = textosModal();
+    const esAcceso = confirmAccion.tipo === 'acceso';
+    const esSuspender = confirmAccion.accion === 'suspender';
 
     return (
         <AuthenticatedLayout>
@@ -153,94 +196,151 @@ export default function Usuarios({ usuarios, user }) {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
-                                {usuarios.map(u => (
-                                    <tr key={u.id_usuario} className={`transition-colors duration-150 ${u.activo == 0 ? 'bg-gray-50 opacity-70' : 'hover:bg-[#FF5900]/5'}`}>
-                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">{u.id_usuario}</td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{u.usuario}</td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{u.nombre}</td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                u.rol === 'Coordinador' ? 'bg-purple-100 text-purple-800' :
-                                                'bg-blue-100 text-blue-800'
-                                            }`}>
-                                                {u.rol}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            {u.activo == 1 ? (
-                                                <span
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                                                    title="Recibe nuevas citas con normalidad"
-                                                >
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                                    Activo
-                                                </span>
-                                            ) : (
-                                                <span
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
-                                                    title="Puede ingresar a la plataforma, pero ya no aparece al agendar nuevas citas"
-                                                >
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
-                                                    Atención suspendida
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => openEditModal(u)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FF5900] text-white text-xs font-medium rounded-lg hover:bg-[#CC4700] transition-all duration-200 hover:shadow-md active:scale-95"
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                    Modificar
-                                                </button>
+                                {usuarios.map(u => {
+                                    const accesoOk = u.acceso_usuario == 1;
+                                    const visibilidadOk = u.visibilidad_usuario == 1;
+                                    const esFormador = u.rol === 'Formador';
+                                    const filaAtenuada = !accesoOk || (esFormador && !visibilidadOk);
 
-                                                {u.usuario !== 'admin' && u.id_usuario !== user.id_usuario && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => abrirConfirmacion(u)}
-                                                            title={u.activo == 1 ? 'Suspender atención de citas' : 'Reactivar atención de citas'}
-                                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 hover:shadow-md active:scale-95 ${
-                                                                u.activo == 1
-                                                                    ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                                                                    : 'bg-green-600 text-white hover:bg-green-700'
-                                                            }`}
+                                    return (
+                                        <tr key={u.id_usuario} className={`transition-colors duration-150 ${filaAtenuada ? 'bg-gray-50 opacity-80' : 'hover:bg-[#FF5900]/5'}`}>
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">{u.id_usuario}</td>
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{u.usuario}</td>
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{u.nombre}</td>
+                                            <td className="px-4 py-4 whitespace-nowrap">
+                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                                                    u.rol === 'Coordinador' ? 'bg-purple-100 text-purple-800' :
+                                                    'bg-blue-100 text-blue-800'
+                                                }`}>
+                                                    {u.rol}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-4 whitespace-nowrap">
+                                                <div className="flex flex-col gap-1.5">
+                                                    {/* Badge de Acceso (aplica a todos) */}
+                                                    {accesoOk ? (
+                                                        <span
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit"
+                                                            title="Puede iniciar sesión en la plataforma"
                                                         >
-                                                            {u.activo == 1 ? (
-                                                                <>
-                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                    </svg>
-                                                                    Suspender citas
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                    </svg>
-                                                                    Reactivar citas
-                                                                </>
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                            Acceso habilitado
+                                                        </span>
+                                                    ) : (
+                                                        <span
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 w-fit"
+                                                            title="No puede iniciar sesión en la plataforma"
+                                                        >
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                            Acceso suspendido
+                                                        </span>
+                                                    )}
+
+                                                    {/* Badge de Visibilidad (solo Formadores) */}
+{esFormador && (
+    visibilidadOk ? (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit"
+              title="Aparece en los selectores de citas">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+            Visible en citas
+        </span>
+    ) : (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 w-fit"
+              title="No aparece en los selectores de citas">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+            Oculto en citas
+        </span>
+    )
+)}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 whitespace-nowrap">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <button
+                                                        onClick={() => openEditModal(u)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FF5900] text-white text-xs font-medium rounded-lg hover:bg-[#CC4700] transition-all duration-200 hover:shadow-md active:scale-95"
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                        Modificar
+                                                    </button>
+
+                                                    {u.usuario !== 'admin' && u.id_usuario !== user.id_usuario && (
+                                                        <>
+                                                            {/* ✅ Solo para Formadores: visibilidad en citas */}
+                                                            {esFormador && (
+                                                                <button
+                                                                    onClick={() => abrirConfirmacion(u, 'visibilidad')}
+                                                                    title={visibilidadOk ? 'Ocultar al agendar citas' : 'Mostrar al agendar citas'}
+                                                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 hover:shadow-md active:scale-95 ${
+                                                                        visibilidadOk
+                                                                            ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                                                            : 'bg-green-600 text-white hover:bg-green-700'
+                                                                    }`}
+                                                                >
+                                                                    {visibilidadOk ? (
+                                                                        <>
+                                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                                                            </svg>
+                                                                            Suspender citas
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                            </svg>
+                                                                            Reactivar citas
+                                                                        </>
+                                                                    )}
+                                                                </button>
                                                             )}
-                                                        </button>
 
-                                                        <button
-                                                            onClick={() => abrirEliminar(u)}
-                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-all duration-200 hover:shadow-md active:scale-95"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                            Eliminar
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                            {/* ✅ Botón de acceso (visible siempre) */}
+                                                            <button
+                                                                onClick={() => abrirConfirmacion(u, 'acceso')}
+                                                                title={accesoOk ? 'Suspender acceso a la plataforma' : 'Restaurar acceso a la plataforma'}
+                                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 hover:shadow-md active:scale-95 ${
+                                                                    accesoOk
+                                                                        ? 'bg-slate-700 text-white hover:bg-slate-800'
+                                                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                                }`}
+                                                            >
+                                                                {accesoOk ? (
+                                                                    <>
+                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                                        </svg>
+                                                                        Suspender acceso
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                                                        </svg>
+                                                                        Restaurar acceso
+                                                                    </>
+                                                                )}
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => abrirEliminar(u)}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-all duration-200 hover:shadow-md active:scale-95"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                                Eliminar
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -255,7 +355,7 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             </div>
 
-            {/* Modal crear / editar usuario */}
+            {/* Modal crear / editar usuario (sin cambios) */}
             {modalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
@@ -277,7 +377,7 @@ export default function Usuarios({ usuarios, user }) {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Clave</label>
                                 <input
-                                    type="text"
+                                    type="password"
                                     value={data.clave}
                                     onChange={e => setData('clave', e.target.value)}
                                     className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all"
@@ -329,59 +429,54 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             )}
 
-            {/* Modal de confirmación: suspender / reactivar atención de citas */}
-            {confirmModal.open && confirmModal.usuario && (
+            {/* Modal de confirmación unificado (visibilidad o acceso) */}
+            {confirmAccion.open && confirmAccion.usuario && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <div className="flex items-center gap-4 mb-4">
                             <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
-                                confirmModal.accion === 'suspender' ? 'bg-yellow-100' : 'bg-green-100'
+                                esSuspender
+                                    ? (esAcceso ? 'bg-red-100' : 'bg-yellow-100')
+                                    : 'bg-green-100'
                             }`}>
-                                {confirmModal.accion === 'suspender' ? (
-                                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
+                                {esSuspender ? (
+                                    esAcceso ? (
+                                        <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                    )
                                 ) : (
                                     <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                                     </svg>
                                 )}
                             </div>
-                            <h2 className="text-xl font-bold text-gray-800">
-                                {confirmModal.accion === 'suspender' ? 'Suspender atención de citas' : 'Reactivar atención de citas'}
-                            </h2>
+                            <h2 className="text-xl font-bold text-gray-800">{t.titulo}</h2>
                         </div>
 
                         <p className="text-gray-600 mb-2">
-                            ¿Estás seguro de que deseas{' '}
-                            <strong>{confirmModal.accion === 'suspender' ? 'suspender la atención de citas' : 'reactivar la atención de citas'}</strong>{' '}
-                            de <strong>{confirmModal.usuario.nombre}</strong>?
+                            ¿Estás seguro de que deseas <strong>{t.pregunta}</strong> de <strong>{confirmAccion.usuario.nombre}</strong>?
                         </p>
 
                         <div className={`rounded-xl p-3 mb-4 text-sm ${
-                            confirmModal.accion === 'suspender'
-                                ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
+                            esSuspender
+                                ? (esAcceso
+                                    ? 'bg-red-50 border border-red-200 text-red-800'
+                                    : 'bg-yellow-50 border border-yellow-200 text-yellow-800')
                                 : 'bg-green-50 border border-green-200 text-green-800'
                         }`}>
-                            {confirmModal.accion === 'suspender' ? (
-                                <>
-                                    El usuario <strong>seguirá pudiendo ingresar</strong> a la plataforma para consultar sus citas e históricos.
-                                    Sin embargo, <strong>ya no aparecerá</strong> como opción al agendar nuevas citas ni al asignar horarios.
-                                </>
-                            ) : (
-                                <>
-                                    El usuario <strong>volverá a aparecer</strong> como opción al agendar nuevas citas y al asignar horarios,
-                                    como cualquier usuario activo.
-                                </>
-                            )}
+                            {t.aviso}
                         </div>
 
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
                                 onClick={cerrarConfirmacion}
-                                disabled={confirmModal.procesando}
+                                disabled={confirmAccion.procesando}
                                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Cancelar
@@ -389,25 +484,21 @@ export default function Usuarios({ usuarios, user }) {
                             <button
                                 type="button"
                                 onClick={confirmarAccion}
-                                disabled={confirmModal.procesando}
+                                disabled={confirmAccion.procesando}
                                 className={`px-6 py-2 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    confirmModal.accion === 'suspender'
-                                        ? 'bg-yellow-500 hover:bg-yellow-600'
+                                    esSuspender
+                                        ? (esAcceso ? 'bg-red-600 hover:bg-red-700' : 'bg-yellow-500 hover:bg-yellow-600')
                                         : 'bg-green-600 hover:bg-green-700'
                                 }`}
                             >
-                                {confirmModal.procesando
-                                    ? 'Procesando...'
-                                    : confirmModal.accion === 'suspender'
-                                        ? 'Sí, suspender citas'
-                                        : 'Sí, reactivar citas'}
+                                {confirmAccion.procesando ? 'Procesando...' : t.textoBoton}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Modal de confirmación: ELIMINAR usuario */}
+            {/* Modal de eliminación (sin cambios) */}
             {deleteModal.open && deleteModal.usuario && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">

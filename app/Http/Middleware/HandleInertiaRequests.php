@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Panel\EstudianteController;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,11 +30,25 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Este proyecto guarda el usuario en sesión (no usa el guard de Laravel)
+        $sessionUser = $request->session()->get('user');
+
         return [
             ...parent::share($request),
+
+            // Lo compartimos tanto en raíz (lo lee AuthenticatedLayout) como en 'auth' (compatibilidad)
+            'user' => $sessionUser,
             'auth' => [
-                'user' => $request->user(),
+                'user' => $sessionUser,
             ],
+
+            // Solo Coordinadores reciben el estado de importación
+            'alerta_importacion' => function () use ($sessionUser) {
+                if (!$sessionUser || ($sessionUser['rol'] ?? null) !== 'Coordinador') {
+                    return null;
+                }
+                return EstudianteController::estadoImportacion();
+            },
         ];
     }
 }

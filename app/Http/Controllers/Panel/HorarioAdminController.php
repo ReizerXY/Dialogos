@@ -50,10 +50,10 @@ class HorarioAdminController extends Controller
             ->orderBy('horarios.hora_inicio')
             ->get();
 
-        // Solo formadores ACTIVOS para el selector
+        // Solo formadores VISIBLES para el selector de asignación
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
-            ->where('activo', 1)
+            ->where('visibilidad_usuario', 1)
             ->select('id_usuario', 'nombre')
             ->orderBy('nombre')
             ->get();

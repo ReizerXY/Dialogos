@@ -12,6 +12,7 @@ use App\Services\CacheInvalidator;
 
 class UsuarioController extends Controller
 {
+    // Lista todos los usuarios con sus dos banderas de estado
     public function index()
     {
         $user = Session::get('user');
@@ -20,7 +21,7 @@ class UsuarioController extends Controller
         }
 
         $usuarios = DB::table('usuarios')
-            ->select('id_usuario', 'usuario', 'nombre', 'rol', 'activo')
+            ->select('id_usuario', 'usuario', 'nombre', 'rol', 'visibilidad_usuario', 'acceso_usuario')
             ->orderByRaw("FIELD(rol, 'Coordinador', 'Formador')")
             ->orderBy('id_usuario', 'asc')
             ->get();
@@ -31,6 +32,7 @@ class UsuarioController extends Controller
         ]);
     }
 
+    // Crea un usuario nuevo con ambos accesos habilitados
     public function store(Request $request)
     {
         $user = Session::get('user');
@@ -46,11 +48,12 @@ class UsuarioController extends Controller
         ]);
 
         DB::table('usuarios')->insert([
-            'usuario' => $validated['usuario'],
-            'clave'   => Hash::make($validated['clave']),
-            'nombre'  => $validated['nombre'],
-            'rol'     => $validated['rol'],
-            'activo'  => 1,
+            'usuario'             => $validated['usuario'],
+            'clave'               => Hash::make($validated['clave']),
+            'nombre'              => $validated['nombre'],
+            'rol'                 => $validated['rol'],
+            'visibilidad_usuario' => 1,
+            'acceso_usuario'      => 1,
         ]);
 
         CacheInvalidator::indicadores();
@@ -59,6 +62,7 @@ class UsuarioController extends Controller
             ->with('success', 'Usuario creado exitosamente.');
     }
 
+    // Actualiza los datos de un usuario (sin tocar las banderas de estado)
     public function update(Request $request, $id_usuario)
     {
         $user = Session::get('user');
@@ -94,20 +98,12 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Dar de baja o reactivar un usuario.
+     * Alterna la visibilidad de un Formador (aparecer o no en selectores de citas).
      *
-     * COMPORTAMIENTO ACTUAL:
-     *   activo = 0 → el usuario PUEDE iniciar sesión y ver sus citas,
-     *                pero NO aparece en los selectores al agendar nuevas citas.
-     *   activo = 1 → el usuario aparece normalmente y puede recibir nuevas citas.
-     *
-     * Esto aplica a:
-     *   - Formadores: no aparecen en el formulario público de agendar cita
-     *     ni en el modal de modificar cita.
-     *   - Coordinadores: no aparecen como opción para asignar horarios en
-     *     admin/horarios (por consistencia).
+     * SOLO aplica a Formadores. Un Coordinador no aparece en selectores de citas,
+     * por lo que este flag no tiene sentido para ellos.
      */
-    public function toggleActivo($id_usuario)
+    public function toggleVisibilidad($id_usuario)
     {
         $user = Session::get('user');
         if ($user['rol'] != 'Coordinador') {
@@ -116,7 +112,7 @@ class UsuarioController extends Controller
 
         if ((int) $id_usuario === (int) $user['id_usuario']) {
             return redirect()->route('usuarios.index')
-                ->with('error', 'No puedes darte de baja a ti mismo.');
+                ->with('error', 'No puedes cambiar tu propia visibilidad.');
         }
 
         $usuario = DB::table('usuarios')->where('id_usuario', $id_usuario)->first();
@@ -125,24 +121,79 @@ class UsuarioController extends Controller
                 ->with('error', 'Usuario no encontrado.');
         }
 
-        $nuevoEstado = $usuario->activo == 1 ? 0 : 1;
+        if ($usuario->rol !== 'Formador') {
+            return redirect()->route('usuarios.index')
+                ->with('error', 'La visibilidad en citas solo aplica a Formadores.');
+        }
+
+        $nuevoEstado = $usuario->visibilidad_usuario == 1 ? 0 : 1;
 
         DB::table('usuarios')
             ->where('id_usuario', $id_usuario)
-            ->update(['activo' => $nuevoEstado]);
+            ->update(['visibilidad_usuario' => $nuevoEstado]);
 
         CacheInvalidator::indicadores();
 
         $mensaje = $nuevoEstado == 1
-            ? 'Usuario reactivado. Volverá a aparecer al agendar nuevas citas.'
-            : 'Usuario dado de baja. Ya no aparecerá al agendar nuevas citas, pero puede seguir ingresando a la plataforma para consultar sus citas e históricos.';
+            ? 'Formador visible. Volverá a aparecer al agendar nuevas citas.'
+            : 'Formador oculto. Ya no aparecerá al agendar nuevas citas, pero puede seguir ingresando a la plataforma.';
 
         return redirect()->route('usuarios.index')->with('success', $mensaje);
     }
 
     /**
-     * Eliminar un usuario definitivamente de la base de datos.
+     * Alterna el acceso a la plataforma de un usuario.
+     *
+     * acceso_usuario = 0 → NO puede iniciar sesión (aunque sus credenciales sean correctas).
+     * acceso_usuario = 1 → puede iniciar sesión con normalidad.
      */
+public function toggleAcceso($id_usuario)
+{
+    $user = Session::get('user');
+    if ($user['rol'] != 'Coordinador') {
+        return response()->json(['error' => 'No autorizado'], 403);
+    }
+
+    if ((int) $id_usuario === (int) $user['id_usuario']) {
+        return redirect()->route('usuarios.index')
+            ->with('error', 'No puedes suspender tu propio acceso.');
+    }
+
+    $usuario = DB::table('usuarios')->where('id_usuario', $id_usuario)->first();
+    if (!$usuario) {
+        return redirect()->route('usuarios.index')
+            ->with('error', 'Usuario no encontrado.');
+    }
+
+    $nuevoAcceso = $usuario->acceso_usuario == 1 ? 0 : 1;
+
+    $data = ['acceso_usuario' => $nuevoAcceso];
+
+    // ✅ Para Formadores: sincronizar visibilidad con el acceso
+    if ($usuario->rol === 'Formador') {
+        $data['visibilidad_usuario'] = $nuevoAcceso;
+    }
+
+    DB::table('usuarios')
+        ->where('id_usuario', $id_usuario)
+        ->update($data);
+
+    CacheInvalidator::indicadores();
+
+    if ($nuevoAcceso === 0) {
+        $mensaje = $usuario->rol === 'Formador'
+            ? 'Acceso suspendido. El formador tampoco aparecerá en los selectores de citas. Su sesión activa, si existe, seguirá vigente hasta que expire.'
+            : 'Acceso suspendido. El usuario ya no podrá iniciar sesión (su sesión activa, si existe, seguirá vigente hasta que expire).';
+    } else {
+        $mensaje = $usuario->rol === 'Formador'
+            ? 'Acceso restaurado. El formador vuelve a estar disponible para agendar citas.'
+            : 'Acceso restaurado. El usuario podrá ingresar a la plataforma nuevamente.';
+    }
+
+    return redirect()->route('usuarios.index')->with('success', $mensaje);
+}
+
+    // Elimina un usuario y limpia sus referencias en citas y horarios
     public function destroy($id_usuario)
     {
         $user = Session::get('user');

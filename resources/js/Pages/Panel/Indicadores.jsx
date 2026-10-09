@@ -18,8 +18,8 @@ import SeccionFormadores from './Indicadores/Secciones/SeccionFormadores';
 import SeccionEstudiantes from './Indicadores/Secciones/SeccionEstudiantes';
 import SeccionCitas from './Indicadores/Secciones/SeccionCitas';
 
-const SUB_TEND_CERRADOS = { mes: false, dia: false, hora: false };
-const SUB_DEST_CERRADOS = { formadores: false, estudiantes: false };
+// NOTA: Se eliminaron SUB_TEND_CERRADOS y SUB_DEST_CERRADOS porque ya no aplican:
+// ahora un único estado controla cuál acordeón está abierto en toda la vista.
 
 export default function Indicadores({
     totalFormadores, totalEstudiantes, totalCitas, promedioCitasPorFormador,
@@ -52,11 +52,10 @@ export default function Indicadores({
     });
 
     const [seccionActiva, setSeccionActiva] = useState('kpis');
-    const [subDistExpandido, setSubDistExpandido] = useState(null);
-    const [subTend, setSubTend] = useState(SUB_TEND_CERRADOS);
-    const [subDest, setSubDest] = useState(SUB_DEST_CERRADOS);
-    const [estudiantesExpandidos, setEstudiantesExpandidos] = useState({});
-    const [formadoresExpandidos, setFormadoresExpandidos] = useState({});
+
+    // ✅ Estado unificado: solo UN acordeón abierto a la vez en toda la vista.
+    //    Forma: { tipo: 'dist' | 'tend' | 'dest' | 'formador' | 'estudiante', id: string } | null
+    const [expandido, setExpandido] = useState(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -71,6 +70,12 @@ export default function Indicadores({
         }
     }, [secciones]);
 
+    // Al cambiar de pestaña, cerramos cualquier acordeón abierto.
+    // Si prefieres conservarlo al volver a la misma pestaña, elimina este useEffect.
+    useEffect(() => {
+        setExpandido(null);
+    }, [seccionActiva]);
+
     useEffect(() => {
         if (grado && grupo) {
             const disp = gruposPorGrado[grado] || [];
@@ -82,11 +87,43 @@ export default function Indicadores({
         setSecciones(p => ({ ...p, [k]: !p[k] }));
     };
 
-    const toggleSubDist    = (k) => setSubDistExpandido(prev => prev === k ? null : k);
-    const toggleSubTend    = (k) => setSubTend(p => ({ ...p, [k]: !p[k] }));
-    const toggleSubDest    = (k) => setSubDest(p => ({ ...p, [k]: !p[k] }));
-    const toggleGradoGrupo = (k) => setEstudiantesExpandidos(p => ({ ...p, [k]: !p[k] }));
-    const toggleFormador   = (k) => setFormadoresExpandidos(p => ({ ...p, [k]: !p[k] }));
+    // ─── Toggle único para TODOS los acordeones ───
+    // Si el mismo ya está abierto → se cierra.
+    // Si otro está abierto → se cierra el anterior y se abre este.
+    const toggleUnico = (tipo, id) => {
+        setExpandido(prev =>
+            prev?.tipo === tipo && prev?.id === id ? null : { tipo, id }
+        );
+    };
+
+    // ─── Derivados (misma firma que antes para no tocar los hijos) ───
+
+    // Sección Distribución
+    const subDistExpandido = expandido?.tipo === 'dist' ? expandido.id : null;
+    const toggleSubDist    = (k) => toggleUnico('dist', k);
+
+    // Sección Tendencias
+    const subTend = {
+        mes:  expandido?.tipo === 'tend' && expandido.id === 'mes',
+        dia:  expandido?.tipo === 'tend' && expandido.id === 'dia',
+        hora: expandido?.tipo === 'tend' && expandido.id === 'hora',
+    };
+    const toggleSubTend = (k) => toggleUnico('tend', k);
+
+    // Sección Destacados
+    const subDest = {
+        formadores:  expandido?.tipo === 'dest' && expandido.id === 'formadores',
+        estudiantes: expandido?.tipo === 'dest' && expandido.id === 'estudiantes',
+    };
+    const toggleSubDest = (k) => toggleUnico('dest', k);
+
+    // Sección Formadores
+    const formadoresExpandidos = expandido?.tipo === 'formador' ? { [expandido.id]: true } : {};
+    const toggleFormador = (nombre) => toggleUnico('formador', nombre);
+
+    // Sección Estudiantes
+    const estudiantesExpandidos = expandido?.tipo === 'estudiante' ? { [expandido.id]: true } : {};
+    const toggleGradoGrupo = (key) => toggleUnico('estudiante', key);
 
     const mostrarTodo = () => {
         setSecciones(Object.fromEntries(SECCIONES_INFO.map(s => [s.key, true])));
