@@ -20,8 +20,10 @@ export function formatFecha(fecha) {
     return `${p[2]}-${p[1]}-${p[0]}`;
 }
 
-// Lee el token CSRF del meta tag (token plano, válido para X-CSRF-TOKEN).
-// El cookie XSRF-TOKEN está encriptado, así que NO sirve para X-CSRF-TOKEN.
+// ✅ Lee el token CSRF de la cookie XSRF-TOKEN (siempre sincronizada con la sesión).
+// Laravel desencripta esta cookie automáticamente al validar el request.
+// Se usa con el header 'X-XSRF-TOKEN'.
 export function obtenerCsrfToken() {
-    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+    return match ? decodeURIComponent(match.split('=')[1]) : '';
 }

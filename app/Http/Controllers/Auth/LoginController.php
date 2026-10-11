@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 class LoginController extends Controller
 {
     private const MAX_INTENTOS = 5;
-    private const VENTANA_SEGUNDOS = 60;
+    private const VENTANA_SEGUNDOS = 300;
 
     // Muestra el formulario de login.
     // Si ya hay una sesión activa (y no expirada), redirige al panel del usuario.

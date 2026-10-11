@@ -9,9 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Services\WhatsAppService;
 use App\Services\CacheInvalidator;
 
 class CitasController extends Controller
@@ -390,12 +388,12 @@ class CitasController extends Controller
                     'hora'  => $horaConSegundos,
                 ]);
 
+            // ✅ Encolar el envío de WhatsApp (no bloquea la respuesta)
             try {
                 $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
-                $whatsapp = new WhatsAppService();
-                $whatsapp->sendModification($citaActualizada);
+                \App\Jobs\SendWhatsAppJob::dispatch($citaActualizada, 'modificacion');
             } catch (\Exception $e) {
-                Log::warning('Error al enviar WhatsApp de modificación: ' . $e->getMessage());
+                Log::warning('Error al encolar WhatsApp de modificación: ' . $e->getMessage());
             }
 
             CacheInvalidator::indicadores();
@@ -444,12 +442,12 @@ class CitasController extends Controller
                     'notas'  => $notaFinal,
                 ]);
 
+            // ✅ Encolar el envío de WhatsApp (no bloquea la respuesta)
             try {
                 $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
-                $whatsapp = new WhatsAppService();
-                $whatsapp->sendCancellation($citaActualizada);
+                \App\Jobs\SendWhatsAppJob::dispatch($citaActualizada, 'cancelacion');
             } catch (\Exception $e) {
-                Log::warning('Error al enviar WhatsApp de cancelación: ' . $e->getMessage());
+                Log::warning('Error al encolar WhatsApp de cancelación: ' . $e->getMessage());
             }
 
             CacheInvalidator::indicadores();
@@ -539,12 +537,12 @@ class CitasController extends Controller
             $estadoAnterior !== $validated['estado'] &&
             in_array($validated['estado'], ['cancelada', 'cancelada_liberada'])
         ) {
+            // ✅ Encolar el envío de WhatsApp (no bloquea la respuesta)
             try {
                 $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
-                $whatsapp = new WhatsAppService();
-                $whatsapp->sendCancellation($citaActualizada);
+                \App\Jobs\SendWhatsAppJob::dispatch($citaActualizada, 'cancelacion');
             } catch (\Exception $e) {
-                Log::warning('Error al enviar WhatsApp de cancelación: ' . $e->getMessage());
+                Log::warning('Error al encolar WhatsApp de cancelación: ' . $e->getMessage());
             }
         }
 

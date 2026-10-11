@@ -1,7 +1,6 @@
 // resources/js/Pages/Panel/Modales/NotasModal.jsx
 import { useState, useEffect, useMemo } from 'react';
 
-// Paleta neutra/informativa por clasificación (sin connotación negativa)
 const CLASIFICACIONES = [
     { value: 'académica',     label: 'Académica',     dot: 'bg-blue-500' },
     { value: 'familiar',      label: 'Familiar',      dot: 'bg-green-500' },
@@ -26,8 +25,6 @@ export default function NotasModal({ isOpen, onClose, cita, onSuccess }) {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
-    // ¿La cita ya pasó? (fecha + hora). Se conserva por si luego se usa
-    // para mostrar un aviso visual, pero YA NO influye en el estado.
     const citaYaPaso = useMemo(() => {
         if (!cita?.fecha) return false;
         const horaCita = cita.hora ? cita.hora.substring(0, 8) : '00:00:00';
@@ -53,11 +50,6 @@ export default function NotasModal({ isOpen, onClose, cita, onSuccess }) {
         return `${partes[2]}-${partes[1]}-${partes[0]}`;
     };
 
-    // Regla de negocio (actualizada):
-    // 1. Si ya está cancelada / liberada, no se toca el estado.
-    // 2. Si el formador registró asistencia (asistió / no asistió) → completada.
-    // 3. Si la asistencia queda en "pendiente" → programada.
-    //    ⛔ Ya NO se considera el paso del tiempo.
     const calcularNuevoEstado = () => {
         const estadoActual = cita.estado;
         if (estadoActual === 'cancelada' || estadoActual === 'cancelada_liberada') {
@@ -86,7 +78,12 @@ export default function NotasModal({ isOpen, onClose, cita, onSuccess }) {
         const asistenciaEnviar = asistencia ? asistencia.trim().toLowerCase() : 'pendiente';
         const estadoEnviar = calcularNuevoEstado();
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        // ✅ Leer token CSRF de la cookie XSRF-TOKEN (siempre sincronizada con la sesión)
+        const csrfToken = (() => {
+            const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+            return match ? decodeURIComponent(match.split('=')[1]) : '';
+        })();
+
         if (!csrfToken) {
             setError('Error de seguridad: Token CSRF no encontrado. Recarga la página.');
             setLoading(false);
@@ -98,7 +95,7 @@ export default function NotasModal({ isOpen, onClose, cita, onSuccess }) {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({

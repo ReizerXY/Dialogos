@@ -1,3 +1,4 @@
+// resources/js/Pages/Panel/Modales/ModificarModal.jsx
 import { useState, useEffect } from 'react';
 
 export default function ModificarModal({ isOpen, onClose, cita, onSuccess }) {
@@ -25,17 +26,22 @@ export default function ModificarModal({ isOpen, onClose, cita, onSuccess }) {
         setCargandoHoras(true);
         setError('');
         try {
-            // ✅ FIX: query param 'usuario_id' (no 'id_usuario') para coincidir con el backend
             const res = await fetch(
                 `/api/disponibilidad-para-modificar?usuario_id=${cita.id_usuario}&fecha=${fechaSeleccionada}&cita_id=${cita.id_cita}`
             );
+
+            if (!res.ok) {
+                throw new Error(`Error ${res.status}`);
+            }
+
             const data = await res.json();
-            setHorasDisponibles(data);
+            setHorasDisponibles(Array.isArray(data) ? data : []);
             if (hora && !data.includes(hora)) {
                 setHora('');
             }
         } catch (err) {
             setError('Error al cargar disponibilidad.');
+            setHorasDisponibles([]);
         } finally {
             setCargandoHoras(false);
         }
@@ -74,14 +80,19 @@ export default function ModificarModal({ isOpen, onClose, cita, onSuccess }) {
         setLoading(true);
         setError('');
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        // ✅ Leer token CSRF de la cookie XSRF-TOKEN (siempre sincronizada con la sesión)
+        const csrfToken = (() => {
+            const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+            return match ? decodeURIComponent(match.split('=')[1]) : '';
+        })();
 
         try {
             const response = await fetch(`/citas/${cita.id_cita}/modificar`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify({ fecha, hora }),
             });

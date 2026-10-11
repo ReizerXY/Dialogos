@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [motivo, setMotivo] = useState('');       // texto crudo que escribe el usuario
-    const [motivoError, setMotivoError] = useState(''); // error específico del campo motivo
+    const [motivo, setMotivo] = useState('');
+    const [motivoError, setMotivoError] = useState('');
     const [liberarHorario, setLiberarHorario] = useState(true);
 
     const MAX_NOTA = 300;
@@ -30,7 +30,6 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
 
     const handleMotivoChange = (e) => {
         setMotivo(e.target.value);
-        // Si había error y el usuario empieza a escribir, se limpia
         if (motivoError && e.target.value.trim()) {
             setMotivoError('');
         }
@@ -39,7 +38,6 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
     const handleCancelar = async () => {
         setError('');
 
-        // Validación: el motivo es obligatorio
         const motivoLimpio = motivo.trim();
         if (!motivoLimpio) {
             setMotivoError('Debes escribir el motivo de la cancelación.');
@@ -48,7 +46,12 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
 
         setLoading(true);
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        // ✅ Leer token CSRF de la cookie XSRF-TOKEN (siempre sincronizada con la sesión)
+        const csrfToken = (() => {
+            const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+            return match ? decodeURIComponent(match.split('=')[1]) : '';
+        })();
+
         const notaCancelacion = PREFIJO + motivoLimpio;
 
         try {
@@ -56,7 +59,7 @@ export default function CancelarModal({ isOpen, onClose, cita, onSuccess }) {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({

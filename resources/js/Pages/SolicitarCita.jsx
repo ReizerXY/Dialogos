@@ -164,15 +164,21 @@ export default function SolicitarCita({ formadores }) {
         setModalConfirmacionOpen(true);
     };
 
-    const handleConfirmarCita = async () => {
+        const handleConfirmarCita = async () => {
         setEnviando(true);
         setMensajeError('');
 
-        const metaToken = document.querySelector('meta[name="csrf-token"]');
-        const csrfToken = metaToken ? metaToken.getAttribute('content') : null;
+        // ✅ Leer token CSRF de la cookie XSRF-TOKEN (siempre sincronizada con la sesión).
+        // Laravel desencripta esta cookie automáticamente al validar el request.
+        const getCsrfToken = () => {
+            const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+            return match ? decodeURIComponent(match.split('=')[1]) : '';
+        };
+
+        const csrfToken = getCsrfToken();
 
         if (!csrfToken) {
-            setMensajeError('Error de seguridad: no se encontró el token CSRF. Recarga la página.');
+            setMensajeError('Error de seguridad: token CSRF no encontrado. Recarga la página.');
             setEnviando(false);
             return;
         }
@@ -189,7 +195,7 @@ export default function SolicitarCita({ formadores }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,   // ← header cambiado (X-XSRF-TOKEN en lugar de X-CSRF-TOKEN)
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify(data),

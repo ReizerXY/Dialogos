@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
-use App\Services\WhatsAppService;
 use App\Services\CacheInvalidator;
 
 class CitaController extends Controller
@@ -189,12 +188,12 @@ class CitaController extends Controller
                 'estado'            => 'programada',
             ]);
 
+            // ✅ Encolar el envío de WhatsApp (no bloquea la respuesta)
             try {
                 $cita = DB::table('citas')->where('id_cita', $newId)->first();
-                $whatsapp = new WhatsAppService();
-                $whatsapp->sendConfirmation($cita);
+                \App\Jobs\SendWhatsAppJob::dispatch($cita, 'confirmacion');
             } catch (\Exception $e) {
-                Log::warning('Error al enviar WhatsApp de confirmación: ' . $e->getMessage());
+                Log::warning('Error al encolar WhatsApp de confirmación: ' . $e->getMessage());
             }
 
             CacheInvalidator::indicadores();

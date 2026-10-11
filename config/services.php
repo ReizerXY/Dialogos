@@ -32,10 +32,9 @@ return [
     ],
 
     'whatsapp' => [
-        'enabled'         => env('WHATSAPP_ENABLED', false),
-        'driver'          => env('WHATSAPP_DRIVER', 'log'),
-        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
-        'access_token'    => env('WHATSAPP_ACCESS_TOKEN'),
+        'enabled'               => env('WHATSAPP_ENABLED', true),
+        'microservice_url'      => env('WHATSAPP_MICROSERVICE_URL', 'http://localhost:3001'),
+        'microservice_timeout'  => env('WHATSAPP_MICROSERVICE_TIMEOUT', 15),
     ],
 
 ];

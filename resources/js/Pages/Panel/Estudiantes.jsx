@@ -257,7 +257,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
             const response = await fetch(url, {
                 method: method,
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,   // ✅ Cambiado de X-CSRF-TOKEN
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                 },
@@ -314,7 +314,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
             const response = await fetch('/estudiantes/importar', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,   // ✅ Cambiado de X-CSRF-TOKEN
                     'Accept': 'application/json',
                 },
                 body: formData,
@@ -333,8 +333,6 @@ export default function Estudiantes({ estudiantes, user, config }) {
 
             if (data.success) {
                 setMensaje({ tipo: 'success', texto: data.message });
-                // ✅ Recargamos estudiantes Y config (para que el bloque de importación
-                //    y el aviso del sidebar desaparezcan de inmediato).
                 setTimeout(() => router.reload({ only: ['estudiantes', 'config', 'alerta_importacion'] }), 800);
             } else {
                 setMensaje({ tipo: 'error', texto: data.message || 'Error al importar.' });
@@ -361,7 +359,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
             const response = await fetch(`/estudiantes/${estudiante.id_estudiante}`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,   // ✅ Cambiado de X-CSRF-TOKEN
                     'Accept': 'application/json',
                 },
             });
@@ -392,7 +390,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
             const response = await fetch('/estudiantes/todos', {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,   // ✅ Cambiado de X-CSRF-TOKEN
                     'Accept': 'application/json',
                 },
             });
@@ -423,7 +421,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
             const response = await fetch('/estudiantes/configuracion', {
                 method: 'PUT',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-XSRF-TOKEN': csrfToken,   // ✅ Cambiado de X-CSRF-TOKEN
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                 },
@@ -495,8 +493,6 @@ export default function Estudiantes({ estudiantes, user, config }) {
                     </div>
                 )}
 
-                {/* ✅ Bloque de importación SOLO visible si mostrar_importacion === true
-                    (dentro de la ventana del ciclo o forzado manualmente, y no importado aún) */}
                 {mostrarImportacion && (
                     <BloqueImportacion
                         abierto={importarOpen}
