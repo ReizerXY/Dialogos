@@ -10,4 +10,14 @@ export default defineConfig({
         }),
         react(),
     ],
+    build: {
+        // Nunca exponer sourcemaps en produccion
+        sourcemap: false,
+        // Tamaño maximo de chunk antes de warning
+        chunkSizeWarningLimit: 1000,
+    },
+    server: {
+        // Ajustar si usas HTTPS local
+        host: 'localhost',
+    },
 });

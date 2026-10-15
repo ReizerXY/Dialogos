@@ -1,7 +1,7 @@
 // resources/js/Pages/Panel/Estudiantes/BloqueImportacion.jsx
 import { formatFecha } from './helpers';
 
-// Bloque condicional de actualización de estudiantes (solo visible durante la ventana del ciclo escolar)
+// Bloque condicional de actualización de estudiantes
 export default function BloqueImportacion({
     abierto, setAbierto,
     archivo, cargando, inputFileRef,
@@ -61,12 +61,12 @@ export default function BloqueImportacion({
                     <form onSubmit={onImport} className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                         <div className="flex-1 w-full">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Archivo (.xlsx, .xls, .csv, .txt)
+                                Archivo (.xlsx, .csv)
                             </label>
                             <input
                                 ref={inputFileRef}
                                 type="file"
-                                accept=".xlsx,.xls,.csv,.txt,.tsv"
+                                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                                 onChange={onFileChange}
                                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
                             />

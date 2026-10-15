@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 class EstudiantesExcelImport implements ToCollection, WithHeadingRow
 {
     protected $mensaje;
+    protected $motivosOmision = [];
 
     private const CAMPOS_PERMITIDOS = [
         'id_estudiante',
@@ -33,23 +34,53 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
         'grupo',
     ];
 
-    // Aliases: acepta headers viejos y nuevos (retrocompatible)
+    private const MAX_FILAS       = 2000;
+    private const MAX_LARGO_CELDA = 500;
+
     private const ALIAS_ENCABEZADOS = [
         'id'                     => 'id_estudiante',
+        'matricula'              => 'id_estudiante',
+        'num_control'            => 'id_estudiante',
+        'numero_control'         => 'id_estudiante',
+        'no_control'             => 'id_estudiante',
         'paterno'                => 'apellido_paterno',
         'materno'                => 'apellido_materno',
         'contacto_de_emergencia' => 'contacto_emergencia',
         'telefono'               => 'contacto',
         'tel_estudiante'         => 'contacto',
-        'telefono_estudiante'    => 'contacto',           // compat. archivos viejos
+        'telefono_estudiante'    => 'contacto',
         'tel_padre'              => 'contacto_emergencia',
         'telefono_tutor'         => 'contacto_emergencia',
-        'telefono_padre'         => 'contacto_emergencia', // compat. archivos viejos
+        'telefono_padre'         => 'contacto_emergencia',
     ];
 
-    // Procesa las filas del Excel importado
     public function collection(Collection $rows)
     {
+        if ($rows->count() > self::MAX_FILAS) {
+            throw new \Exception(
+                'El archivo excede el limite de ' . self::MAX_FILAS . ' filas.'
+            );
+        }
+
+        // Verificar headers en la primera fila
+        if ($rows->isNotEmpty()) {
+            $primerFila = $rows->first();
+            $headersDetectados = [];
+            foreach ($primerFila as $key => $value) {
+                $headersDetectados[] = $this->normalizarEncabezado($key);
+            }
+
+            $faltantes = array_diff(self::CAMPOS_OBLIGATORIOS, $headersDetectados);
+            if (!empty($faltantes)) {
+                // Columnas utiles detectadas (solo las validas)
+                $utiles = array_intersect(self::CAMPOS_PERMITIDOS, $headersDetectados);
+                throw new \Exception(
+                    'Faltan columnas obligatorias: ' . implode(', ', $faltantes) .
+                    '. Columnas utiles detectadas: ' . (empty($utiles) ? 'ninguna' : implode(', ', $utiles)) . '.'
+                );
+            }
+        }
+
         $insertados = 0;
         $actualizados = 0;
         $saltados = 0;
@@ -73,7 +104,7 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
             }
 
             if (!$columnasIgnoradasRegistradas && !empty($columnasIgnoradas)) {
-                Log::info('Importación Excel: columnas ignoradas', [
+                Log::info('Importacion Excel: columnas ignoradas', [
                     'columnas' => array_values(array_unique($columnasIgnoradas)),
                 ]);
                 $columnasIgnoradasRegistradas = true;
@@ -91,8 +122,20 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
             $contacto      = $this->normalizarTelefono($contacto);
             $contactoEmerg = $this->normalizarTelefono($contactoEmerg);
 
-            if (empty($idEstudiante) || $nombre === '' || $apellidoPaterno === '' || $apellidoMaterno === '' || $grado === '' || $grupo === '') {
+            // Registrar motivos de omision
+            $motivos = [];
+            if (empty($idEstudiante))    $motivos[] = 'ID';
+            if ($nombre === '')          $motivos[] = 'Nombre';
+            if ($apellidoPaterno === '') $motivos[] = 'Apellido paterno';
+            if ($apellidoMaterno === '') $motivos[] = 'Apellido materno';
+            if ($grado === '')           $motivos[] = 'Grado';
+            if ($grupo === '')           $motivos[] = 'Grupo';
+
+            if (!empty($motivos)) {
                 $saltados++;
+                foreach ($motivos as $m) {
+                    $this->motivosOmision[$m] = ($this->motivosOmision[$m] ?? 0) + 1;
+                }
                 continue;
             }
 
@@ -122,15 +165,19 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
             }
         }
 
-        $this->mensaje = "Importación completada: $insertados insertados, $actualizados actualizados";
+        // Mensaje con detalle
+        $this->mensaje = "Importacion completada: $insertados insertados, $actualizados actualizados";
         if ($saltados > 0) {
-            $this->mensaje .= ", $saltados filas omitidas (datos incompletos).";
+            arsort($this->motivosOmision);
+            $top = array_slice(array_keys($this->motivosOmision), 0, 4);
+            $this->mensaje .= ". $saltados filas omitidas por faltar: " . implode(', ', $top);
+            if (count($top) === 4) $this->mensaje .= ", etc.";
+            $this->mensaje .= ".";
         } else {
             $this->mensaje .= ".";
         }
     }
 
-    // Normaliza el nombre de una columna + aplica aliases
     private function normalizarEncabezado($header): string
     {
         $h = (string) $header;
@@ -150,17 +197,29 @@ class EstudiantesExcelImport implements ToCollection, WithHeadingRow
         return $h;
     }
 
-    // Limpia un valor de texto
     private function clean($value)
     {
         if ($value === null) return null;
         if (is_object($value)) return $value;
+
         $value = (string) $value;
         $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
-        return trim($value);
+        $value = trim($value);
+
+        if (mb_strlen($value) > self::MAX_LARGO_CELDA) {
+            $value = mb_substr($value, 0, self::MAX_LARGO_CELDA);
+        }
+
+        if ($value !== '') {
+            $primerCaracter = substr($value, 0, 1);
+            if (in_array($primerCaracter, ['=', '+', '-', '@'], true)) {
+                $value = "'" . $value;
+            }
+        }
+
+        return $value;
     }
 
-    // Limpia un número de teléfono
     private function normalizarTelefono($tel)
     {
         if (empty($tel)) return null;

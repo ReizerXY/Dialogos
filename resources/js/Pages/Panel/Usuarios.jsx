@@ -217,7 +217,6 @@ export default function Usuarios({ usuarios, user }) {
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap">
                                                 <div className="flex flex-col gap-1.5">
-                                                    {/* Badge de Acceso (aplica a todos) */}
                                                     {accesoOk ? (
                                                         <span
                                                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit"
@@ -236,22 +235,21 @@ export default function Usuarios({ usuarios, user }) {
                                                         </span>
                                                     )}
 
-                                                    {/* Badge de Visibilidad (solo Formadores) */}
-{esFormador && (
-    visibilidadOk ? (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit"
-              title="Aparece en los selectores de citas">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-            Visible en citas
-        </span>
-    ) : (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 w-fit"
-              title="No aparece en los selectores de citas">
-            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
-            Oculto en citas
-        </span>
-    )
-)}
+                                                    {esFormador && (
+                                                        visibilidadOk ? (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit"
+                                                                  title="Aparece en los selectores de citas">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                                                Visible en citas
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 w-fit"
+                                                                  title="No aparece en los selectores de citas">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                                                                Oculto en citas
+                                                            </span>
+                                                        )
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap">
@@ -268,7 +266,6 @@ export default function Usuarios({ usuarios, user }) {
 
                                                     {u.usuario !== 'admin' && u.id_usuario !== user.id_usuario && (
                                                         <>
-                                                            {/* ✅ Solo para Formadores: visibilidad en citas */}
                                                             {esFormador && (
                                                                 <button
                                                                     onClick={() => abrirConfirmacion(u, 'visibilidad')}
@@ -298,7 +295,6 @@ export default function Usuarios({ usuarios, user }) {
                                                                 </button>
                                                             )}
 
-                                                            {/* ✅ Botón de acceso (visible siempre) */}
                                                             <button
                                                                 onClick={() => abrirConfirmacion(u, 'acceso')}
                                                                 title={accesoOk ? 'Suspender acceso a la plataforma' : 'Restaurar acceso a la plataforma'}
@@ -355,7 +351,7 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             </div>
 
-            {/* Modal crear / editar usuario (sin cambios) */}
+            {/* Modal crear / editar usuario */}
             {modalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
@@ -429,7 +425,7 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             )}
 
-            {/* Modal de confirmación unificado (visibilidad o acceso) */}
+            {/* Modal de confirmación unificado */}
             {confirmAccion.open && confirmAccion.usuario && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
@@ -498,7 +494,7 @@ export default function Usuarios({ usuarios, user }) {
                 </div>
             )}
 
-            {/* Modal de eliminación (sin cambios) */}
+            {/* Modal de eliminación */}
             {deleteModal.open && deleteModal.usuario && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">

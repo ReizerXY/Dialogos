@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 class EstudiantesCsvImport
 {
     protected $mensaje;
+    protected $motivosOmision = [];
 
     private const CAMPOS_PERMITIDOS = [
         'id_estudiante',
@@ -30,21 +31,26 @@ class EstudiantesCsvImport
         'grupo',
     ];
 
-    // Aliases: acepta headers viejos y nuevos (retrocompatible)
+    private const MAX_FILAS       = 2000;
+    private const MAX_LARGO_CELDA = 500;
+
     private const ALIAS_ENCABEZADOS = [
         'id'                     => 'id_estudiante',
+        'matricula'              => 'id_estudiante',
+        'num_control'            => 'id_estudiante',
+        'numero_control'         => 'id_estudiante',
+        'no_control'             => 'id_estudiante',
         'paterno'                => 'apellido_paterno',
         'materno'                => 'apellido_materno',
         'contacto_de_emergencia' => 'contacto_emergencia',
         'telefono'               => 'contacto',
         'tel_estudiante'         => 'contacto',
-        'telefono_estudiante'    => 'contacto',           // compat. archivos viejos
+        'telefono_estudiante'    => 'contacto',
         'tel_padre'              => 'contacto_emergencia',
         'telefono_tutor'         => 'contacto_emergencia',
-        'telefono_padre'         => 'contacto_emergencia', // compat. archivos viejos
+        'telefono_padre'         => 'contacto_emergencia',
     ];
 
-    // Importa un archivo CSV/TXT con estudiantes
     public function import($filePath)
     {
         $insertados = 0;
@@ -69,7 +75,7 @@ class EstudiantesCsvImport
         $encabezadosRaw = fgetcsv($tmp, 0, $delimitador);
         if ($encabezadosRaw === false) {
             fclose($tmp);
-            throw new \Exception('El archivo está vacío o no se pudo leer.');
+            throw new \Exception('El archivo esta vacio o no se pudo leer.');
         }
 
         $encabezados = array_map([$this, 'normalizarEncabezado'], $encabezadosRaw);
@@ -92,12 +98,22 @@ class EstudiantesCsvImport
 
         $columnasIgnoradas = array_diff($encabezados, self::CAMPOS_PERMITIDOS);
         if (!empty($columnasIgnoradas)) {
-            Log::info('Importación CSV: columnas ignoradas', [
+            Log::info('Importacion CSV: columnas ignoradas', [
                 'columnas' => array_values($columnasIgnoradas),
             ]);
         }
 
+        $numeroFila = 1;
         while (($fila = fgetcsv($tmp, 0, $delimitador)) !== false) {
+            $numeroFila++;
+
+            if ($numeroFila > self::MAX_FILAS) {
+                fclose($tmp);
+                throw new \Exception(
+                    'El archivo excede el limite de ' . self::MAX_FILAS . ' filas.'
+                );
+            }
+
             if (count($fila) === 1 && ($fila[0] === null || trim((string) $fila[0]) === '')) {
                 continue;
             }
@@ -114,8 +130,20 @@ class EstudiantesCsvImport
             $contacto      = $this->normalizarTelefono($contacto);
             $contactoEmerg = $this->normalizarTelefono($contactoEmerg);
 
-            if (empty($idEstudiante) || $nombre === '' || $apellidoPaterno === '' || $apellidoMaterno === '' || $grado === '' || $grupo === '') {
+            // Registrar motivos de omision
+            $motivos = [];
+            if (empty($idEstudiante))    $motivos[] = 'ID';
+            if ($nombre === '')          $motivos[] = 'Nombre';
+            if ($apellidoPaterno === '') $motivos[] = 'Apellido paterno';
+            if ($apellidoMaterno === '') $motivos[] = 'Apellido materno';
+            if ($grado === '')           $motivos[] = 'Grado';
+            if ($grupo === '')           $motivos[] = 'Grupo';
+
+            if (!empty($motivos)) {
                 $saltados++;
+                foreach ($motivos as $m) {
+                    $this->motivosOmision[$m] = ($this->motivosOmision[$m] ?? 0) + 1;
+                }
                 continue;
             }
 
@@ -147,15 +175,19 @@ class EstudiantesCsvImport
 
         fclose($tmp);
 
-        $this->mensaje = "Importación completada: $insertados insertados, $actualizados actualizados";
+        // Mensaje con detalle de motivos
+        $this->mensaje = "Importacion completada: $insertados insertados, $actualizados actualizados";
         if ($saltados > 0) {
-            $this->mensaje .= ", $saltados filas omitidas (datos incompletos).";
+            arsort($this->motivosOmision);
+            $top = array_slice(array_keys($this->motivosOmision), 0, 4);
+            $this->mensaje .= ". $saltados filas omitidas por faltar: " . implode(', ', $top);
+            if (count($top) === 4) $this->mensaje .= ", etc.";
+            $this->mensaje .= ".";
         } else {
             $this->mensaje .= ".";
         }
     }
 
-    // Normaliza el nombre de una columna del encabezado
     private function normalizarEncabezado($header): string
     {
         $h = (string) $header;
@@ -175,7 +207,6 @@ class EstudiantesCsvImport
         return $h;
     }
 
-    // Devuelve el valor de una columna en la fila actual
     private function valorFila($fila, $idx, $campo)
     {
         if (!isset($idx[$campo])) {
@@ -185,10 +216,27 @@ class EstudiantesCsvImport
         if ($valor === null) return null;
         $valor = (string) $valor;
         $valor = preg_replace('/^\xEF\xBB\xBF/', '', $valor);
-        return trim($valor);
+        $valor = trim($valor);
+
+        if (mb_strlen($valor) > self::MAX_LARGO_CELDA) {
+            $valor = mb_substr($valor, 0, self::MAX_LARGO_CELDA);
+        }
+
+        return $this->sanitizarCsvInjection($valor);
     }
 
-    // Normaliza el encoding del contenido a UTF-8
+    private function sanitizarCsvInjection($valor): string
+    {
+        if ($valor === '') return '';
+
+        $primerCaracter = substr($valor, 0, 1);
+        if (in_array($primerCaracter, ['=', '+', '-', '@'], true)) {
+            return "'" . $valor;
+        }
+
+        return $valor;
+    }
+
     private function normalizarEncoding($contenido)
     {
         if (substr($contenido, 0, 3) === "\xEF\xBB\xBF") {
@@ -213,7 +261,6 @@ class EstudiantesCsvImport
         return $contenido;
     }
 
-    // Detecta el delimitador de un CSV (tab, coma, punto y coma, pipe)
     private function detectarDelimitador($linea)
     {
         $candidatos = [
@@ -229,7 +276,6 @@ class EstudiantesCsvImport
         return $candidatos[$delimitador] > 0 ? $delimitador : ',';
     }
 
-    // Limpia un número de teléfono
     private function normalizarTelefono($tel)
     {
         if (empty($tel)) return null;

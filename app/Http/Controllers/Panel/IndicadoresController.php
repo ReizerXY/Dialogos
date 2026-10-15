@@ -8,13 +8,14 @@ use App\Services\CacheInvalidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 
 class IndicadoresController extends Controller
 {
     private $MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-    // Devuelve el título del mes a partir de YYYY-MM
+    // Devuelve el titulo del mes a partir de YYYY-MM
     private function mesTitulo($mesYMD)
     {
         if (!$mesYMD) return '';
@@ -25,13 +26,16 @@ class IndicadoresController extends Controller
     public function index(Request $request)
     {
         $user = Session::get('user');
-        if ($user['rol'] != 'Coordinador') abort(403, 'No autorizado.');
+        if (!$user || $user['rol'] != 'Coordinador') {
+            abort(403, 'No autorizado.');
+        }
 
-        $anio   = $request->get('anio');
-        $mes    = $request->get('mes');
-        $semana = $request->get('semana');
-        $grado  = $request->get('grado');
-        $grupo  = $request->get('grupo');
+        // ---- Validacion de filtros ----
+        $anio   = $this->validarAnio($request->get('anio'));
+        $mes    = $this->validarMes($request->get('mes'));
+        $semana = $this->validarSemana($request->get('semana'));
+        $grado  = $this->validarGrado($request->get('grado'));
+        $grupo  = $this->validarGrupo($request->get('grupo'));
 
         $cacheKey = CacheInvalidator::indicadoresKey([
             'anio' => $anio, 'mes' => $mes, 'semana' => $semana, 'grado' => $grado, 'grupo' => $grupo,
@@ -41,8 +45,8 @@ class IndicadoresController extends Controller
 
             // Filtro de fecha principal
             if ($semana) {
-                $year = substr($semana, 0, 4);
-                $week = substr($semana, 6, 2);
+                $year = (int) substr($semana, 0, 4);
+                $week = (int) substr($semana, 6, 2);
                 $fechaLunes   = (new \DateTime())->setISODate($year, $week, 1)->format('Y-m-d');
                 $fechaDomingo = (new \DateTime())->setISODate($year, $week, 7)->format('Y-m-d');
                 $whereRaw = "fecha BETWEEN ? AND ?";
@@ -50,15 +54,15 @@ class IndicadoresController extends Controller
             } elseif ($mes) {
                 $parts = explode('-', $mes);
                 $whereRaw = "YEAR(fecha) = ? AND MONTH(fecha) = ?";
-                $bindings = [$parts[0], $parts[1]];
+                $bindings = [(int) $parts[0], (int) $parts[1]];
             } elseif ($anio) {
                 $whereRaw = "YEAR(fecha) = ?";
-                $bindings = [$anio];
+                $bindings = [(int) $anio];
             } else {
                 $mesActual = now()->format('Y-m');
                 $parts = explode('-', $mesActual);
                 $whereRaw = "YEAR(fecha) = ? AND MONTH(fecha) = ?";
-                $bindings = [$parts[0], $parts[1]];
+                $bindings = [(int) $parts[0], (int) $parts[1]];
             }
 
             // Filtro grado/grupo
@@ -79,7 +83,7 @@ class IndicadoresController extends Controller
                 return $q;
             };
 
-            // Catálogos (10 min de cache)
+            // Catalogos (10 min de cache)
             $gradosActivos = Cache::remember('catalogos.grados', 600, function () {
                 return DB::table('estudiantes')
                     ->select('grado')->distinct()->orderBy('grado')
@@ -155,8 +159,8 @@ class IndicadoresController extends Controller
                 ->get()
                 ->mapWithKeys(function ($item) {
                     $dias = [
-                        'Monday'=>'Lunes','Tuesday'=>'Martes','Wednesday'=>'Miércoles',
-                        'Thursday'=>'Jueves','Friday'=>'Viernes','Saturday'=>'Sábado','Sunday'=>'Domingo'
+                        'Monday'=>'Lunes','Tuesday'=>'Martes','Wednesday'=>'Miercoles',
+                        'Thursday'=>'Jueves','Friday'=>'Viernes','Saturday'=>'Sabado','Sunday'=>'Domingo'
                     ];
                     return [$dias[$item->dia] ?? $item->dia => $item->total];
                 })
@@ -377,6 +381,7 @@ class IndicadoresController extends Controller
                     ->orderByDesc('fecha')
                     ->orderByDesc('hora')
                     ->orderByDesc('id_cita')
+                    ->limit(500)
                     ->get();
             } else {
                 $citasDelPeriodo = DB::table('citas')
@@ -443,5 +448,49 @@ class IndicadoresController extends Controller
         $payload['user'] = $user;
 
         return inertia('Panel/Indicadores', $payload);
+    }
+
+    // ---- Validadores de filtros ----
+
+    private function validarAnio($anio): ?string
+    {
+        if (!$anio) return null;
+        if (!preg_match('/^\d{4}$/', (string) $anio)) return null;
+        $anio = (int) $anio;
+        if ($anio < 2000 || $anio > 2100) return null;
+        return (string) $anio;
+    }
+
+    private function validarMes($mes): ?string
+    {
+        if (!$mes) return null;
+        if (!preg_match('/^\d{4}-\d{2}$/', (string) $mes)) return null;
+        [$anio, $mesNum] = explode('-', $mes);
+        if ((int) $mesNum < 1 || (int) $mesNum > 12) return null;
+        return $mes;
+    }
+
+    private function validarSemana($semana): ?string
+    {
+        if (!$semana) return null;
+        if (!preg_match('/^\d{4}-W\d{2}$/', (string) $semana)) return null;
+        $week = (int) substr($semana, 6, 2);
+        if ($week < 1 || $week > 53) return null;
+        return $semana;
+    }
+
+    private function validarGrado($grado): ?string
+    {
+        if (!$grado) return null;
+        $validos = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
+        return in_array($grado, $validos, true) ? $grado : null;
+    }
+
+    private function validarGrupo($grupo): ?string
+    {
+        if (!$grupo) return null;
+        // Letras simples A-Z
+        if (!preg_match('/^[A-Z]$/', (string) $grupo)) return null;
+        return $grupo;
     }
 }

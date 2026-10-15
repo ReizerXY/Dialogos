@@ -28,21 +28,21 @@ class RouteServiceProvider extends ServiceProvider
     {
         // ------------------------------------------------------------
         // LOGIN — 30 intentos por minuto por IP
-        //
-        // Es alto a propósito: la gente legítima puede cerrar y abrir
-        // sesión varias veces seguidas (probar roles, cambiar de cuenta,
-        // dejar sesión abierta y volver). Sigue bloqueando fuerza bruta
-        // automatizada, que hace cientos/miles de intentos por minuto.
         // ------------------------------------------------------------
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(30)->by($request->ip());
         });
 
         // ------------------------------------------------------------
-        // SOLICITAR CITA (público) — 10 por minuto por IP
+        // SOLICITAR CITA (público) — 60 por minuto por IP
+        //
+        // El colegio comparte una sola IP pública (NAT). Con un límite
+        // bajo, varios estudiantes agendando al mismo tiempo se bloquean
+        // entre sí. 60/min permite ~1 cita por segundo, suficiente para
+        // picos de uso sin sacrificar protección contra bots.
         // ------------------------------------------------------------
         RateLimiter::for('solicitar-cita', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+            return Limit::perMinute(60)->by($request->ip());
         });
 
         // ------------------------------------------------------------

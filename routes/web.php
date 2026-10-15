@@ -12,6 +12,7 @@ use App\Http\Controllers\Panel\EstudianteController;
 use App\Http\Controllers\Panel\ReporteController;
 use App\Http\Controllers\Panel\MiHorarioController;
 use App\Http\Controllers\Panel\BackupController;
+use App\Http\Controllers\Panel\ConfiguracionController;
 use App\Http\Controllers\CitaController as CitaPublicController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\Session;
 */
 
 // =============================================
-// RUTAS PÚBLICAS
+// RUTAS PUBLICAS
 // =============================================
 Route::get('/', function () {
     if (Session::has('user')) {
@@ -33,7 +34,6 @@ Route::get('/', function () {
         $lifetimeSegundos = ((int) config('session.lifetime', 30)) * 60;
 
         if ($lastActivity && (time() - (int) $lastActivity) <= $lifetimeSegundos) {
-            // ✅ Formador ahora va a "Gestionar mis citas" (antes era horarios)
             $route = ($user['rol'] ?? '') === 'Coordinador' ? 'indicadores.index' : 'citas.index';
             return redirect()->route($route);
         }
@@ -45,26 +45,29 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
-Route::get('/solicitar-cita', [CitaPublicController::class, 'index'])->name('cita.solicitar');
+// Pagina publica: agendar cita
+Route::get('/agendar', [CitaPublicController::class, 'index'])->name('cita.agendar');
 
-Route::post('/solicitar-cita', [CitaPublicController::class, 'store'])
-    ->middleware('throttle:3,1')
+Route::post('/agendar', [CitaPublicController::class, 'store'])
+    ->middleware('throttle:solicitar-cita')
     ->name('cita.store');
 
-Route::middleware('throttle:10,1')->group(function () {
-    Route::get('/api/verificar-estudiante/{id_estudiante}', [CitaPublicController::class, 'verificarIdEstudiante']);
-    Route::get('/api/estudiantes', [CitaPublicController::class, 'estudiantes'])->name('api.estudiantes');
+// API publica: solo disponibilidad
+Route::middleware('throttle:api-publica')->group(function () {
     Route::get('/api/disponibilidad', [CitaPublicController::class, 'disponibilidad'])->name('api.disponibilidad');
 });
 
+// Aviso de privacidad (pagina publica)
+Route::get('/aviso-de-privacidad', function () {
+    return Inertia::render('AvisoDePrivacidad');
+})->name('aviso.privacidad');
+
 // =============================================
-// AUTENTICACIÓN PERSONALIZADA
+// AUTENTICACION PERSONALIZADA
 // =============================================
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 
-// ✅ Sin throttle middleware: el rate limiting se maneja DENTRO del controlador
-//    contando SOLO los intentos fallidos. Así cambiar de rol no bloquea.
 Route::post('/login', [LoginController::class, 'login'])->name('login.post');
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -73,7 +76,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // RUTAS PROTEGIDAS
 // =============================================
 
-Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
+Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
 
     // ---------- COORDINADOR ----------
     Route::get('/indicadores', [IndicadoresController::class, 'index'])
@@ -105,7 +108,7 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
     Route::prefix('estudiantes')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [EstudianteController::class, 'index'])->name('estudiantes.index');
         Route::post('/', [EstudianteController::class, 'store'])->name('estudiantes.store');
-        // ✅ NUEVA: guarda la configuración del ciclo escolar (fecha + modo manual)
+        Route::get('/exportar-excel', [EstudianteController::class, 'exportarExcel'])->name('estudiantes.exportarExcel');  // ← NUEVA
         Route::put('/configuracion', [EstudianteController::class, 'updateConfiguracion'])->name('estudiantes.configuracion');
         Route::post('/importar', [EstudianteController::class, 'import'])->name('estudiantes.importar');
         Route::delete('/todos', [EstudianteController::class, 'destroyAll'])->name('estudiantes.destroyAll');
@@ -113,13 +116,21 @@ Route::middleware(['auth.session', 'throttle:120,1'])->group(function () {
         Route::delete('/{id_estudiante}', [EstudianteController::class, 'destroy'])->name('estudiantes.destroy');
     });
 
+    // ---------- CONFIGURACION GLOBAL (solo Coordinador) ----------
+    Route::prefix('configuracion')->middleware('check.role:Coordinador')->group(function () {
+        Route::get('/', [ConfiguracionController::class, 'index'])->name('configuracion.index');
+        Route::put('/whatsapp/toggle', [ConfiguracionController::class, 'toggleWhatsApp'])->name('configuracion.whatsapp.toggle');
+        Route::put('/solicitud/toggle', [ConfiguracionController::class, 'toggleSolicitudCitas'])->name('configuracion.solicitud.toggle');
+        Route::put('/mantenimiento/toggle', [ConfiguracionController::class, 'toggleMantenimiento'])->name('configuracion.mantenimiento.toggle');
+        Route::put('/dias-anticipacion', [ConfiguracionController::class, 'guardarDiasAnticipacion'])->name('configuracion.diasAnticipacion');
+        Route::put('/mensaje-cierre', [ConfiguracionController::class, 'guardarMensajeCierre'])->name('configuracion.mensajeCierre');
+    });
+
     Route::prefix('usuarios')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::put('/{id_usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
-        // ✅ Cambió: toggle-activo → toggle-visibilidad (aplica solo a Formadores)
         Route::put('/{id_usuario}/toggle-visibilidad', [UsuarioController::class, 'toggleVisibilidad'])->name('usuarios.toggleVisibilidad');
-        // ✅ Nuevo: suspende/reactiva el acceso a la plataforma
         Route::put('/{id_usuario}/toggle-acceso', [UsuarioController::class, 'toggleAcceso'])->name('usuarios.toggleAcceso');
         Route::delete('/{id_usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
     });

@@ -1,15 +1,25 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="es">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title inertia>Diálogos - {{ $page['props']['title'] ?? 'Inicio' }}</title>
+        <title inertia>Sistema Diálogos - Prepa Anáhuac Veracruz</title>
+
+        <meta name="description" content="Sistema Diálogos - Programa de acompañamiento integral para estudiantes de bachillerato. Prepa Anáhuac Veracruz, campus Córdoba-Orizaba.">
+        <meta name="author" content="Prepa Anáhuac Veracruz">
+        <meta name="robots" content="noindex, nofollow">
+
+        <!-- Open Graph -->
+        <meta property="og:title" content="Sistema Diálogos - Prepa Anáhuac Veracruz">
+        <meta property="og:description" content="Programa de acompañamiento integral para estudiantes de bachillerato.">
+        <meta property="og:type" content="website">
+        <meta property="og:locale" content="es_MX">
 
         <!-- Favicon -->
-        <link rel="icon" type="image/jpeg" href="/favicon.png">
-        <link rel="shortcut icon" type="image/jpeg" href="/favicon.png">
+        <link rel="icon" type="image/png" href="/favicon.png">
+        <link rel="shortcut icon" type="image/png" href="/favicon.png">
         <link rel="apple-touch-icon" href="/favicon.png">
 
         <!-- Fonts -->

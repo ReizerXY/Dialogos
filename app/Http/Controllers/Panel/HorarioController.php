@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Panel/HorarioController.php
 
 namespace App\Http\Controllers\Panel;
 
@@ -11,10 +12,32 @@ class HorarioController extends Controller
 {
     public function index(Request $request)
     {
-        $formadorId = $request->get('formador');
-        $diaSemana  = $request->get('dia');
-        $horaDesde  = $request->get('hora_desde');
-        $horaHasta  = $request->get('hora_hasta');
+        $user = Session::get('user');
+        if (!$user) {
+            abort(403, 'No autorizado.');
+        }
+
+        // ---- Validacion de filtros ----
+        $formadorId = null;
+        if ($request->filled('formador') && ctype_digit((string) $request->get('formador'))) {
+            $formadorId = (int) $request->get('formador');
+        }
+
+        $diasValidos = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+        $diaSemana = $request->get('dia');
+        if (!in_array($diaSemana, $diasValidos, true)) {
+            $diaSemana = null;
+        }
+
+        $horaDesde = $request->get('hora_desde');
+        if (!preg_match('/^\d{2}:\d{2}$/', (string) $horaDesde)) {
+            $horaDesde = null;
+        }
+
+        $horaHasta = $request->get('hora_hasta');
+        if (!preg_match('/^\d{2}:\d{2}$/', (string) $horaHasta)) {
+            $horaHasta = null;
+        }
 
         $query = DB::table('horarios')
             ->join('usuarios', 'horarios.id_usuario', '=', 'usuarios.id_usuario')
@@ -22,17 +45,14 @@ class HorarioController extends Controller
             ->where('usuarios.visibilidad_usuario', 1)
             ->select('horarios.*', 'usuarios.nombre as nombre_formador');
 
-        // Filtro por formador
         if ($formadorId) {
             $query->where('horarios.id_usuario', $formadorId);
         }
 
-        // Filtro por día de la semana
         if ($diaSemana) {
             $query->where('horarios.dia_semana', $diaSemana);
         }
 
-        // Filtro por rango horario
         if ($horaDesde) {
             $query->where('horarios.hora_inicio', '>=', $horaDesde);
         }
@@ -46,7 +66,7 @@ class HorarioController extends Controller
             ->orderBy('horarios.hora_inicio')
             ->get();
 
-        // Solo formadores VISIBLES para el selector (aparecen en citas)
+        // Solo formadores VISIBLES para el selector
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
             ->where('visibilidad_usuario', 1)
@@ -63,7 +83,7 @@ class HorarioController extends Controller
                 'hora_desde' => $horaDesde,
                 'hora_hasta' => $horaHasta,
             ],
-            'user' => Session::get('user'),
+            'user' => $user,
         ]);
     }
 }

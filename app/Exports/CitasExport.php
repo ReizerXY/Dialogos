@@ -37,7 +37,7 @@ class CitasExport implements FromCollection, WithHeadings, WithMapping, ShouldAu
             'Fecha',
             'Hora',
             'Tema tratado',
-            'Situación',
+            'Situacion',
             'Asistencia',
             'Notas',
         ];
@@ -47,16 +47,35 @@ class CitasExport implements FromCollection, WithHeadings, WithMapping, ShouldAu
     {
         return [
             $cita->id_cita,
-            $cita->id_estudiante,
-            $cita->nombre_estudiante,
-            $cita->nombre_formador,
-            $cita->fecha,
+            $this->safeCell($cita->id_estudiante),
+            $this->safeCell($cita->nombre_estudiante),
+            $this->safeCell($cita->nombre_formador),
+            $this->safeCell($cita->fecha),
             $cita->hora ? substr($cita->hora, 0, 5) : '',
-            $cita->clasificacion ?? 'Sin clasificar',
-            $cita->estado ?? '',
-            $cita->asistencia ?? 'pendiente',
-            $cita->notas ?? '',
+            $this->safeCell($cita->clasificacion ?? 'Sin clasificar'),
+            $this->safeCell($cita->estado ?? ''),
+            $this->safeCell($cita->asistencia ?? 'pendiente'),
+            $this->safeCell($cita->notas ?? ''),
         ];
+    }
+
+    // Sanitiza celdas para evitar CSV/Excel injection.
+    // Si el valor empieza con =, +, -, @ o tab/CR se prefija con apostrofo.
+    private function safeCell($value)
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        $value = (string) $value;
+
+        // Excel formula injection
+        $primer = substr($value, 0, 1);
+        if (in_array($primer, ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 
     public function styles(Worksheet $sheet)

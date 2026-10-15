@@ -4,31 +4,27 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Exports\EstudiantesExport;
+use App\Imports\EstudiantesCsvImport;
+use App\Imports\EstudiantesExcelImport;
+use App\Services\CacheInvalidator;
+use App\Services\SnapshotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Excel as ExcelFormat;
-use App\Imports\EstudiantesCsvImport;
-use App\Imports\EstudiantesExcelImport;
-use App\Services\CacheInvalidator;
 
 class EstudianteController extends Controller
 {
-    private const GRADOS_VALIDOS = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
+    private const GRADOS_VALIDOS     = ['1ro', '2do', '3ro', '4to', '5to', '6to'];
     private const DIAS_VENTANA_CICLO = 7;
+    private const MAX_ARCHIVO_KB     = 20480;
 
     // ============================================================
-    // Estado público de la importación (reutilizable desde
-    // HandleInertiaRequests para el sidebar global)
+    // Estado publico de la importacion
     // ============================================================
 
-    // Devuelve el estado completo de la importación del ciclo escolar.
-    // - mostrar_importacion: bloque visible en /estudiantes.
-    //     * true si el Coordinador forzó manualmente (siempre, aunque ya haya importado).
-    //     * true si está en la ventana natural Y no se ha importado todavía.
-    // - mostrar_alerta_sidebar: aviso del menú lateral (SOLO natural, sin manual y sin importar).
     public static function estadoImportacion(): array
     {
         $inicioCiclo = null;
@@ -40,19 +36,14 @@ class EstudianteController extends Controller
             $importacionManual = DB::table('configuracion')->where('clave', 'importacion_activa_manual')->value('valor') ?? '0';
             $importacionCompletada = DB::table('configuracion')->where('clave', 'importacion_completada')->value('valor') ?? '0';
         } catch (\Exception $e) {
-            // Tabla no existe aún
+            // Tabla no existe aun
         }
 
         $manualBool       = $importacionManual === '1';
         $completadaBool   = $importacionCompletada === '1';
         $enVentanaNatural = self::estaEnVentanaCiclo($inicioCiclo);
 
-        // ✅ Bloque visible si:
-        //    a) El Coordinador forzó manualmente (aunque ya se haya importado antes), O
-        //    b) Está en la ventana natural Y todavía no se ha importado.
         $mostrarBloque = $manualBool || (!$completadaBool && $enVentanaNatural);
-
-        // Sidebar: SOLO cuando es natural (sin forzar) y no se ha importado
         $mostrarAlertaSidebar = !$completadaBool && !$manualBool && $enVentanaNatural;
 
         return [
@@ -65,13 +56,9 @@ class EstudianteController extends Controller
         ];
     }
 
-    // Determina si hoy está dentro de la ventana natural del ciclo escolar
-    // (0 a DIAS_VENTANA_CICLO días después de inicio_ciclo_escolar).
     private static function estaEnVentanaCiclo($inicioCiclo): bool
     {
-        if (!$inicioCiclo) {
-            return false;
-        }
+        if (!$inicioCiclo) return false;
 
         try {
             $inicio = new \DateTime($inicioCiclo);
@@ -92,7 +79,6 @@ class EstudianteController extends Controller
     // Vistas y acciones
     // ============================================================
 
-    // Lista todos los estudiantes y pasa la configuración del ciclo escolar
     public function index()
     {
         $user = Session::get('user');
@@ -112,13 +98,42 @@ class EstudianteController extends Controller
             'estudiantes' => $estudiantes,
             'user'        => $user,
             'config'      => self::estadoImportacion(),
+            'snapshots'   => SnapshotService::estado(),
         ]);
     }
 
-    // Guarda la configuración del ciclo escolar (fecha y modo manual).
-    //
-    // IMPORTANTE: solo resetea importacion_completada cuando la FECHA del ciclo cambia.
-    // Si solo se marca/desmarca la casilla manual, se preserva el estado de importación.
+    // Exporta la lista completa de estudiantes a Excel
+    public function exportarExcel(Request $request)
+    {
+        $user = Session::get('user');
+        if (!$user || $user['rol'] !== 'Coordinador') {
+            abort(403, 'No autorizado.');
+        }
+
+        $estudiantes = DB::table('estudiantes')
+            ->orderBy('grado')
+            ->orderBy('grupo')
+            ->orderBy('apellido_paterno')
+            ->orderBy('apellido_materno')
+            ->orderBy('nombre')
+            ->get();
+
+        if ($estudiantes->isEmpty()) {
+            return redirect()->route('estudiantes.index')
+                ->with('error', 'No hay estudiantes para exportar.');
+        }
+
+        Log::info('Exportacion de estudiantes descargada', [
+            'total'       => $estudiantes->count(),
+            'por_usuario' => $user['usuario'] ?? null,
+            'ip'          => $request->ip(),
+        ]);
+
+        $nombreArchivo = 'Estudiantes_Anahuac_' . now()->format('Y-m-d_H-i') . '.xlsx';
+
+        return Excel::download(new EstudiantesExport($estudiantes), $nombreArchivo);
+    }
+
     public function updateConfiguracion(Request $request)
     {
         $user = Session::get('user');
@@ -132,7 +147,6 @@ class EstudianteController extends Controller
         ]);
 
         try {
-            // Leer fecha actual ANTES de actualizarla (para detectar cambios)
             $fechaAnterior = DB::table('configuracion')
                 ->where('clave', 'inicio_ciclo_escolar')
                 ->value('valor');
@@ -149,9 +163,6 @@ class EstudianteController extends Controller
                 ['valor' => $request->importacion_activa_manual ? '1' : '0']
             );
 
-            // ✅ Solo resetear importacion_completada si la fecha del ciclo cambió.
-            //    Esto permite marcar/desmarcar la casilla manual sin perder el estado
-            //    de "ya se importó".
             if ($fechaAnterior !== $fechaNueva) {
                 DB::table('configuracion')->updateOrInsert(
                     ['clave' => 'importacion_completada'],
@@ -159,20 +170,27 @@ class EstudianteController extends Controller
                 );
             }
 
+            Log::info('Configuracion de ciclo escolar actualizada', [
+                'inicio_ciclo' => $fechaNueva,
+                'modo_manual'  => $request->importacion_activa_manual,
+                'por_usuario'  => $user['usuario'] ?? null,
+                'ip'           => $request->ip(),
+            ]);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Configuración del ciclo escolar guardada correctamente.',
+                'message' => 'Configuracion del ciclo escolar guardada correctamente.',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al guardar configuración:', ['error' => $e->getMessage()]);
+            Log::error('Error al guardar configuracion:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar la configuración: ' . $e->getMessage(),
+                'message' => 'Error al guardar la configuracion.',
             ], 500);
         }
     }
 
-    // Importa estudiantes desde archivo Excel, CSV o TXT
+    // Importa estudiantes desde archivo .xlsx o .csv
     public function import(Request $request)
     {
         $user = Session::get('user');
@@ -181,12 +199,26 @@ class EstudianteController extends Controller
         }
 
         $request->validate([
-            'archivo' => 'required|file|max:20480',
+            'archivo' => 'required|file|max:' . self::MAX_ARCHIVO_KB,
         ]);
 
         $file = $request->file('archivo');
 
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (!in_array($ext, ['xlsx', 'csv'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tipo de archivo no permitido. Usa XLSX o CSV.',
+            ], 422);
+        }
+
         try {
+            // Snapshot antes de importar (por si el archivo corrompe algo)
+            SnapshotService::crear('importar', [
+                'archivo' => $file->getClientOriginalName(),
+                'ext'     => $ext,
+            ]);
+
             $cacheDir = storage_path('framework/cache/laravel-excel');
             if (is_dir($cacheDir)) {
                 foreach (glob($cacheDir . '/*') as $cached) {
@@ -201,77 +233,124 @@ class EstudianteController extends Controller
 
             $tipo = $this->detectarTipo($magicBytes);
 
-            // Solo se registra en modo debug para no llenar los logs en producción
-            if (config('app.debug')) {
-                Log::debug('Import archivo:', [
-                    'nombre' => $file->getClientOriginalName(),
-                    'ext' => $file->getClientOriginalExtension(),
-                    'magic_hex' => bin2hex(substr($magicBytes, 0, 4)),
-                    'tipo_detectado' => $tipo,
-                ]);
-            }
-
-            if ($tipo === 'xlsx') {
-                $import = new EstudiantesExcelImport();
-                Excel::import($import, $file, null, ExcelFormat::XLSX);
-                CacheInvalidator::indicadores();
-                $this->marcarImportacionCompletada();
+            if ($ext === 'xlsx' && $tipo !== 'xlsx') {
                 return response()->json([
-                    'success' => true,
-                    'message' => $import->getMensaje(),
-                    'formato' => 'XLSX',
-                ]);
+                    'success' => false,
+                    'message' => 'El archivo tiene extension .xlsx pero no es un Excel valido.',
+                ], 422);
             }
 
-            if ($tipo === 'xls') {
-                $import = new EstudiantesExcelImport();
-                Excel::import($import, $file, null, ExcelFormat::XLS);
-                CacheInvalidator::indicadores();
-                $this->marcarImportacionCompletada();
-                return response()->json([
-                    'success' => true,
-                    'message' => $import->getMensaje(),
-                    'formato' => 'XLS',
-                ]);
+            Log::info('Importacion iniciada', [
+                'archivo'      => $file->getClientOriginalName(),
+                'extension'    => $ext,
+                'tipo_magic'   => $tipo,
+                'tamano_bytes' => $file->getSize(),
+                'por_usuario'  => $user['usuario'] ?? null,
+                'ip'           => $request->ip(),
+            ]);
+
+            if ($ext === 'xlsx') {
+                return $this->importarExcel($path, $user, $request);
             }
 
-            $import = new EstudiantesCsvImport();
-            $import->import($path);
+            return $this->importarCsv($path, $user, $request);
+
+        } catch (\Exception $e) {
+            Log::error('Importacion: error general', [
+                'error' => $e->getMessage(),
+                'clase' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al importar. Revisa los logs del servidor.',
+            ], 500);
+        }
+    }
+
+    private function importarExcel(string $path, array $user, Request $request)
+    {
+        try {
+            $import = new EstudiantesExcelImport();
+            Excel::import($import, $path);
+
             CacheInvalidator::indicadores();
             $this->marcarImportacionCompletada();
+
+            Log::info('Importacion Excel completada', [
+                'formato'     => 'XLSX',
+                'resultado'   => $import->getMensaje(),
+                'por_usuario' => $user['usuario'] ?? null,
+                'ip'          => $request->ip(),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => $import->getMensaje(),
-                'formato' => 'TEXTO',
+                'formato' => 'XLSX',
             ]);
-
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $errores = [];
             foreach ($e->failures() as $failure) {
                 $errores[] = "Fila {$failure->row()}: " . implode(', ', $failure->errors());
             }
+            Log::warning('Importacion Excel: errores de validacion', ['errores' => $errores]);
             return response()->json([
                 'success' => false,
-                'message' => 'Errores de validación: ' . implode(' | ', array_slice($errores, 0, 5)),
+                'message' => 'Errores de validacion: ' . implode(' | ', array_slice($errores, 0, 5)),
             ], 422);
         } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+            Log::warning('Importacion Excel: archivo corrupto', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'El archivo de Excel está dañado o corrupto. Ábrelo en Excel y guárdalo de nuevo.',
+                'message' => 'El archivo de Excel esta danado o corrupto. Abrelo en Excel y guardalo de nuevo.',
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error al importar estudiantes:', [
-                'error' => $e->getMessage(),
-                'archivo' => $file->getClientOriginalName(),
+            Log::error('Importacion Excel: excepcion inesperada', [
+                'error'   => $e->getMessage(),
+                'clase'   => get_class($e),
+                'trace'   => $e->getTraceAsString(),
             ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error al importar: ' . $e->getMessage(),
+                'message' => $e->getMessage() ?: 'Error al procesar el Excel. Revisa los logs del servidor.',
             ], 500);
         }
     }
 
-    // Marca la importación como completada Y desactiva el modo manual forzado
+    private function importarCsv(string $path, array $user, Request $request)
+    {
+        try {
+            $import = new EstudiantesCsvImport();
+            $import->import($path);
+
+            CacheInvalidator::indicadores();
+            $this->marcarImportacionCompletada();
+
+            Log::info('Importacion CSV completada', [
+                'resultado'   => $import->getMensaje(),
+                'por_usuario' => $user['usuario'] ?? null,
+                'ip'          => $request->ip(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $import->getMensaje(),
+                'formato' => 'CSV',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Importacion CSV: excepcion', [
+                'error' => $e->getMessage(),
+                'clase' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage() ?: 'Error al procesar el CSV. Revisa los logs del servidor.',
+            ], 500);
+        }
+    }
+
     private function marcarImportacionCompletada()
     {
         try {
@@ -280,26 +359,26 @@ class EstudianteController extends Controller
                 ['valor' => '1']
             );
 
-            // Resetear el modo manual al terminar la importación
             DB::table('configuracion')->updateOrInsert(
                 ['clave' => 'importacion_activa_manual'],
                 ['valor' => '0']
             );
         } catch (\Exception $e) {
-            Log::warning('No se pudo marcar la importación como completada: ' . $e->getMessage());
+            Log::warning('No se pudo marcar la importacion como completada: ' . $e->getMessage());
         }
     }
 
-    // Detecta el tipo de archivo por sus magic bytes
     private function detectarTipo($magicBytes)
     {
         $hex = bin2hex(substr($magicBytes, 0, 4));
         if (substr($hex, 0, 4) === '504b') return 'xlsx';
-        if (substr($hex, 0, 8) === 'd0cf11e0') return 'xls';
         return 'texto';
     }
 
-    // Crea un estudiante nuevo
+    // ============================================================
+    // CRUD de estudiantes
+    // ============================================================
+
     public function store(Request $request)
     {
         $user = Session::get('user');
@@ -314,8 +393,8 @@ class EstudianteController extends Controller
             'apellido_materno'    => 'required|string|max:100',
             'grado'               => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'               => 'required|string|max:5',
-            'contacto'            => 'nullable|string|max:10',
-            'contacto_emergencia' => 'nullable|string|max:10',
+            'contacto'            => 'nullable|string|max:15',
+            'contacto_emergencia' => 'nullable|string|max:15',
         ]);
 
         DB::table('estudiantes')->insert([
@@ -329,16 +408,21 @@ class EstudianteController extends Controller
             'contacto_emergencia' => $request->contacto_emergencia,
         ]);
 
+        Log::info('Estudiante creado', [
+            'id_estudiante' => $request->id_estudiante,
+            'por_usuario'   => $user['usuario'] ?? null,
+            'ip'            => $request->ip(),
+        ]);
+
         CacheInvalidator::indicadores();
 
         return response()->json([
-            'success' => true,
-            'message' => 'Estudiante agregado correctamente.',
+            'success'    => true,
+            'message'    => 'Estudiante agregado correctamente.',
             'estudiante' => DB::table('estudiantes')->where('id_estudiante', $request->id_estudiante)->first()
         ]);
     }
 
-    // Actualiza un estudiante existente
     public function update(Request $request, $id_estudiante)
     {
         $user = Session::get('user');
@@ -352,8 +436,8 @@ class EstudianteController extends Controller
             'apellido_materno'    => 'required|string|max:100',
             'grado'               => 'required|in:' . implode(',', self::GRADOS_VALIDOS),
             'grupo'               => 'required|string|max:5',
-            'contacto'            => 'nullable|string|max:10',
-            'contacto_emergencia' => 'nullable|string|max:10',
+            'contacto'            => 'nullable|string|max:15',
+            'contacto_emergencia' => 'nullable|string|max:15',
         ]);
 
         $existe = DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->exists();
@@ -376,13 +460,13 @@ class EstudianteController extends Controller
         CacheInvalidator::indicadores();
 
         return response()->json([
-            'success' => true,
-            'message' => 'Estudiante actualizado correctamente.',
+            'success'    => true,
+            'message'    => 'Estudiante actualizado correctamente.',
             'estudiante' => DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->first()
         ]);
     }
 
-    // Elimina un estudiante (sus citas históricas se conservan)
+    // Elimina un estudiante (con snapshot previo)
     public function destroy($id_estudiante)
     {
         $user = Session::get('user');
@@ -390,27 +474,46 @@ class EstudianteController extends Controller
             return response()->json(['error' => 'No autorizado'], 403);
         }
 
-        $existe = DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->exists();
-        if (!$existe) {
+        $estudiante = DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->first();
+        if (!$estudiante) {
             return response()->json(['error' => 'El estudiante no existe.'], 404);
         }
+
+        // Snapshot antes de eliminar
+        SnapshotService::crear('eliminar_estudiante', [
+            'id_estudiante' => $id_estudiante,
+            'nombre'        => trim($estudiante->nombre . ' ' . $estudiante->apellido_paterno . ' ' . $estudiante->apellido_materno),
+        ]);
 
         DB::table('estudiantes')->where('id_estudiante', $id_estudiante)->delete();
         CacheInvalidator::indicadores();
 
+        Log::info('Estudiante eliminado', [
+            'id_estudiante' => $id_estudiante,
+            'nombre'        => trim($estudiante->nombre . ' ' . $estudiante->apellido_paterno . ' ' . $estudiante->apellido_materno),
+            'por_usuario'   => $user['usuario'] ?? null,
+            'ip'            => request()->ip(),
+        ]);
+
         return response()->json([
             'success' => true,
-            'message' => 'Estudiante eliminado correctamente. Sus citas históricas se conservan.'
+            'message' => 'Estudiante eliminado correctamente. Sus citas historicas se conservan.'
         ]);
     }
 
-    // Elimina todos los estudiantes (sus citas históricas se conservan)
-    public function destroyAll()
+    // Elimina TODOS los estudiantes (con snapshot previo, requiere token)
+    public function destroyAll(Request $request)
     {
         $user = Session::get('user');
         if ($user['rol'] != 'Coordinador') {
             return response()->json(['error' => 'No autorizado'], 403);
         }
+
+        $request->validate([
+            'confirm_token' => 'required|string|in:BORRAR_TODOS_LOS_ESTUDIANTES',
+        ], [
+            'confirm_token.in' => 'Confirmacion invalida. Operacion cancelada.',
+        ]);
 
         $total = DB::table('estudiantes')->count();
 
@@ -421,12 +524,23 @@ class EstudianteController extends Controller
             ], 422);
         }
 
+        // Snapshot antes de eliminar todos
+        SnapshotService::crear('eliminar_todos', [
+            'total_estudiantes' => $total,
+        ]);
+
         DB::table('estudiantes')->delete();
         CacheInvalidator::indicadores();
 
+        Log::warning('TODOS los estudiantes fueron eliminados', [
+            'total_eliminados' => $total,
+            'por_usuario'      => $user['usuario'] ?? null,
+            'ip'               => $request->ip(),
+        ]);
+
         return response()->json([
             'success' => true,
-            'message' => "Se eliminaron $total estudiantes correctamente. Sus citas históricas se conservan."
+            'message' => "Se eliminaron $total estudiantes correctamente. Sus citas historicas se conservan."
         ]);
     }
 }

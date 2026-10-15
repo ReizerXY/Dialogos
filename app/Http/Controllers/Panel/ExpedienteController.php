@@ -6,15 +6,19 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 
 class ExpedienteController extends Controller
 {
     // Muestra el expediente de un estudiante (activo o egresado)
+    // Todos los usuarios autenticados pueden ver cualquier expediente.
     public function show($id_estudiante)
     {
         $user = Session::get('user');
+        if (!$user) {
+            abort(403, 'No autorizado.');
+        }
 
         $estudiante = DB::table('estudiantes')
             ->where('id_estudiante', $id_estudiante)
@@ -43,7 +47,7 @@ class ExpedienteController extends Controller
                 ->get();
         }
 
-        // Si no existe en estudiantes pero hay citas → es egresado
+        // Si no existe en estudiantes pero hay citas -> es egresado
         if (!$estudiante && $citas->isNotEmpty()) {
             $egresado = true;
 
@@ -65,7 +69,7 @@ class ExpedienteController extends Controller
             abort(404, 'Estudiante no encontrado.');
         }
 
-        // Si es activo, compone el nombre completo en el mismo campo nombre
+        // Componer nombre completo (para activos)
         if (!$egresado) {
             $estudiante->nombre = trim(
                 $estudiante->nombre . ' ' . $estudiante->apellido_paterno . ' ' . $estudiante->apellido_materno
@@ -79,6 +83,14 @@ class ExpedienteController extends Controller
         $asistencias          = $citas->where('asistencia', 'asistió')->count();
         $faltas               = $citas->where('asistencia', 'no asistió')->count();
         $pendientesAsistencia = $citas->where('asistencia', 'pendiente')->count();
+
+        // Auditoria: registrar quien consulta cada expediente
+        Log::info('Expediente consultado', [
+            'id_estudiante' => $id_estudiante,
+            'por_usuario'   => $user['usuario'] ?? null,
+            'rol'           => $user['rol'] ?? null,
+            'ip'            => request()->ip(),
+        ]);
 
         return inertia('Panel/Expediente', [
             'estudiante' => $estudiante,
@@ -95,15 +107,18 @@ class ExpedienteController extends Controller
         ]);
     }
 
-    // Busca estudiantes por nombre completo (con apellidos) o por ID.
-    // Insensible a acentos, mayúsculas y caracteres especiales.
-    // Cada palabra del query debe aparecer en el nombre completo concatenado
-    // o en el id_estudiante del mismo registro.
+    // Busca estudiantes por nombre completo o por ID (insensible a acentos)
+    // Disponible para Coordinadores y Formadores sin restriccion.
     public function buscarEstudiantes(Request $request)
     {
+        $user = Session::get('user');
+        if (!$user) {
+            return response()->json([]);
+        }
+
         $query = trim((string) $request->get('q', ''));
 
-        if (mb_strlen($query) < 1) {
+        if (mb_strlen($query) < 2) {
             return response()->json([]);
         }
 
@@ -115,16 +130,18 @@ class ExpedienteController extends Controller
             return response()->json([]);
         }
 
-        // Dividir en palabras (soporta múltiples espacios internos)
         $palabras = array_values(array_filter(explode(' ', $queryLimpio), fn($p) => $p !== ''));
 
+        // Limite de palabras para evitar DOS con queries gigantes
+        if (count($palabras) > 5) {
+            $palabras = array_slice($palabras, 0, 5);
+        }
+
+        // Limite de largo de cada palabra
+        $palabras = array_map(fn($p) => mb_substr($p, 0, 30), $palabras);
+
         try {
-            // ============================================================
-            // Búsqueda de estudiantes activos
-            // Cada palabra debe aparecer en el CONCAT del nombre completo
-            // O en el id_estudiante. Así "Eduardo Ruiz" matchea a
-            // "Eduardo Ruiz Chávez" y también a "Ruiz Eduardo" (invertido).
-            // ============================================================
+            // Busqueda de estudiantes activos
             $activos = DB::table('estudiantes')
                 ->where(function ($outer) use ($palabras) {
                     foreach ($palabras as $palabra) {
@@ -156,9 +173,7 @@ class ExpedienteController extends Controller
 
             $idsActivos = $activos->pluck('id_estudiante')->toArray();
 
-            // ============================================================
-            // Búsqueda de egresados (mismo criterio, sobre nombre_estudiante)
-            // ============================================================
+            // Busqueda de egresados (mismo criterio sobre nombre_estudiante)
             $egresados = DB::table('citas')
                 ->whereNotNull('id_estudiante')
                 ->whereNotIn('id_estudiante', function ($sub) {

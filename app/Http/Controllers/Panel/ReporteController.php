@@ -6,12 +6,13 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReporteController extends Controller
 {
-    // Catálogo de tipos de reporte y sus secciones disponibles
+    // Catalogo de tipos de reporte y sus secciones disponibles
     public static function catalogo(): array
     {
         return [
@@ -219,12 +220,12 @@ class ReporteController extends Controller
         ];
     }
 
-    // Vista inicial del módulo de reportes
+    // Vista inicial del modulo de reportes
     public function index()
     {
         $user = Session::get('user');
 
-        if ($user['rol'] != 'Coordinador') {
+        if (!$user || $user['rol'] != 'Coordinador') {
             abort(403, 'No autorizado.');
         }
 
@@ -266,7 +267,7 @@ class ReporteController extends Controller
     private function construirReportePDF(Request $request): array
     {
         $user = Session::get('user');
-        if ($user['rol'] != 'Coordinador') {
+        if (!$user || $user['rol'] != 'Coordinador') {
             abort(403, 'No autorizado.');
         }
 
@@ -276,18 +277,27 @@ class ReporteController extends Controller
 
         $catalogo = self::catalogo();
         if (!isset($catalogo[$tipo])) {
-            abort(400, 'Tipo de reporte no válido.');
+            $tipo = 'citas';
         }
 
         if (empty($secciones) || !is_array($secciones)) {
-            abort(400, 'Debes seleccionar al menos una sección para generar el reporte.');
+            $secciones = ['resumen'];
+        }
+
+        if (count($secciones) > 20) {
+            $secciones = array_slice($secciones, 0, 20);
         }
 
         $seccionesValidas = array_keys($catalogo[$tipo]['secciones']);
         $secciones = array_values(array_intersect($secciones, $seccionesValidas));
 
         if (empty($secciones)) {
-            abort(400, 'Ninguna sección válida fue seleccionada.');
+            $secciones = ['resumen'];
+        }
+
+        // Validar periodo
+        if (!in_array($periodo, ['semana', 'mes', 'anio', 'libre'], true)) {
+            $periodo = 'semana';
         }
 
         // Rango de fechas
@@ -298,54 +308,100 @@ class ReporteController extends Controller
         switch ($periodo) {
             case 'semana':
                 $semana = $request->get('semana');
-                if ($semana) {
-                    $year = substr($semana, 0, 4);
-                    $week = substr($semana, 6, 2);
-                    $fechaInicio = (new \DateTime())->setISODate($year, $week, 1)->format('Y-m-d');
-                    $fechaFin    = (new \DateTime())->setISODate($year, $week, 7)->format('Y-m-d');
-                    $periodoLabel = "Semana {$week} del año {$year}";
-                } else {
-                    $fechaInicio = now()->subWeek()->startOfWeek()->toDateString();
-                    $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
-                    $periodoLabel = 'Semana anterior';
+                if ($semana && preg_match('/^\d{4}-W\d{2}$/', (string) $semana)) {
+                    $year = (int) substr($semana, 0, 4);
+                    $week = (int) substr($semana, 6, 2);
+                    if ($week >= 1 && $week <= 53) {
+                        $fechaInicio = (new \DateTime())->setISODate($year, $week, 1)->format('Y-m-d');
+                        $fechaFin    = (new \DateTime())->setISODate($year, $week, 7)->format('Y-m-d');
+                        $periodoLabel = "Semana {$week} del anio {$year}";
+                        break;
+                    }
                 }
+                $fechaInicio = now()->subWeek()->startOfWeek()->toDateString();
+                $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
+                $periodoLabel = 'Semana anterior';
                 break;
 
             case 'mes':
                 $mes = $request->get('mes');
-                if ($mes) {
-                    $fechaInicio = $mes . '-01';
-                    $fechaFin    = date('Y-m-t', strtotime($fechaInicio));
-                    $periodoLabel = $this->mesLabel($mes);
-                } else {
-                    $fechaInicio = now()->subMonth()->startOfMonth()->toDateString();
-                    $fechaFin    = now()->subMonth()->endOfMonth()->toDateString();
-                    $periodoLabel = 'Mes anterior';
+                if ($mes && preg_match('/^\d{4}-\d{2}$/', (string) $mes)) {
+                    [, $mesNum] = explode('-', $mes);
+                    if ((int) $mesNum >= 1 && (int) $mesNum <= 12) {
+                        $fechaInicio = $mes . '-01';
+                        $fechaFin    = date('Y-m-t', strtotime($fechaInicio));
+                        $periodoLabel = $this->mesLabel($mes);
+                        break;
+                    }
                 }
+                $fechaInicio = now()->subMonth()->startOfMonth()->toDateString();
+                $fechaFin    = now()->subMonth()->endOfMonth()->toDateString();
+                $periodoLabel = 'Mes anterior';
                 break;
 
             case 'anio':
                 $anio = $request->get('anio');
-                if (!$anio) $anio = now()->year;
+                if ($anio && preg_match('/^\d{4}$/', (string) $anio)) {
+                    $anio = (int) $anio;
+                    if ($anio < 2000 || $anio > 2100) {
+                        $anio = now()->year;
+                    }
+                } else {
+                    $anio = now()->year;
+                }
                 $fechaInicio = "{$anio}-01-01";
                 $fechaFin    = "{$anio}-12-31";
-                $periodoLabel = "Año {$anio}";
+                $periodoLabel = "Anio {$anio}";
                 break;
 
             case 'libre':
             default:
-                $fechaInicio = $request->get('fecha_inicio');
-                $fechaFin    = $request->get('fecha_fin');
+                $rawInicio = $request->get('fecha_inicio');
+                $rawFin    = $request->get('fecha_fin');
 
-                if (!$fechaInicio || !$fechaFin) {
+                $inicioValido = $rawInicio && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $rawInicio);
+                $finValido    = $rawFin    && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $rawFin);
+
+                if (!$inicioValido || !$finValido) {
+                    // Formato invalido -> usar semana anterior silenciosamente
                     $fechaInicio = now()->subWeek()->startOfWeek()->toDateString();
                     $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
-                    $periodoLabel = 'Semana anterior (por defecto)';
+                    $periodoLabel = 'Semana anterior (fechas invalidas)';
                 } else {
-                    $periodoLabel = 'Fechas personalizadas';
+                    // Verificar que sean fechas reales
+                    try {
+                        new \DateTime($rawInicio);
+                        new \DateTime($rawFin);
+                        $fechaInicio = $rawInicio;
+                        $fechaFin    = $rawFin;
+
+                        // Si inicio > fin, intercambiar silenciosamente
+                        if ($fechaInicio > $fechaFin) {
+                            [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
+                            $periodoLabel = 'Fechas personalizadas (invertidas)';
+                        } else {
+                            $periodoLabel = 'Fechas personalizadas';
+                        }
+                    } catch (\Exception $e) {
+                        $fechaInicio = now()->subWeek()->startOfWeek()->toDateString();
+                        $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
+                        $periodoLabel = 'Semana anterior (fechas invalidas)';
+                    }
                 }
                 break;
         }
+
+        // Auditoria
+        Log::info('Reporte PDF generado', [
+            'tipo'          => $tipo,
+            'periodo'       => $periodo,
+            'fecha_inicio'  => $fechaInicio,
+            'fecha_fin'     => $fechaFin,
+            'secciones'     => $secciones,
+            'por_usuario'   => $user['usuario'] ?? null,
+            'rol'           => $user['rol'] ?? null,
+            'ip'            => $request->ip(),
+        ]);
 
         $datos = $this->recopilarDatos($fechaInicio, $fechaFin);
 
@@ -400,7 +456,7 @@ class ReporteController extends Controller
     // Recopila todos los datos agregados del periodo para armar el PDF
     private function recopilarDatos($fechaInicio, $fechaFin): array
     {
-        // ---- Números principales ----
+        // ---- Numeros principales ----
         $totalCitas = DB::table('citas')->whereBetween('fecha', [$fechaInicio, $fechaFin])->count();
 
         $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->where('visibilidad_usuario', 1)->count();
@@ -426,7 +482,7 @@ class ReporteController extends Controller
         $tasaCompletacion = $totalCitas > 0 ? round(($completadas / $totalCitas) * 100, 1) : 0;
         $tasaCancelacion  = $totalCitas > 0 ? round(($canceladas  / $totalCitas) * 100, 1) : 0;
 
-        // ---- Citas por tipo de clasificación ----
+        // ---- Citas por tipo de clasificacion ----
         $citasPorClasificacion = DB::table('citas')
             ->select('clasificacion', DB::raw('count(*) as total'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -466,7 +522,7 @@ class ReporteController extends Controller
             ->limit(10)
             ->get();
 
-        // ---- Desglose por formador (con pendientes y % asistencia) ----
+        // ---- Desglose por formador ----
         $detallesFormador = DB::table('citas')
             ->select(
                 'nombre_formador as formador',
@@ -485,7 +541,6 @@ class ReporteController extends Controller
             ->orderBy('total', 'desc')
             ->get();
 
-        // Calcular % asistencia por formador
         foreach ($detallesFormador as $d) {
             $base = $d->asistencias + $d->faltas;
             $d->pct_asistencia = $base > 0 ? round(($d->asistencias / $base) * 100, 1) : 0;
@@ -494,9 +549,7 @@ class ReporteController extends Controller
         $formadoresActivos = $detallesFormador->count();
         $promedio = $formadoresActivos > 0 ? round($totalCitas / $formadoresActivos, 1) : 0;
 
-        // ---- Ranking de estudiantes (enriquecido con temas y última sesión) ----
-        // ✅ Optimización: antes se hacían 2 queries por cada estudiante del top (20 queries totales).
-        //    Ahora se hacen 2 queries agregadas para todos los del top.
+        // ---- Ranking de estudiantes ----
         $topEstudiantesRaw = DB::table('citas')
             ->select('nombre_estudiante', DB::raw('count(*) as total_citas'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -507,7 +560,6 @@ class ReporteController extends Controller
 
         $nombresTop = $topEstudiantesRaw->pluck('nombre_estudiante')->toArray();
 
-        // 1 query: temas distintos por estudiante del top
         $temasPorEstudiante = empty($nombresTop)
             ? collect()
             : DB::table('citas')
@@ -520,7 +572,6 @@ class ReporteController extends Controller
                 ->groupBy('nombre_estudiante')
                 ->map(fn($rows) => $rows->pluck('clasificacion')->toArray());
 
-        // 1 query: última sesión por estudiante del top
         $ultimaSesionPorEstudiante = empty($nombresTop)
             ? collect()
             : DB::table('citas')
@@ -537,7 +588,7 @@ class ReporteController extends Controller
             $topEstudiantes[] = $e;
         }
 
-        // ---- Inscritos por grado (universo) ----
+        // ---- Inscritos por grado ----
         $inscritosPorGrado = DB::table('estudiantes')
             ->select('grado', DB::raw('count(*) as total'))
             ->groupBy('grado')
@@ -552,7 +603,7 @@ class ReporteController extends Controller
                 return $item->grado . '|' . $item->grupo;
             });
 
-        // ---- Estudiantes por grado (enriquecido con inscritos y % cobertura) ----
+        // ---- Estudiantes por grado ----
         $estudiantesPorGrado = DB::table('citas')
             ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
             ->select('estudiantes.grado', DB::raw('count(distinct citas.id_estudiante) as total'))
@@ -568,7 +619,7 @@ class ReporteController extends Controller
                 : 0;
         }
 
-        // ---- Estudiantes por grado Y grupo (enriquecido con inscritos y % cobertura) ----
+        // ---- Estudiantes por grado y grupo ----
         $estudiantesPorGradoGrupo = DB::table('citas')
             ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
             ->select(
@@ -590,7 +641,7 @@ class ReporteController extends Controller
                 : 0;
         }
 
-        // ---- Cobertura histórica general ----
+        // ---- Cobertura historica general ----
         $estudiantesAtendidosHistorico = DB::table('citas')
             ->whereNotNull('id_estudiante')
             ->distinct('id_estudiante')
@@ -601,7 +652,7 @@ class ReporteController extends Controller
             ? round(($estudiantesAtendidosHistorico / $totalEstudiantes) * 100, 1)
             : 0;
 
-        // ---- Cobertura por grado (inscritos, atendidos, sin atención, %) ----
+        // ---- Cobertura por grado ----
         $atendidosPorGrado = DB::table('citas')
             ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
             ->select('estudiantes.grado', DB::raw('count(distinct citas.id_estudiante) as total'))
@@ -654,7 +705,7 @@ class ReporteController extends Controller
             return strcmp($a->grado, $b->grado);
         });
 
-        // ---- Frecuencia de uso (cuántas citas tuvo cada estudiante en el periodo) ----
+        // ---- Frecuencia de uso ----
         $frecuenciaRaw = DB::table('citas')
             ->select('id_estudiante', DB::raw('count(*) as total'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -678,7 +729,6 @@ class ReporteController extends Controller
         ];
 
         // ---- Estudiantes nuevos vs recurrentes por mes ----
-        // Mapa: id_estudiante => fecha de su primera cita en toda la historia
         $primerasCitasMap = [];
         $primerasCitasRaw = DB::table('citas')
             ->select('id_estudiante', DB::raw('MIN(fecha) as primera'))
@@ -689,14 +739,18 @@ class ReporteController extends Controller
             $primerasCitasMap[$p->id_estudiante] = $p->primera;
         }
 
-        // Lista de meses que toca el rango
+        // Lista de meses que toca el rango (con proteccion contra loops infinitos)
         $meses = [];
         $cursor = new \DateTime($fechaInicio);
         $cursor->modify('first day of this month');
         $cursorFin = new \DateTime($fechaFin);
-        while ($cursor <= $cursorFin) {
+
+        $iteraciones = 0;
+        $maxIteraciones = 120; // 10 anios de meses
+        while ($cursor <= $cursorFin && $iteraciones < $maxIteraciones) {
             $meses[] = $cursor->format('Y-m');
             $cursor->modify('+1 month');
+            $iteraciones++;
         }
 
         $estudiantesNuevosMes = [];
@@ -704,7 +758,6 @@ class ReporteController extends Controller
             $mesIni = $mes . '-01';
             $mesFin = date('Y-m-t', strtotime($mesIni));
 
-            // Estudiantes que tuvieron cita este mes
             $idsMes = DB::table('citas')
                 ->whereBetween('fecha', [$mesIni, $mesFin])
                 ->whereNotNull('id_estudiante')
@@ -724,7 +777,6 @@ class ReporteController extends Controller
                 }
             }
 
-            // Citas totales del mes
             $totalMes = DB::table('citas')
                 ->whereBetween('fecha', [$mesIni, $mesFin])
                 ->count();

@@ -33,8 +33,9 @@ return [
 
     'whatsapp' => [
         'enabled'               => env('WHATSAPP_ENABLED', true),
-        'microservice_url'      => env('WHATSAPP_MICROSERVICE_URL', 'http://localhost:3001'),
+        'microservice_url'      => env('WHATSAPP_MICROSERVICE_URL', 'http://127.0.0.1:3001'),
         'microservice_timeout'  => env('WHATSAPP_MICROSERVICE_TIMEOUT', 15),
+        'api_key'               => env('WHATSAPP_API_KEY'),
     ],
 
 ];

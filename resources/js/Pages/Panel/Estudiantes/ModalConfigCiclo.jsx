@@ -16,7 +16,7 @@ export default function ModalConfigCiclo({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-gray-800">Configurar ciclo escolar</h3>
+                    <h3 className="text-xl font-bold text-gray-800">Actualizar lista de estudiantes</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -27,7 +27,7 @@ export default function ModalConfigCiclo({
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Fecha de inicio del ciclo escolar
+                            Fecha de inicio del ciclo
                         </label>
                         <input
                             type="date"
@@ -36,7 +36,7 @@ export default function ModalConfigCiclo({
                             className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
                         />
                         <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                            Esta fecha determina cuándo se activa el aviso de "Actualización pendiente" en el menú lateral. Una vez que se importe el archivo de estudiantes, el aviso se ocultará automáticamente.
+                            A partir de esta fecha, el sistema mostrará un aviso al Coordinador para que suba la lista de estudiantes actualizada. El aviso se oculta automáticamente al completar la importación.
                         </p>
                     </div>
 
@@ -49,9 +49,9 @@ export default function ModalConfigCiclo({
                                 className="w-4 h-4 mt-0.5 text-[#FF5900] border-gray-300 rounded focus:ring-[#FF5900]"
                             />
                             <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-800">Forzar mostrar importación</div>
+                                <div className="text-sm font-medium text-gray-800">Mostrar el formulario de importación ahora</div>
                                 <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                                    Actívalo si necesitas importar estudiantes fuera del periodo habitual. Recuerda desactivarlo cuando termines.
+                                    Úsalo solo si necesitas subir la lista fuera de la fecha programada (por ejemplo, cuando llegan estudiantes nuevos a mitad del ciclo). Desactívalo cuando termines.
                                 </div>
                             </div>
                         </label>
@@ -72,7 +72,9 @@ export default function ModalConfigCiclo({
                             </svg>
                         )}
                         <span>
-                            Con esta configuración, el bloque de importación <strong>{previewMostrar ? 'se mostrará' : 'no se mostrará'}</strong> en la página.
+                            <strong>Estado actual:</strong> el formulario de importación{' '}
+                            <strong>{previewMostrar ? 'estará visible' : 'estará oculto'}</strong>{' '}
+                            en la página de Estudiantes.
                         </span>
                     </div>
                 </div>
@@ -91,7 +93,7 @@ export default function ModalConfigCiclo({
                         disabled={guardandoConfig}
                         className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50"
                     >
-                        {guardandoConfig ? 'Guardando...' : 'Guardar configuración'}
+                        {guardandoConfig ? 'Guardando...' : 'Guardar y aplicar'}
                     </button>
                 </div>
             </div>

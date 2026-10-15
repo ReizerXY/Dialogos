@@ -11,7 +11,11 @@ use App\Services\CacheInvalidator;
 
 class CitaController extends Controller
 {
-    // Muestra el formulario público para solicitar cita
+    private const DIAS_ANTICIPACION_DEFAULT = 1;
+    private const DIAS_ANTICIPACION_MAX     = 15;
+    private const DIAS_VENTANA_AGENDA       = 7;
+
+    // Muestra el formulario publico para agendar cita
     public function index()
     {
         $formadores = DB::table('usuarios')
@@ -28,62 +32,21 @@ class CitaController extends Controller
             })
             ->toArray();
 
+        // Verificar si la solicitud de citas esta activa
+        $configSC = DB::table('configuracion')->where('clave', 'solicitud_citas_activa')->first();
+        $solicitudActiva = $configSC && (string) $configSC->valor === '1';
+
+        // Leer dias de anticipacion configurados
+        $diasAnticipacion = $this->leerDiasAnticipacion();
+
         return inertia('SolicitarCita', [
-            'formadores' => $formadores,
+            'formadores'       => $formadores,
+            'solicitudActiva'  => $solicitudActiva,
+            'diasAnticipacion' => $diasAnticipacion,
         ]);
     }
 
-    // Verifica si existe un estudiante por su ID
-    public function verificarIdEstudiante($id_estudiante)
-    {
-        $estudiante = DB::table('estudiantes')
-            ->where('id_estudiante', $id_estudiante)
-            ->first();
-
-        if ($estudiante) {
-            $nombreCompleto = trim($estudiante->nombre . ' ' . $estudiante->apellido_paterno . ' ' . $estudiante->apellido_materno);
-
-            return response()->json([
-                'existe' => true,
-                'nombre' => $nombreCompleto,
-                'id_estudiante' => $estudiante->id_estudiante,
-            ]);
-        }
-
-        return response()->json(['existe' => false]);
-    }
-
-    // Busca estudiantes por nombre, apellidos o ID
-    public function estudiantes(Request $request)
-    {
-        $query = $request->get('q', '');
-        if (strlen($query) < 1) {
-            return response()->json([]);
-        }
-
-        $estudiantes = DB::table('estudiantes')
-            ->where(function ($q) use ($query) {
-                $q->where('nombre', 'LIKE', "%$query%")
-                  ->orWhere('apellido_paterno', 'LIKE', "%$query%")
-                  ->orWhere('apellido_materno', 'LIKE', "%$query%")
-                  ->orWhere('id_estudiante', 'LIKE', "%$query%");
-            })
-            ->select('id_estudiante', 'nombre', 'apellido_paterno', 'apellido_materno', 'grado', 'grupo')
-            ->limit(10)
-            ->get()
-            ->map(function ($e) {
-                return [
-                    'id_estudiante' => $e->id_estudiante,
-                    'nombre'        => trim($e->nombre . ' ' . $e->apellido_paterno . ' ' . $e->apellido_materno),
-                    'grado'         => $e->grado,
-                    'grupo'         => $e->grupo,
-                ];
-            });
-
-        return response()->json($estudiantes);
-    }
-
-    // Devuelve los horarios disponibles de un formador en los próximos 7 días
+    // Devuelve los horarios disponibles de un formador en la ventana de agenda
     public function disponibilidad(Request $request)
     {
         $formadorId = $request->get('formador_id');
@@ -91,11 +54,13 @@ class CitaController extends Controller
             return response()->json([]);
         }
 
-        $hoy = now();
-        $limite = now()->addDays(7);
+        // ✅ La ventana empieza en (hoy + diasAnticipacion) y dura 7 días
+        $diasAnticipacion = $this->leerDiasAnticipacion();
+        $hoy = now()->addDays($diasAnticipacion);
+        $limite = $hoy->copy()->addDays(self::DIAS_VENTANA_AGENDA);
 
         $diasSemana = [];
-        for ($i = 0; $i <= 7; $i++) {
+        for ($i = 0; $i <= self::DIAS_VENTANA_AGENDA; $i++) {
             $fecha = $hoy->copy()->addDays($i);
             $diasSemana[] = [
                 'fecha' => $fecha->toDateString(),
@@ -143,14 +108,47 @@ class CitaController extends Controller
         return response()->json($disponible);
     }
 
-    // Guarda una nueva cita solicitada desde el formulario público
+    // Guarda una nueva cita solicitada desde el formulario publico
     public function store(Request $request)
     {
+        // Verificar si la solicitud de citas esta activa
+        $configSC = DB::table('configuracion')->where('clave', 'solicitud_citas_activa')->first();
+        if (!$configSC || (string) $configSC->valor !== '1') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Las solicitudes de cita estan temporalmente deshabilitadas.'
+            ], 403);
+        }
+
         try {
-            // ✅ FIX: la validación ya no depende de la columna inexistente 'activo'.
-            //    Ahora exige que el formador tenga visibilidad Y acceso habilitados.
+            $mensajes = [
+                'id_estudiante.required' => 'Ingresa tu ID de estudiante.',
+                'id_estudiante.string'   => 'El ID de estudiante no es valido.',
+                'id_estudiante.max'      => 'El ID de estudiante no puede tener mas de 10 caracteres.',
+                'id_estudiante.exists'   => 'No se encontro ningun estudiante con ese ID. Verifica tu credencial.',
+                'usuario_id.required'    => 'Selecciona un formador.',
+                'usuario_id.integer'     => 'El formador seleccionado no es valido.',
+                'usuario_id.exists'      => 'El formador seleccionado no esta disponible en este momento.',
+                'fecha.required'         => 'Selecciona una fecha para tu cita.',
+                'fecha.date'             => 'La fecha seleccionada no es valida.',
+                'hora.required'          => 'Selecciona una hora para tu cita.',
+                'hora.date_format'       => 'La hora seleccionada no tiene el formato correcto.',
+            ];
+
+            $atributos = [
+                'id_estudiante' => 'ID de estudiante',
+                'usuario_id'    => 'formador',
+                'fecha'         => 'fecha',
+                'hora'          => 'hora',
+            ];
+
             $validated = $request->validate([
-                'nombre_estudiante' => 'required|string|max:100',
+                'id_estudiante' => [
+                    'required',
+                    'string',
+                    'max:10',
+                    Rule::exists('estudiantes', 'id_estudiante'),
+                ],
                 'usuario_id' => [
                     'required',
                     'integer',
@@ -160,15 +158,24 @@ class CitaController extends Controller
                 ],
                 'fecha' => 'required|date',
                 'hora'  => 'required|date_format:H:i',
-            ]);
+            ], $mensajes, $atributos);
 
-            // Busca al estudiante por su nombre completo (nombre + apellidos concatenados)
             $estudiante = DB::table('estudiantes')
-                ->whereRaw(
-                    "CONCAT(nombre, ' ', apellido_paterno, ' ', apellido_materno) = ?",
-                    [$validated['nombre_estudiante']]
-                )
+                ->where('id_estudiante', $validated['id_estudiante'])
                 ->first();
+
+            if (!$estudiante) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontro al estudiante con ese ID.'
+                ], 422);
+            }
+
+            $nombreCompleto = trim(
+                $estudiante->nombre . ' ' .
+                $estudiante->apellido_paterno . ' ' .
+                $estudiante->apellido_materno
+            );
 
             $formador = DB::table('usuarios')
                 ->where('id_usuario', $validated['usuario_id'])
@@ -177,8 +184,8 @@ class CitaController extends Controller
             $horaConSegundos = $validated['hora'] . ':00';
 
             $newId = DB::table('citas')->insertGetId([
-                'id_estudiante'     => $estudiante ? $estudiante->id_estudiante : null,
-                'nombre_estudiante' => $validated['nombre_estudiante'],
+                'id_estudiante'     => $estudiante->id_estudiante,
+                'nombre_estudiante' => $nombreCompleto,
                 'id_usuario'        => $validated['usuario_id'],
                 'nombre_formador'   => $formador->nombre ?? null,
                 'fecha'             => $validated['fecha'],
@@ -188,19 +195,18 @@ class CitaController extends Controller
                 'estado'            => 'programada',
             ]);
 
-            // ✅ Encolar el envío de WhatsApp (no bloquea la respuesta)
             try {
                 $cita = DB::table('citas')->where('id_cita', $newId)->first();
                 \App\Jobs\SendWhatsAppJob::dispatch($cita, 'confirmacion');
             } catch (\Exception $e) {
-                Log::warning('Error al encolar WhatsApp de confirmación: ' . $e->getMessage());
+                Log::warning('Error al encolar WhatsApp de confirmacion: ' . $e->getMessage());
             }
 
             CacheInvalidator::indicadores();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cita solicitada exitosamente.'
+                'message' => 'Cita agendada exitosamente.'
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
@@ -208,8 +214,30 @@ class CitaController extends Controller
             Log::error('Error al guardar cita:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar: ' . $e->getMessage()
+                'message' => 'Error al procesar la solicitud. Intenta de nuevo.'
             ], 500);
+        }
+    }
+
+    // Lee los dias de anticipacion minimos desde configuracion
+    private function leerDiasAnticipacion(): int
+    {
+        try {
+            $valor = DB::table('configuracion')
+                ->where('clave', 'dias_anticipacion')
+                ->value('valor');
+
+            if ($valor === null) {
+                return self::DIAS_ANTICIPACION_DEFAULT;
+            }
+
+            $dias = (int) $valor;
+            if ($dias < 0) $dias = 0;
+            if ($dias > self::DIAS_ANTICIPACION_MAX) $dias = self::DIAS_ANTICIPACION_MAX;
+
+            return $dias;
+        } catch (\Exception $e) {
+            return self::DIAS_ANTICIPACION_DEFAULT;
         }
     }
 }

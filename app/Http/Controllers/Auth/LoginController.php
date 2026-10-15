@@ -15,8 +15,7 @@ class LoginController extends Controller
     private const MAX_INTENTOS = 5;
     private const VENTANA_SEGUNDOS = 300;
 
-    // Muestra el formulario de login.
-    // Si ya hay una sesión activa (y no expirada), redirige al panel del usuario.
+    // Muestra el formulario de login. Si ya hay sesion activa, redirige al panel.
     public function showLoginForm()
     {
         if ($this->tieneSesionActiva()) {
@@ -26,16 +25,19 @@ class LoginController extends Controller
         return inertia('Auth/LoginCustom');
     }
 
-    // Procesa el login. Regenera la sesión antes de guardar los datos del usuario.
+    // Procesa el login. Regenera la sesion antes de guardar los datos del usuario.
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'usuario' => 'required|string',
-            'clave'   => 'required|string',
+            'usuario' => 'required|string|max:50',
+            'clave'   => 'required|string|max:255',
+        ], [
+            'usuario.required' => 'Ingresa tu usuario.',
+            'usuario.max'      => 'El usuario no es valido.',
+            'clave.required'   => 'Ingresa tu clave.',
         ]);
 
-        // Clave única para el rate limiter: IP + usuario.
-        // Solo cuenta intentos FALLIDOS. Un login correcto limpia el contador.
+        // Clave unica para el rate limiter: IP + usuario
         $throttleKey = 'login|' . $request->ip() . '|' . strtolower($credentials['usuario']);
 
         if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_INTENTOS)) {
@@ -56,33 +58,39 @@ class LoginController extends Controller
             ]);
         }
 
-        // ✅ Chequeo de acceso ANTES de contar como intento válido.
-        //    No se incrementa el rate limiter porque las credenciales fueron correctas.
+        // Chequeo de acceso ANTES de contar como intento valido
         if ((int) $user->acceso_usuario === 0) {
             return back()->withErrors([
                 'usuario' => 'Acceso deshabilitado. Contacta al coordinador del programa.',
             ]);
         }
 
-        // Login exitoso: limpiamos el contador
+        // Login exitoso: limpiar contador
         RateLimiter::clear($throttleKey);
 
-        // Orden correcto: regenerar primero, luego guardar, luego save()
+        // Regenerar sesion (evita fijacion)
         $request->session()->regenerate();
 
-        Session::put('user', (array) $user);
+        // Guardar SOLO los campos necesarios en sesion (NUNCA 'clave')
+        Session::put('user', [
+            'id_usuario'          => $user->id_usuario,
+            'usuario'             => $user->usuario,
+            'nombre'              => $user->nombre,
+            'rol'                 => $user->rol,
+            'visibilidad_usuario' => (int) $user->visibilidad_usuario,
+        ]);
         Session::put('last_activity_at', time());
 
         Session::save();
 
-        // Redirección 302 estándar (más confiable que Inertia::location)
+        // Redireccion segun rol
         if ($user->rol === 'Coordinador') {
             return redirect()->route('indicadores.index');
         }
         return redirect()->route('citas.index');
     }
 
-    // Cierra la sesión y vuelve al login.
+    // Cierra la sesion y vuelve al login.
     public function logout(Request $request)
     {
         Session::forget('user');
@@ -98,7 +106,7 @@ class LoginController extends Controller
     // Helpers
     // ==================================================================
 
-    // Devuelve true si hay una sesión activa dentro del lifetime configurado.
+    // Devuelve true si hay una sesion activa dentro del lifetime configurado.
     private function tieneSesionActiva(): bool
     {
         if (!Session::has('user')) {
@@ -123,7 +131,7 @@ class LoginController extends Controller
         return true;
     }
 
-    // Redirige al panel correspondiente según el rol del usuario.
+    // Redirige al panel correspondiente segun el rol del usuario.
     private function redirectAlPanel()
     {
         $user = Session::get('user');

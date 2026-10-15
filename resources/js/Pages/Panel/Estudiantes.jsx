@@ -468,13 +468,23 @@ export default function Estudiantes({ estudiantes, user, config }) {
                         <button
                             onClick={() => setConfigModalOpen(true)}
                             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 hover:border-[#FF5900] hover:text-[#CC4700] transition-all duration-200"
-                            title={`Ciclo escolar: ${fechaCicloTexto}`}
+                            title={`Última actualización: ${fechaCicloTexto}`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
-                            Ciclo escolar
+                            Actualizar lista
                         </button>
+                        <a
+                            href={route('estudiantes.exportarExcel')}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-500/25 transition-all duration-200 active:scale-95"
+                            title="Exportar la lista completa a Excel"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Exportar a Excel
+                        </a>
                         <button
                             onClick={abrirModalAgregar}
                             className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
@@ -656,7 +666,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
                 title="Eliminar estudiante"
                 message={
                     confirmEliminar.estudiante
-                        ? `¿Estás seguro de eliminar a ${confirmEliminar.estudiante.nombre} ${confirmEliminar.estudiante.apellido_paterno} ${confirmEliminar.estudiante.apellido_materno} (${confirmEliminar.estudiante.id_estudiante})? Sus citas históricas se conservarán.`
+                        ? `¿Estás seguro de eliminar a ${confirmEliminar.estudiante.nombre} ${confirmEliminar.estudiante.apellido_paterno} ${confirmEliminar.estudiante.apellido_materno} (${confirmEliminar.estudiante.id_estudiante})? Se creará automáticamente una copia de seguridad antes de eliminar. Sus citas históricas se conservarán.`
                         : ''
                 }
                 confirmText="Sí, eliminar"
@@ -669,7 +679,7 @@ export default function Estudiantes({ estudiantes, user, config }) {
                 onClose={() => setConfirmEliminarTodos({ open: false, loading: false })}
                 onConfirm={confirmarEliminarTodos}
                 title="Eliminar lista de alumnos"
-                message={`¿Estás seguro de eliminar ${listaEstudiantes.length} ${listaEstudiantes.length === 1 ? 'estudiante' : 'estudiantes'}? Esta acción no se puede deshacer. Las citas históricas se conservarán.`}
+                message={`¿Estás seguro de eliminar ${listaEstudiantes.length} ${listaEstudiantes.length === 1 ? 'estudiante' : 'estudiantes'}? Se creará automáticamente una copia de seguridad antes de eliminar. Esta acción no se puede deshacer. Las citas históricas se conservarán.`}
                 confirmText="Sí, eliminar todos"
                 variant="danger"
                 loading={confirmEliminarTodos.loading}

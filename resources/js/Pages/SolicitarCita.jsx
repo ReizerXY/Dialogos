@@ -1,13 +1,11 @@
+// resources/js/Pages/SolicitarCita.jsx
 import { useState, useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 
-export default function SolicitarCita({ formadores }) {
+export default function SolicitarCita({ formadores, solicitudActiva, diasAnticipacion = 1 }) {
     const [formadorId, setFormadorId] = useState('');
     const [idEstudiante, setIdEstudiante] = useState('');
-    const [estudianteNombre, setEstudianteNombre] = useState('');
-    const [idValido, setIdValido] = useState(false);
-    const [mensajeId, setMensajeId] = useState('');
     const [fechaSeleccionada, setFechaSeleccionada] = useState(null);
     const [horaSeleccionada, setHoraSeleccionada] = useState('');
     const [mesActual, setMesActual] = useState(new Date().getMonth() + 1);
@@ -15,7 +13,6 @@ export default function SolicitarCita({ formadores }) {
     const [disponibilidad, setDisponibilidad] = useState({});
     const [loading, setLoading] = useState(false);
 
-    // ✅ Nuevo: aviso de disponibilidad (reemplaza alert)
     const [avisoDisponibilidad, setAvisoDisponibilidad] = useState('');
 
     const [modalConfirmacionOpen, setModalConfirmacionOpen] = useState(false);
@@ -30,7 +27,6 @@ export default function SolicitarCita({ formadores }) {
         hora: false,
     });
 
-    // ✅ Auto-cerrar el aviso después de 4 segundos
     useEffect(() => {
         if (avisoDisponibilidad) {
             const t = setTimeout(() => setAvisoDisponibilidad(''), 4000);
@@ -38,40 +34,9 @@ export default function SolicitarCita({ formadores }) {
         }
     }, [avisoDisponibilidad]);
 
-    // Verificar ID de estudiante con debounce
     useEffect(() => {
-        if (idEstudiante.length < 1) {
-            setIdValido(false);
-            setEstudianteNombre('');
-            setMensajeId('');
-            return;
-        }
+        if (!solicitudActiva) return;
 
-        const delay = setTimeout(() => {
-            fetch(`/api/verificar-estudiante/${encodeURIComponent(idEstudiante)}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.existe) {
-                        setIdValido(true);
-                        setEstudianteNombre(data.nombre);
-                        setMensajeId('✅ Estudiante válido: ' + data.nombre);
-                    } else {
-                        setIdValido(false);
-                        setEstudianteNombre('');
-                        setMensajeId('❌ ID no encontrado');
-                    }
-                })
-                .catch(() => {
-                    setIdValido(false);
-                    setMensajeId('❌ Error al verificar');
-                });
-        }, 500);
-
-        return () => clearTimeout(delay);
-    }, [idEstudiante]);
-
-    // Obtener disponibilidad cuando cambia formador
-    useEffect(() => {
         if (!formadorId) {
             setDisponibilidad({});
             setFechaSeleccionada(null);
@@ -88,7 +53,7 @@ export default function SolicitarCita({ formadores }) {
                 setHoraSeleccionada('');
             })
             .catch(() => setLoading(false));
-    }, [formadorId]);
+    }, [formadorId, solicitudActiva]);
 
     const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
     const getFirstDayOfMonth = (year, month) => new Date(year, month - 1, 1).getDay();
@@ -99,11 +64,13 @@ export default function SolicitarCita({ formadores }) {
     const today = new Date();
     const hoy = formatDate(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
-    const manana = new Date(today);
-    manana.setDate(manana.getDate() + 1);
-    const fechaMinima = formatDate(manana.getFullYear(), manana.getMonth() + 1, manana.getDate());
+    // ✅ Fecha minima calculada con los dias de anticipacion configurados
+    const fechaMinDate = new Date(today);
+    fechaMinDate.setDate(fechaMinDate.getDate() + Number(diasAnticipacion || 0));
+    const fechaMinima = formatDate(fechaMinDate.getFullYear(), fechaMinDate.getMonth() + 1, fechaMinDate.getDate());
 
-    const fechaLimite = new Date(today);
+    // ✅ Ventana de 7 dias A PARTIR del dia minimo (no desde hoy)
+    const fechaLimite = new Date(fechaMinDate);
     fechaLimite.setDate(fechaLimite.getDate() + 7);
     const limiteStr = formatDate(fechaLimite.getFullYear(), fechaLimite.getMonth() + 1, fechaLimite.getDate());
 
@@ -150,7 +117,7 @@ export default function SolicitarCita({ formadores }) {
 
         const nuevosErrores = {
             formador: !formadorId,
-            idEstudiante: !idValido || !estudianteNombre,
+            idEstudiante: !idEstudiante || idEstudiante.trim().length < 1,
             fecha: !fechaSeleccionada,
             hora: !horaSeleccionada,
         };
@@ -164,12 +131,10 @@ export default function SolicitarCita({ formadores }) {
         setModalConfirmacionOpen(true);
     };
 
-        const handleConfirmarCita = async () => {
+    const handleConfirmarCita = async () => {
         setEnviando(true);
         setMensajeError('');
 
-        // ✅ Leer token CSRF de la cookie XSRF-TOKEN (siempre sincronizada con la sesión).
-        // Laravel desencripta esta cookie automáticamente al validar el request.
         const getCsrfToken = () => {
             const match = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
             return match ? decodeURIComponent(match.split('=')[1]) : '';
@@ -178,24 +143,24 @@ export default function SolicitarCita({ formadores }) {
         const csrfToken = getCsrfToken();
 
         if (!csrfToken) {
-            setMensajeError('Error de seguridad: token CSRF no encontrado. Recarga la página.');
+            setMensajeError('Error de seguridad: token CSRF no encontrado. Recarga la pagina.');
             setEnviando(false);
             return;
         }
 
         const data = {
-            nombre_estudiante: estudianteNombre,
+            id_estudiante: idEstudiante.trim(),
             usuario_id: formadorId,
             fecha: fechaSeleccionada,
             hora: horaSeleccionada,
         };
 
         try {
-            const response = await fetch('/solicitar-cita', {
+            const response = await fetch('/agendar', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': csrfToken,   // ← header cambiado (X-XSRF-TOKEN en lugar de X-CSRF-TOKEN)
+                    'X-XSRF-TOKEN': csrfToken,
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify(data),
@@ -203,13 +168,10 @@ export default function SolicitarCita({ formadores }) {
 
             const result = await response.json();
 
-            if (result.success) {
+            if (response.ok && result.success) {
                 setModalConfirmacionOpen(false);
                 setModalExitoOpen(true);
                 setIdEstudiante('');
-                setEstudianteNombre('');
-                setIdValido(false);
-                setMensajeId('');
                 setFormadorId('');
                 setFechaSeleccionada(null);
                 setHoraSeleccionada('');
@@ -220,11 +182,11 @@ export default function SolicitarCita({ formadores }) {
                     hora: false,
                 });
             } else {
-                setMensajeError(result.message || 'Error desconocido al guardar la cita.');
+                setMensajeError(result.message || 'No se pudo agendar la cita. Intenta de nuevo.');
             }
         } catch (error) {
             console.error('Error:', error);
-            setMensajeError('Error de conexión. Inténtalo de nuevo.');
+            setMensajeError('Error de conexion. Intentalo de nuevo.');
         } finally {
             setEnviando(false);
         }
@@ -237,19 +199,73 @@ export default function SolicitarCita({ formadores }) {
     const getErrorMensaje = (campo) => {
         const mensajes = {
             formador: 'Selecciona un formador.',
-            idEstudiante: 'Ingresa un ID de estudiante válido.',
+            idEstudiante: 'Ingresa tu ID de estudiante.',
             fecha: 'Selecciona una fecha disponible.',
             hora: 'Selecciona una hora disponible.',
         };
         return errores[campo] ? mensajes[campo] : null;
     };
 
+    // =====================================================
+    // SOLICITUD DESACTIVADA - Mostrar banner de cierre
+    // =====================================================
+    if (!solicitudActiva) {
+        return (
+            <GuestLayout title="Solicitudes cerradas">
+                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
+                    <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 mb-6">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+                                <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-xl font-bold text-amber-900 mb-2">
+                                    Solicitudes temporalmente cerradas
+                                </h2>
+                                <p className="text-amber-800 leading-relaxed mb-3">
+                                    Por el momento <strong>no estamos recibiendo nuevas solicitudes de citas</strong>.
+                                </p>
+                                <p className="text-amber-700 leading-relaxed text-sm">
+                                    Si necesitas agendar una cita, contacta directamente con el coordinador del programa Dialogos.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="text-center">
+                        <Link
+                            href="/"
+                            className="inline-flex items-center text-sm text-gray-600 hover:text-[#FF5900] border border-gray-300 hover:border-[#FF5900] px-4 py-2 rounded-xl transition-colors"
+                        >
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Volver al inicio
+                        </Link>
+                    </div>
+                </div>
+            </GuestLayout>
+        );
+    }
+
+    // =====================================================
+    // SOLICITUD ACTIVA - Formulario normal
+    // =====================================================
     return (
-        <GuestLayout title="Solicitar cita">
-            <Head title="Solicitar cita" />
-            <div className="bg-white rounded-lg shadow-lg p-8">
-                <h1 className="text-2xl font-bold text-gray-800 mb-4">Solicitar cita</h1>
-                <p className="text-gray-600 mb-6">Ingresa tu ID de estudiante y selecciona un formador, fecha y hora.</p>
+        <GuestLayout title="Agendar cita">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
+                <div className="mb-6 pb-6 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-[#FF5900] uppercase tracking-wide mb-1">
+                        Sistema Dialogos
+                    </p>
+                    <h1 className="text-2xl font-bold text-gray-800 mb-2">Agendar cita de acompanamiento</h1>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                        Programa de acompanamiento integral de la Prepa Anahuac Veracruz, campus Cordoba-Orizaba.
+                        Ingresa tu ID de estudiante y selecciona un formador, fecha y hora.
+                    </p>
+                </div>
 
                 <form onSubmit={handleAbrirConfirmacion} className="space-y-6">
                     {/* Formador */}
@@ -264,7 +280,7 @@ export default function SolicitarCita({ formadores }) {
                                 setFormadorId(e.target.value);
                                 setErrores(prev => ({ ...prev, formador: false }));
                             }}
-                            className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#FF5900] focus:border-[#FF5900] ${
+                            className={`mt-1 block w-full border-gray-300 rounded-xl shadow-sm focus:ring-[#FF5900]/50 focus:border-[#FF5900] ${
                                 errores.formador ? 'border-red-500 ring-1 ring-red-500' : ''
                             }`}
                         >
@@ -291,26 +307,23 @@ export default function SolicitarCita({ formadores }) {
                         </label>
                         <input
                             type="text"
+                            inputMode="numeric"
                             value={idEstudiante}
                             onChange={(e) => {
-                                setIdEstudiante(e.target.value);
+                                setIdEstudiante(e.target.value.replace(/\D/g, ''));
                                 setErrores(prev => ({ ...prev, idEstudiante: false }));
                             }}
                             maxLength={10}
-                            className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm font-mono focus:ring-[#FF5900] focus:border-[#FF5900] ${
-                                idEstudiante && mensajeId.includes('❌') ? 'border-red-500' : ''
-                            } ${idEstudiante && mensajeId.includes('✅') ? 'border-green-500' : ''} ${
-                                errores.idEstudiante && !mensajeId.includes('✅') ? 'border-red-500 ring-1 ring-red-500' : ''
+                            className={`mt-1 block w-full border-gray-300 rounded-xl shadow-sm font-mono focus:ring-[#FF5900]/50 focus:border-[#FF5900] ${
+                                errores.idEstudiante ? 'border-red-500 ring-1 ring-red-500' : ''
                             }`}
                             placeholder="Ej. 625447"
                             autoFocus
                         />
-                        {mensajeId && (
-                            <p className={`mt-1 text-sm ${mensajeId.includes('❌') ? 'text-red-600' : 'text-green-600'}`}>
-                                {mensajeId}
-                            </p>
-                        )}
-                        {errores.idEstudiante && !mensajeId.includes('✅') && (
+                        <p className="mt-1 text-xs text-gray-500">
+                            Ingresa el ID que aparece en tu credencial escolar.
+                        </p>
+                        {getErrorMensaje('idEstudiante') && (
                             <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -328,18 +341,17 @@ export default function SolicitarCita({ formadores }) {
                         </label>
                         {loading && <p className="text-sm text-gray-500">Cargando disponibilidad...</p>}
                         {!loading && (
-                            <div className={`bg-gray-50 p-4 rounded-md ${errores.fecha ? 'border-2 border-red-500' : ''}`}>
+                            <div className={`bg-gray-50 p-4 rounded-xl ${errores.fecha ? 'border-2 border-red-500' : ''}`}>
                                 <div className="flex justify-between items-center mb-4">
-                                    <button type="button" onClick={() => cambiarMes(-1)} className="text-[#FF5900] hover:text-[#CC4700]">&larr;</button>
-                                    <span className="font-semibold">
+                                    <button type="button" onClick={() => cambiarMes(-1)} className="text-[#FF5900] hover:text-[#CC4700] font-bold text-lg px-2">&larr;</button>
+                                    <span className="font-semibold capitalize">
                                         {new Date(anioActual, mesActual - 1).toLocaleString('es', { month: 'long', year: 'numeric' })}
                                     </span>
-                                    <button type="button" onClick={() => cambiarMes(1)} className="text-[#FF5900] hover:text-[#CC4700]">&rarr;</button>
+                                    <button type="button" onClick={() => cambiarMes(1)} className="text-[#FF5900] hover:text-[#CC4700] font-bold text-lg px-2">&rarr;</button>
                                 </div>
 
-                                {/* ✅ Aviso visual en lugar de alert */}
                                 {avisoDisponibilidad && (
-                                    <div className="mb-3 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-3 rounded-lg flex items-start gap-2 text-sm">
+                                    <div className="mb-3 bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-xl flex items-start gap-2 text-sm">
                                         <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
                                         </svg>
@@ -348,13 +360,13 @@ export default function SolicitarCita({ formadores }) {
                                 )}
 
                                 <div className="grid grid-cols-7 gap-1 text-center">
-                                    {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="text-xs font-medium text-gray-500">{d}</div>)}
+                                    {['Dom','Lun','Mar','Mie','Jue','Vie','Sab'].map(d => <div key={d} className="text-xs font-medium text-gray-500">{d}</div>)}
 
                                     {dias.map((dia, index) => {
                                         if (dia === null) return <div key={index} className="p-2"></div>;
 
                                         const esSeleccionada = fechaSeleccionada === dia.fechaStr;
-                                        let claseDia = 'p-2 rounded-md text-sm transition-colors duration-150';
+                                        let claseDia = 'p-2 rounded-lg text-sm transition-colors duration-150';
 
                                         if (dia.deshabilitado) {
                                             claseDia += ' text-gray-300 cursor-not-allowed';
@@ -368,7 +380,7 @@ export default function SolicitarCita({ formadores }) {
                                         }
 
                                         if (dia.esHoy) {
-                                            claseDia = 'p-2 rounded-md text-sm bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200';
+                                            claseDia = 'p-2 rounded-lg text-sm bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200';
                                         }
 
                                         return (
@@ -380,10 +392,9 @@ export default function SolicitarCita({ formadores }) {
                                                         setFechaSeleccionada(dia.fechaStr);
                                                         setErrores(prev => ({ ...prev, fecha: false }));
                                                         setHoraSeleccionada('');
-                                                        setAvisoDisponibilidad(''); // limpiar aviso al seleccionar
+                                                        setAvisoDisponibilidad('');
                                                     } else if (!dia.deshabilitado && !dia.disponible) {
-                                                        // ✅ Reemplazo del alert por banner visual
-                                                        setAvisoDisponibilidad(`No hay disponibilidad para el ${dia.dia} con el formador seleccionado. Prueba otra fecha.`);
+                                                        setAvisoDisponibilidad(`No hay disponibilidad para el ${dia.dia} con el formador seleccionado. Intenta otra fecha.`);
                                                     }
                                                 }}
                                             >
@@ -423,7 +434,7 @@ export default function SolicitarCita({ formadores }) {
                                     setHoraSeleccionada(e.target.value);
                                     setErrores(prev => ({ ...prev, hora: false }));
                                 }}
-                                className={`mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#FF5900] focus:border-[#FF5900] ${
+                                className={`mt-1 block w-full border-gray-300 rounded-xl shadow-sm focus:ring-[#FF5900]/50 focus:border-[#FF5900] ${
                                     errores.hora ? 'border-red-500 ring-1 ring-red-500' : ''
                                 }`}
                             >
@@ -448,9 +459,9 @@ export default function SolicitarCita({ formadores }) {
                     <div className="flex justify-end">
                         <button
                             type="submit"
-                            className="px-6 py-2 bg-[#FF5900] text-white font-semibold rounded-lg hover:bg-[#CC4700] transition-colors duration-200"
+                            className="px-6 py-3 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] transition-all duration-200 active:scale-95"
                         >
-                            Solicitar cita
+                            Agendar cita
                         </button>
                     </div>
                 </form>
@@ -458,7 +469,7 @@ export default function SolicitarCita({ formadores }) {
                 <div className="mt-6 text-center">
                     <Link
                         href="/"
-                        className="inline-flex items-center text-sm text-gray-600 hover:text-[#FF5900] border border-gray-300 hover:border-[#FF5900] px-4 py-2 rounded-md transition-colors"
+                        className="inline-flex items-center text-sm text-gray-600 hover:text-[#FF5900] border border-gray-300 hover:border-[#FF5900] px-4 py-2 rounded-xl transition-colors"
                     >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -468,21 +479,20 @@ export default function SolicitarCita({ formadores }) {
                 </div>
             </div>
 
-            {/* Modal de confirmación */}
+            {/* Modal de confirmacion */}
             {modalConfirmacionOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <h2 className="text-2xl font-bold text-gray-800 mb-4">Confirmar cita</h2>
                         <div className="bg-gray-50 rounded-xl p-4 space-y-2 mb-4">
-                            <p><span className="font-medium">Estudiante:</span> {estudianteNombre}</p>
-                            <p><span className="font-medium">ID:</span> {idEstudiante}</p>
+                            <p><span className="font-medium">ID Estudiante:</span> {idEstudiante}</p>
                             <p><span className="font-medium">Formador:</span> {formadores.find(f => f.id == formadorId)?.nombre}</p>
                             <p><span className="font-medium">Fecha:</span> {fechaSeleccionada}</p>
                             <p><span className="font-medium">Hora:</span> {horaSeleccionada}</p>
                         </div>
                         {mensajeError && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm">
-                                ❌ {mensajeError}
+                            <div className="bg-red-50 text-red-700 border border-red-200 p-3 rounded-xl mb-4 text-sm">
+                                {mensajeError}
                             </div>
                         )}
                         <div className="flex justify-end gap-3">
@@ -501,7 +511,7 @@ export default function SolicitarCita({ formadores }) {
                                 type="button"
                                 onClick={handleConfirmarCita}
                                 disabled={enviando}
-                                className="px-6 py-2 bg-[#FF5900] text-white rounded-xl hover:bg-[#CC4700] transition disabled:opacity-50"
+                                className="px-6 py-2 bg-[#FF5900] text-white rounded-xl hover:bg-[#CC4700] transition disabled:opacity-50 active:scale-95"
                             >
                                 {enviando ? 'Enviando...' : 'Confirmar cita'}
                             </button>
@@ -510,7 +520,7 @@ export default function SolicitarCita({ formadores }) {
                 </div>
             )}
 
-            {/* Modal de éxito */}
+            {/* Modal de exito */}
             {modalExitoOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 text-center">
@@ -519,14 +529,14 @@ export default function SolicitarCita({ formadores }) {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">¡Cita realizada!</h2>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Cita agendada</h2>
                         <p className="text-gray-600 mb-6">
-                            Tu cita ha sido agendada exitosamente. Recibirás un recordatorio por mensaje.
+                            Tu solicitud fue registrada correctamente. Recibiras la confirmacion por los canales institucionales del programa.
                         </p>
                         <button
                             type="button"
                             onClick={cerrarExito}
-                            className="px-6 py-2 bg-[#FF5900] text-white rounded-xl hover:bg-[#CC4700] transition"
+                            className="px-6 py-2 bg-[#FF5900] text-white rounded-xl hover:bg-[#CC4700] transition active:scale-95"
                         >
                             Aceptar
                         </button>

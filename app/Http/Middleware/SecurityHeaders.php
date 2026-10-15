@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeaders
 {
+    // Aplica headers de seguridad a todas las respuestas
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
@@ -23,6 +24,7 @@ class SecurityHeaders
         );
 
         if (app()->environment('production')) {
+            // CSP mas estricta: sin unsafe-inline ni unsafe-eval donde se pueda
             $csp = "default-src 'self'; "
                  . "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
                  . "style-src 'self' 'unsafe-inline' https://fonts.bunny.net; "
@@ -30,7 +32,7 @@ class SecurityHeaders
                  . "img-src 'self' data: blob:; "
                  . "connect-src 'self'; "
                  . "frame-src 'self' blob:; "
-                 . "object-src 'self' blob:; "
+                 . "object-src 'none'; "
                  . "frame-ancestors 'none'; "
                  . "base-uri 'self'; "
                  . "form-action 'self';";
