@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use App\Services\CacheInvalidator;
@@ -43,6 +44,7 @@ class CitaController extends Controller
             'formadores'       => $formadores,
             'solicitudActiva'  => $solicitudActiva,
             'diasAnticipacion' => $diasAnticipacion,
+            'turnstileSiteKey' => config('services.turnstile.site_key'),
         ]);
     }
 
@@ -54,7 +56,6 @@ class CitaController extends Controller
             return response()->json([]);
         }
 
-        // ✅ La ventana empieza en (hoy + diasAnticipacion) y dura 7 días
         $diasAnticipacion = $this->leerDiasAnticipacion();
         $hoy = now()->addDays($diasAnticipacion);
         $limite = $hoy->copy()->addDays(self::DIAS_VENTANA_AGENDA);
@@ -118,6 +119,14 @@ class CitaController extends Controller
                 'success' => false,
                 'message' => 'Las solicitudes de cita estan temporalmente deshabilitadas.'
             ], 403);
+        }
+
+        // ✅ Validar Turnstile ANTES de cualquier otra validacion
+        if (!$this->validarTurnstile($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No pudimos verificar que eres humano. Intenta de nuevo o recarga la pagina.'
+            ], 422);
         }
 
         try {
@@ -216,6 +225,47 @@ class CitaController extends Controller
                 'success' => false,
                 'message' => 'Error al procesar la solicitud. Intenta de nuevo.'
             ], 500);
+        }
+    }
+
+    // Valida el token de Cloudflare Turnstile contra la API de Cloudflare
+    private function validarTurnstile(Request $request): bool
+    {
+        $secret = config('services.turnstile.secret_key');
+
+        // Si no hay secret configurado, permitimos (modo dev sin Turnstile)
+        if (!$secret) {
+            return true;
+        }
+
+        $token = $request->input('turnstile_token');
+        if (!$token || !is_string($token)) {
+            return false;
+        }
+
+        try {
+            $response = Http::asForm()
+                ->timeout(8)
+                ->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                    'secret'   => $secret,
+                    'response' => $token,
+                    'remoteip' => $request->ip(),
+                ]);
+
+            $data = $response->json();
+            $ok = $data['success'] ?? false;
+
+            if (!$ok) {
+                Log::warning('Turnstile: validacion fallida', [
+                    'error_codes' => $data['error-codes'] ?? null,
+                    'ip'          => $request->ip(),
+                ]);
+            }
+
+            return $ok === true;
+        } catch (\Exception $e) {
+            Log::error('Turnstile: error de conexion', ['error' => $e->getMessage()]);
+            return false;
         }
     }
 

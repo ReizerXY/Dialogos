@@ -1,9 +1,10 @@
 // resources/js/Pages/SolicitarCita.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
+import { Turnstile } from '@marsidev/react-turnstile';
 
-export default function SolicitarCita({ formadores, solicitudActiva, diasAnticipacion = 1 }) {
+export default function SolicitarCita({ formadores, solicitudActiva, diasAnticipacion = 1, turnstileSiteKey }) {
     const [formadorId, setFormadorId] = useState('');
     const [idEstudiante, setIdEstudiante] = useState('');
     const [fechaSeleccionada, setFechaSeleccionada] = useState(null);
@@ -19,6 +20,10 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
     const [modalExitoOpen, setModalExitoOpen] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [mensajeError, setMensajeError] = useState('');
+
+    // Turnstile
+    const [turnstileToken, setTurnstileToken] = useState('');
+    const turnstileRef = useRef(null);
 
     const [errores, setErrores] = useState({
         formador: false,
@@ -64,12 +69,10 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
     const today = new Date();
     const hoy = formatDate(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
-    // ✅ Fecha minima calculada con los dias de anticipacion configurados
     const fechaMinDate = new Date(today);
     fechaMinDate.setDate(fechaMinDate.getDate() + Number(diasAnticipacion || 0));
     const fechaMinima = formatDate(fechaMinDate.getFullYear(), fechaMinDate.getMonth() + 1, fechaMinDate.getDate());
 
-    // ✅ Ventana de 7 dias A PARTIR del dia minimo (no desde hoy)
     const fechaLimite = new Date(fechaMinDate);
     fechaLimite.setDate(fechaLimite.getDate() + 7);
     const limiteStr = formatDate(fechaLimite.getFullYear(), fechaLimite.getMonth() + 1, fechaLimite.getDate());
@@ -148,11 +151,18 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
             return;
         }
 
+        if (!turnstileToken) {
+            setMensajeError('Espera a que se complete la verificacion de seguridad.');
+            setEnviando(false);
+            return;
+        }
+
         const data = {
             id_estudiante: idEstudiante.trim(),
             usuario_id: formadorId,
             fecha: fechaSeleccionada,
             hora: horaSeleccionada,
+            turnstile_token: turnstileToken,
         };
 
         try {
@@ -175,6 +185,11 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
                 setFormadorId('');
                 setFechaSeleccionada(null);
                 setHoraSeleccionada('');
+                setTurnstileToken('');
+                // Reset del widget para que genere un token nuevo si agenda otra cita
+                if (turnstileRef.current) {
+                    try { turnstileRef.current.reset(); } catch (e) { /* noop */ }
+                }
                 setErrores({
                     formador: false,
                     idEstudiante: false,
@@ -183,6 +198,11 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
                 });
             } else {
                 setMensajeError(result.message || 'No se pudo agendar la cita. Intenta de nuevo.');
+                // Reset del widget porque el token ya se consumio
+                setTurnstileToken('');
+                if (turnstileRef.current) {
+                    try { turnstileRef.current.reset(); } catch (e) { /* noop */ }
+                }
             }
         } catch (error) {
             console.error('Error:', error);
@@ -205,6 +225,9 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
         };
         return errores[campo] ? mensajes[campo] : null;
     };
+
+    // Si el site key no esta configurado, no mostramos el widget
+    const turnstileDisponible = !!turnstileSiteKey;
 
     // =====================================================
     // SOLICITUD DESACTIVADA - Mostrar banner de cierre
@@ -456,10 +479,33 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
                         </div>
                     )}
 
+                    {/* Turnstile */}
+                    {turnstileDisponible && (
+                        <div className="pt-2">
+                            <div className="flex justify-center">
+                                <Turnstile
+                                    ref={turnstileRef}
+                                    siteKey={turnstileSiteKey}
+                                    onSuccess={(token) => setTurnstileToken(token)}
+                                    onExpire={() => setTurnstileToken('')}
+                                    onError={() => setTurnstileToken('')}
+                                    options={{
+                                        theme: 'light',
+                                        size: 'normal',
+                                    }}
+                                />
+                            </div>
+                            <p className="text-center text-xs text-gray-400 mt-2">
+                                Verificacion de seguridad para prevenir el uso automatizado.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="flex justify-end">
                         <button
                             type="submit"
-                            className="px-6 py-3 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] transition-all duration-200 active:scale-95"
+                            disabled={turnstileDisponible && !turnstileToken}
+                            className="px-6 py-3 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Agendar cita
                         </button>

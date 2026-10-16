@@ -24,14 +24,14 @@ class SecurityHeaders
         );
 
         if (app()->environment('production')) {
-            // CSP mas estricta: sin unsafe-inline ni unsafe-eval donde se pueda
+            // CSP: permite Cloudflare Turnstile (script, iframe y fetch)
             $csp = "default-src 'self'; "
-                 . "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+                 . "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; "
                  . "style-src 'self' 'unsafe-inline' https://fonts.bunny.net; "
                  . "font-src 'self' https://fonts.bunny.net data:; "
                  . "img-src 'self' data: blob:; "
-                 . "connect-src 'self'; "
-                 . "frame-src 'self' blob:; "
+                 . "connect-src 'self' https://challenges.cloudflare.com; "
+                 . "frame-src 'self' blob: https://challenges.cloudflare.com; "
                  . "object-src 'none'; "
                  . "frame-ancestors 'none'; "
                  . "base-uri 'self'; "
