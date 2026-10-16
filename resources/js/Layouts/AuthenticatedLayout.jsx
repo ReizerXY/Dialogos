@@ -2,12 +2,14 @@
 import { useState, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import BotonVolverArriba from '@/Components/BotonVolverArriba';
+import ConfirmModal from '@/Components/ConfirmModal';
 
 export default function AuthenticatedLayout({ children }) {
     const { props } = usePage();
     const user = props.user;
     const alertaImportacion = props.alerta_importacion;
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
@@ -22,11 +24,28 @@ export default function AuthenticatedLayout({ children }) {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Bloquea el scroll del body cuando el sidebar movil esta abierto
+    useEffect(() => {
+        if (window.innerWidth >= 1024) return;
+        const prev = document.body.style.overflow;
+        if (sidebarOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = prev || '';
+        }
+        return () => { document.body.style.overflow = prev || ''; };
+    }, [sidebarOpen]);
+
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-    // ✅ Logout con Inertia: usa el XSRF-TOKEN cookie (siempre fresco)
-    //    y evita el error 419 de CSRF
-    const handleLogout = () => {
+    // Abre el modal de confirmacion
+    const handleLogoutClick = () => {
+        setLogoutModalOpen(true);
+    };
+
+    // Confirmar el cierre de sesion (solo si el usuario acepta)
+    const confirmarLogout = () => {
+        setLogoutModalOpen(false);
         router.post(route('logout'));
     };
 
@@ -44,27 +63,20 @@ export default function AuthenticatedLayout({ children }) {
             ? 'bg-blue-100 text-blue-800 border border-blue-200'
             : 'bg-gray-100 text-gray-700 border border-gray-200';
 
-    // Muestra la alerta de importación pendiente en el sidebar (solo Coordinador)
     const mostrarAlertaImportacion =
         isCoordinador && alertaImportacion?.mostrar_importacion === true;
 
-    // Navega a /estudiantes y hace scroll al bloque de importación
     const irAImportar = () => {
         const scrollAlBloque = () => {
             const el = document.getElementById('bloque-importacion');
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
         if (window.location.pathname === '/estudiantes') {
             scrollAlBloque();
         } else {
             router.visit(route('estudiantes.index'), {
-                onSuccess: () => {
-                    // Pequeño delay para que Inertia monte el DOM antes de hacer scroll
-                    setTimeout(scrollAlBloque, 150);
-                },
+                onSuccess: () => setTimeout(scrollAlBloque, 150),
             });
         }
 
@@ -78,17 +90,21 @@ export default function AuthenticatedLayout({ children }) {
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-                    onClick={toggleSidebar}
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget) toggleSidebar();
+                    }}
+                    onTouchStart={(e) => {
+                        if (e.target === e.currentTarget) toggleSidebar();
+                    }}
                 />
             )}
 
             <aside
-                className={`fixed inset-y-0 left-0 z-30 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+                className={`fixed inset-y-0 left-0 z-30 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col h-screen ${
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                } lg:relative lg:translate-x-0 lg:shadow-md lg:min-h-screen lg:w-72 lg:flex-shrink-0`}
+                } lg:relative lg:translate-x-0 lg:shadow-md lg:w-72 lg:flex-shrink-0`}
             >
-                {/* ─── ENCABEZADO CON USUARIO Y ROL ─── */}
-                <div className="p-5 border-b border-gray-200">
+                <div className="p-5 border-b border-gray-200 flex-shrink-0">
                     <h1 className="text-2xl font-bold text-[#FF5900]">Diálogos</h1>
 
                     <div className="mt-3 flex items-start gap-2.5">
@@ -116,8 +132,10 @@ export default function AuthenticatedLayout({ children }) {
                     </div>
                 </div>
 
-                <nav className="p-4 space-y-1 overflow-y-auto" style={{ height: 'calc(100vh - 150px)' }}>
-                    {/* ─── ALERTA DE IMPORTACIÓN PENDIENTE (solo Coordinador) ─── */}
+                <nav
+                    className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-1"
+                    style={{ touchAction: 'pan-y' }}
+                >
                     {mostrarAlertaImportacion && (
                         <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 mb-3">
                             <div className="flex items-start gap-2.5">
@@ -150,7 +168,6 @@ export default function AuthenticatedLayout({ children }) {
 
                     {isCoordinador && (
                         <>
-                            {/* ─── GRUPO: ANÁLISIS ─── */}
                             <p className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Análisis
                             </p>
@@ -167,7 +184,6 @@ export default function AuthenticatedLayout({ children }) {
                                 Generar reportes
                             </Link>
 
-                            {/* ─── GRUPO: CITAS Y ESTUDIANTES ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Citas y estudiantes
                             </p>
@@ -184,7 +200,6 @@ export default function AuthenticatedLayout({ children }) {
                                 Consultar expedientes
                             </Link>
 
-                            {/* ─── GRUPO: HORARIOS ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Horarios
                             </p>
@@ -201,7 +216,6 @@ export default function AuthenticatedLayout({ children }) {
                                 Modificar horarios
                             </Link>
 
-                            {/* ─── GRUPO: ADMINISTRACIÓN ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Administración
                             </p>
@@ -235,7 +249,6 @@ export default function AuthenticatedLayout({ children }) {
 
                     {isFormador && (
                         <>
-                            {/* ─── GRUPO: CITAS ─── */}
                             <p className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Citas
                             </p>
@@ -252,7 +265,6 @@ export default function AuthenticatedLayout({ children }) {
                                 Visualizar citas
                             </Link>
 
-                            {/* ─── GRUPO: HORARIOS ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Horarios
                             </p>
@@ -269,7 +281,6 @@ export default function AuthenticatedLayout({ children }) {
                                 Modificar mis horarios
                             </Link>
 
-                            {/* ─── GRUPO: ESTUDIANTES ─── */}
                             <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 Estudiantes
                             </p>
@@ -295,13 +306,14 @@ export default function AuthenticatedLayout({ children }) {
                     <div className="flex items-center gap-4">
                         <button
                             type="button"
-                            onClick={handleLogout}
+                            onClick={handleLogoutClick}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-xl hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-200 active:scale-95"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
-                            Cerrar sesión
+                            <span className="hidden sm:inline">Cerrar sesión</span>
+                            <span className="sm:hidden">Salir</span>
                         </button>
                     </div>
                 </div>
@@ -331,9 +343,20 @@ export default function AuthenticatedLayout({ children }) {
 
                 {children}
 
-                {/* ✅ Botón "Volver arriba" en TODAS las páginas del panel */}
                 <BotonVolverArriba />
             </main>
+
+            {/* Modal de confirmacion de cerrar sesion */}
+            <ConfirmModal
+                isOpen={logoutModalOpen}
+                onClose={() => setLogoutModalOpen(false)}
+                onConfirm={confirmarLogout}
+                title="Cerrar sesión"
+                message="¿Estás seguro de que deseas cerrar sesión? Tendrás que volver a ingresar tu usuario y clave para acceder de nuevo al sistema."
+                confirmText="Sí, cerrar sesión"
+                cancelText="Cancelar"
+                variant="danger"
+            />
         </div>
     );
 }

@@ -15,21 +15,28 @@ export default function ModalEstudiante({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-gray-800">
-                        {modoEdicion ? 'Editar estudiante' : 'Agregar estudiante'}
-                    </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-xl font-bold text-gray-800 leading-tight">
+                            {modoEdicion ? 'Editar estudiante' : 'Agregar estudiante'}
+                        </h3>
+                        <div className="w-12 h-1 bg-[#FF5900] rounded-full mt-3"></div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 flex-shrink-0"
+                        aria-label="Cerrar"
+                    >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
-                <form onSubmit={onSubmit} className="space-y-4">
+                <form onSubmit={onSubmit} className="p-6 space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">ID Estudiante *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">ID Estudiante *</label>
                         <input
                             type="text"
                             name="id_estudiante"
@@ -38,12 +45,16 @@ export default function ModalEstudiante({
                             disabled={modoEdicion}
                             maxLength={10}
                             placeholder="Ej. 625447"
-                            className={`w-full border border-gray-300 rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white ${modoEdicion ? 'bg-gray-100 text-gray-500' : ''}`}
+                            className={`w-full border border-gray-300 rounded-xl px-4 py-2.5 font-mono focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white ${modoEdicion ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                             required
                         />
+                        {modoEdicion && (
+                            <p className="text-xs text-gray-500 mt-1">El ID no se puede modificar.</p>
+                        )}
                     </div>
+
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Nombre *</label>
                         <input
                             type="text"
                             name="nombre"
@@ -53,9 +64,10 @@ export default function ModalEstudiante({
                             required
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Apellido paterno *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Apellido paterno *</label>
                             <input
                                 type="text"
                                 name="apellido_paterno"
@@ -66,7 +78,7 @@ export default function ModalEstudiante({
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Apellido materno *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Apellido materno *</label>
                             <input
                                 type="text"
                                 name="apellido_materno"
@@ -77,9 +89,10 @@ export default function ModalEstudiante({
                             />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Grado *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Grado *</label>
                             <select
                                 name="grado"
                                 value={formData.grado}
@@ -94,7 +107,7 @@ export default function ModalEstudiante({
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Grupo * <span className="text-gray-400 font-normal">(A-Z)</span>
                             </label>
                             <input
@@ -111,7 +124,7 @@ export default function ModalEstudiante({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Contacto</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Contacto</label>
                         <input
                             type="text"
                             name="contacto"
@@ -123,7 +136,7 @@ export default function ModalEstudiante({
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Contacto de emergencia</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Contacto de emergencia</label>
                         <input
                             type="text"
                             name="contacto_emergencia"
@@ -135,20 +148,36 @@ export default function ModalEstudiante({
                         />
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                    <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+                            disabled={cargando}
+                            className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
                             disabled={cargando}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {cargando ? 'Guardando...' : 'Guardar'}
+                            {cargando ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Guardando...
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    {modoEdicion ? 'Guardar cambios' : 'Agregar estudiante'}
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

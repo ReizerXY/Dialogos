@@ -18,9 +18,6 @@ import SeccionFormadores from './Indicadores/Secciones/SeccionFormadores';
 import SeccionEstudiantes from './Indicadores/Secciones/SeccionEstudiantes';
 import SeccionCitas from './Indicadores/Secciones/SeccionCitas';
 
-// NOTA: Se eliminaron SUB_TEND_CERRADOS y SUB_DEST_CERRADOS porque ya no aplican:
-// ahora un único estado controla cuál acordeón está abierto en toda la vista.
-
 export default function Indicadores({
     totalFormadores, totalEstudiantes, totalCitas, promedioCitasPorFormador,
     estudiantesAtendidos, tasaCompletacion, tasaCancelacion, tasaAsistencia,
@@ -54,7 +51,6 @@ export default function Indicadores({
     const [seccionActiva, setSeccionActiva] = useState('kpis');
 
     // ✅ Estado unificado: solo UN acordeón abierto a la vez en toda la vista.
-    //    Forma: { tipo: 'dist' | 'tend' | 'dest' | 'formador' | 'estudiante', id: string } | null
     const [expandido, setExpandido] = useState(null);
 
     useEffect(() => {
@@ -71,7 +67,6 @@ export default function Indicadores({
     }, [secciones]);
 
     // Al cambiar de pestaña, cerramos cualquier acordeón abierto.
-    // Si prefieres conservarlo al volver a la misma pestaña, elimina este useEffect.
     useEffect(() => {
         setExpandido(null);
     }, [seccionActiva]);
@@ -88,8 +83,6 @@ export default function Indicadores({
     };
 
     // ─── Toggle único para TODOS los acordeones ───
-    // Si el mismo ya está abierto → se cierra.
-    // Si otro está abierto → se cierra el anterior y se abre este.
     const toggleUnico = (tipo, id) => {
         setExpandido(prev =>
             prev?.tipo === tipo && prev?.id === id ? null : { tipo, id }
@@ -98,11 +91,9 @@ export default function Indicadores({
 
     // ─── Derivados (misma firma que antes para no tocar los hijos) ───
 
-    // Sección Distribución
     const subDistExpandido = expandido?.tipo === 'dist' ? expandido.id : null;
     const toggleSubDist    = (k) => toggleUnico('dist', k);
 
-    // Sección Tendencias
     const subTend = {
         mes:  expandido?.tipo === 'tend' && expandido.id === 'mes',
         dia:  expandido?.tipo === 'tend' && expandido.id === 'dia',
@@ -110,18 +101,15 @@ export default function Indicadores({
     };
     const toggleSubTend = (k) => toggleUnico('tend', k);
 
-    // Sección Destacados
     const subDest = {
         formadores:  expandido?.tipo === 'dest' && expandido.id === 'formadores',
         estudiantes: expandido?.tipo === 'dest' && expandido.id === 'estudiantes',
     };
     const toggleSubDest = (k) => toggleUnico('dest', k);
 
-    // Sección Formadores
     const formadoresExpandidos = expandido?.tipo === 'formador' ? { [expandido.id]: true } : {};
     const toggleFormador = (nombre) => toggleUnico('formador', nombre);
 
-    // Sección Estudiantes
     const estudiantesExpandidos = expandido?.tipo === 'estudiante' ? { [expandido.id]: true } : {};
     const toggleGradoGrupo = (key) => toggleUnico('estudiante', key);
 
@@ -303,13 +291,31 @@ export default function Indicadores({
 
                 {seccionesVisibles.length > 0 ? (
                     <>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+                        {/* ─── Selector de sección: dropdown en móvil ─── */}
+                        <div className="md:hidden mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Sección
+                            </label>
+                            <select
+                                value={seccionActiva}
+                                onChange={(e) => setSeccionActiva(e.target.value)}
+                                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] bg-white text-gray-700 font-medium"
+                            >
+                                {seccionesVisibles.map(sec => (
+                                    <option key={sec.key} value={sec.key}>{sec.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* ─── Selector de sección: tabs en desktop ─── */}
+                        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-2 mb-6">
                             {seccionesVisibles.map(sec => {
                                 const activa = seccionActiva === sec.key;
                                 return (
                                     <button
                                         key={sec.key}
                                         onClick={() => setSeccionActiva(sec.key)}
+                                        title={sec.label}
                                         className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-left transition-all duration-200 ${
                                             activa
                                                 ? 'bg-[#FF5900] text-white border-[#FF5900] shadow-md shadow-[#FF5900]/25'

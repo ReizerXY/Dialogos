@@ -1,23 +1,17 @@
 // resources/js/Pages/Panel/Citas/FiltrosCitas.jsx
+import { useState, useEffect } from 'react';
 import SelectorSemana from '@/Components/SelectorSemana';
 import SelectClasificacionColor from './SelectClasificacionColor';
 
 // Panel de filtros reutilizable. Todas las props son controladas por el padre.
 export default function FiltrosCitas({
-    // Visibilidad
     mostrarFiltroFormador,
-
-    // Datos externos
     formadores,
     aniosDisponibles,
     gradosActivos,
     gruposPorGrado,
-
-    // Estado de filtros (controlado)
     filtros,
     setters,
-
-    // Acciones
     onAplicar,
     onLimpiar,
     abierto,
@@ -46,6 +40,14 @@ export default function FiltrosCitas({
         return null;
     })();
 
+    // Tab activo dentro del bloque de fecha
+    const [tabFecha, setTabFecha] = useState(fechaActiva || 'anio');
+
+    // Si el filtro activo cambia desde afuera, sincroniza la tab
+    useEffect(() => {
+        if (fechaActiva) setTabFecha(fechaActiva);
+    }, [fechaActiva]);
+
     // Handlers de fecha (cada uno limpia los otros)
     const handleAnioChange = (valor) => {
         setAnioFilter(valor);
@@ -64,14 +66,14 @@ export default function FiltrosCitas({
         if (valor) { setAnioFilter(''); setMesFilter(''); setSemanaValorFilter(''); }
     };
 
-    const gruposDisponibles = gradoFilter ? (gruposPorGrado[gradoFilter] || []) : [];
+    const limpiarFecha = () => {
+        setAnioFilter('');
+        setMesFilter('');
+        setSemanaValorFilter('');
+        setFechaFilter('');
+    };
 
-    const claseFiltroFecha = (activo) =>
-        `w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 transition-all text-gray-700 ${
-            activo
-                ? 'border-[#FF5900] bg-[#FF5900]/5 ring-2 ring-[#FF5900]/20'
-                : 'border-gray-300 bg-white'
-        }`;
+    const gruposDisponibles = gradoFilter ? (gruposPorGrado[gradoFilter] || []) : [];
 
     // Cuenta cuántos filtros están activos
     const filtrosActivos = [
@@ -81,8 +83,17 @@ export default function FiltrosCitas({
         periodoFilter !== 'actual' ? periodoFilter : null,
     ].filter(Boolean).length;
 
+    // Etiqueta del tab activo con su valor (para mostrar en el chip)
+    const valorTabActivo = (() => {
+        if (tabFecha === 'anio') return anioFilter;
+        if (tabFecha === 'mes') return mesFilter;
+        if (tabFecha === 'semana') return semanaValorFilter;
+        if (tabFecha === 'fecha') return fechaFilter;
+        return '';
+    })();
+
     return (
-        <div className="bg-white rounded-2xl shadow-md mb-8 border border-gray-100 overflow-visible">
+        <div className="bg-white rounded-2xl shadow-md mb-6 border border-gray-100 overflow-visible">
             <button
                 onClick={() => setAbierto(!abierto)}
                 className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition text-left"
@@ -103,7 +114,7 @@ export default function FiltrosCitas({
                 </svg>
             </button>
 
-            <div className={`transition-all duration-300 ease-in-out ${abierto ? 'max-h-[1200px] opacity-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden pointer-events-none'}`}>
+            <div className={`transition-all duration-300 ease-in-out ${abierto ? 'max-h-[1400px] opacity-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden pointer-events-none'}`}>
                 <div className="px-6 pb-6">
                     {/* Fila 1: Formador, Estado, Clasificación, Asistencia */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -196,36 +207,76 @@ export default function FiltrosCitas({
                         </div>
                     </div>
 
-                    {/* Fila 3: Filtros de fecha */}
+                    {/* Fila 3: Filtro de fecha con tabs */}
                     <div className="bg-gray-50/60 rounded-xl p-4 mb-4">
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
                             <svg className="w-4 h-4 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                             <label className="text-sm font-semibold text-gray-700">Filtro de fecha</label>
-                            <span className="text-xs text-gray-500">
-                                (elige <strong>uno solo</strong>: año, mes, semana o fecha específica)
-                            </span>
                             {fechaActiva && (
-                                <span className="ml-auto text-xs text-[#CC4700] bg-[#FF5900]/10 rounded-full px-2.5 py-0.5 font-medium">
-                                    {fechaActiva === 'anio' && `Año ${anioFilter}`}
-                                    {fechaActiva === 'mes' && `Mes ${mesFilter}`}
-                                    {fechaActiva === 'semana' && `Semana ${semanaValorFilter}`}
-                                    {fechaActiva === 'fecha' && `Fecha ${fechaFilter}`}
-                                </span>
+                                <button
+                                    type="button"
+                                    onClick={limpiarFecha}
+                                    className="ml-auto text-xs text-[#CC4700] hover:text-[#FF5900] underline font-medium"
+                                >
+                                    Quitar filtro de fecha
+                                </button>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Tabs */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                            {[
+                                { key: 'anio',   label: 'Año' },
+                                { key: 'mes',    label: 'Mes' },
+                                { key: 'semana', label: 'Semana' },
+                                { key: 'fecha',  label: 'Fecha específica' },
+                            ].map(({ key, label }) => {
+                                const tieneValor = (() => {
+                                    if (key === 'anio') return !!anioFilter;
+                                    if (key === 'mes') return !!mesFilter;
+                                    if (key === 'semana') return !!semanaValorFilter;
+                                    if (key === 'fecha') return !!fechaFilter;
+                                    return false;
+                                })();
+                                const activo = tabFecha === key;
+                                return (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => {
+                                            if (tabFecha !== key) {
+                                                limpiarFecha();
+                                                setTabFecha(key);
+                                            }
+                                        }}
+                                        className={`relative px-3 py-2.5 rounded-xl border text-sm font-medium transition ${
+                                            activo
+                                                ? 'bg-[#FF5900] border-[#FF5900] text-white shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        {label}
+                                        {tieneValor && !activo && (
+                                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF5900]"></span>
+                                        )}
+                                        {tieneValor && activo && (
+                                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-white"></span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Input dinámico según tab */}
+                        {tabFecha === 'anio' && (
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                                    Año
-                                    {anioFilter && <span className="text-[#FF5900] ml-1">●</span>}
-                                </label>
+                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Selecciona el año</label>
                                 <select
                                     value={anioFilter}
                                     onChange={(e) => handleAnioChange(e.target.value)}
-                                    className={claseFiltroFecha(!!anioFilter)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
                                 >
                                     <option value="">Cualquier año</option>
                                     {aniosDisponibles.map(a => (
@@ -233,61 +284,50 @@ export default function FiltrosCitas({
                                     ))}
                                 </select>
                             </div>
+                        )}
 
+                        {tabFecha === 'mes' && (
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                                    Mes
-                                    {mesFilter && <span className="text-[#FF5900] ml-1">●</span>}
-                                </label>
+                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Selecciona el mes</label>
                                 <input
                                     type="month"
                                     value={mesFilter}
                                     onChange={(e) => handleMesChange(e.target.value)}
-                                    className={claseFiltroFecha(!!mesFilter)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
                                 />
                             </div>
+                        )}
 
+                        {tabFecha === 'semana' && (
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                                    Semana específica
-                                    {semanaValorFilter && <span className="text-[#FF5900] ml-1">●</span>}
-                                </label>
+                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Selecciona la semana</label>
                                 <SelectorSemana
                                     value={semanaValorFilter}
                                     onChange={handleSemanaChange}
                                     label=""
                                 />
                             </div>
+                        )}
 
+                        {tabFecha === 'fecha' && (
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                                    Fecha específica
-                                    {fechaFilter && <span className="text-[#FF5900] ml-1">●</span>}
-                                </label>
+                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Selecciona la fecha</label>
                                 <input
                                     type="date"
                                     value={fechaFilter}
                                     onChange={(e) => handleFechaChange(e.target.value)}
-                                    className={claseFiltroFecha(!!fechaFilter)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
                                 />
                             </div>
-                        </div>
+                        )}
 
-                        {fechaActiva && (
-                            <div className="mt-3 flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setAnioFilter('');
-                                        setMesFilter('');
-                                        setSemanaValorFilter('');
-                                        setFechaFilter('');
-                                    }}
-                                    className="text-xs text-[#CC4700] hover:text-[#FF5900] underline font-medium"
-                                >
-                                    Quitar filtro de fecha
-                                </button>
-                            </div>
+                        {valorTabActivo && (
+                            <p className="mt-3 text-xs text-[#CC4700] flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Filtro de fecha activo
+                            </p>
                         )}
                     </div>
 

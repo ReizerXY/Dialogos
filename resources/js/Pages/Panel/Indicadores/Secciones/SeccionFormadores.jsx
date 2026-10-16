@@ -2,7 +2,7 @@
 import SeccionPanel from '../Componentes/SeccionPanel';
 import MiniStat from '../Componentes/MiniStat';
 import Medal from '../Componentes/Medal';
-import { CLASIFICACION_COLOR_BLOCK, capitalizar } from '../helpers';
+import ClasificacionDot from '@/Components/ClasificacionDot';
 
 export default function SeccionFormadores({
     detalleFormadores,
@@ -57,10 +57,9 @@ export default function SeccionFormadores({
                                                 {f.clasificaciones.map((c, i) => (
                                                     <div
                                                         key={i}
-                                                        className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 cursor-help"
-                                                        title={capitalizar(c.clasificacion)}
+                                                        className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5"
                                                     >
-                                                        <div className={`w-4 h-4 rounded ${CLASIFICACION_COLOR_BLOCK[c.clasificacion] || 'bg-gray-400'}`}></div>
+                                                        <ClasificacionDot clasificacion={c.clasificacion} size="md" />
                                                         <span className="text-base font-bold text-gray-800">{c.total}</span>
                                                     </div>
                                                 ))}

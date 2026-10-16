@@ -35,7 +35,10 @@ export default function FiltrosEstudiantes({
                 <div className="px-6 pb-6 border-t border-gray-100 pt-5">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre, apellido o ID</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Buscar por nombre, apellido o ID
+                                <span className="text-gray-400 ml-1 font-normal">(Enter para filtrar)</span>
+                            </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +73,7 @@ export default function FiltrosEstudiantes({
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Grupo
-                                {!gradoInput && <span className="text-gray-400 ml-1">(elige grado)</span>}
+                                {!gradoInput && <span className="text-gray-400 ml-1 font-normal">(elige grado)</span>}
                             </label>
                             <select
                                 value={grupoInput}

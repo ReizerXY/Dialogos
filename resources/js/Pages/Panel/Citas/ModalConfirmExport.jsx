@@ -11,13 +11,14 @@ export default function ModalConfirmExport({
     ordenExport,
     setOrdenExport,
     onConfirmar,
+    descargando = false,
 }) {
     if (!isOpen) return null;
 
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-            onClick={onClose}
+            onClick={() => !descargando && onClose()}
         >
             <div
                 className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
@@ -38,7 +39,8 @@ export default function ModalConfirmExport({
                         </div>
                         <button
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                            disabled={descargando}
+                            className="text-gray-400 hover:text-gray-600 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                             aria-label="Cerrar"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,8 +87,11 @@ export default function ModalConfirmExport({
                             )}
 
                             {resumenFiltros.length === 0 && (
-                                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
-                                    ⚠️ No hay filtros aplicados. Se incluirán <strong>todas las citas registradas</strong>.
+                                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3 flex items-start gap-2">
+                                    <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
+                                    </svg>
+                                    <span>No hay filtros aplicados. Se incluirán <strong>todas las citas registradas</strong>.</span>
                                 </p>
                             )}
                         </div>
@@ -100,11 +105,12 @@ export default function ModalConfirmExport({
                             <button
                                 type="button"
                                 onClick={() => setOrdenExport('fecha')}
+                                disabled={descargando}
                                 className={`px-4 py-3 rounded-xl border text-sm font-medium transition flex items-center justify-center gap-2 ${
                                     ordenExport === 'fecha'
                                         ? 'bg-[#FF5900] border-[#FF5900] text-white shadow-sm'
                                         : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
-                                }`}
+                                } disabled:opacity-50`}
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -114,11 +120,12 @@ export default function ModalConfirmExport({
                             <button
                                 type="button"
                                 onClick={() => setOrdenExport('id')}
+                                disabled={descargando}
                                 className={`px-4 py-3 rounded-xl border text-sm font-medium transition flex items-center justify-center gap-2 ${
                                     ordenExport === 'id'
                                         ? 'bg-[#FF5900] border-[#FF5900] text-white shadow-sm'
                                         : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
-                                }`}
+                                } disabled:opacity-50`}
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
@@ -138,19 +145,33 @@ export default function ModalConfirmExport({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-100 transition"
+                        disabled={descargando}
+                        className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-100 transition disabled:opacity-50"
                     >
                         Cancelar
                     </button>
                     <button
                         type="button"
                         onClick={onConfirmar}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/25 transition-all duration-200 active:scale-95"
+                        disabled={descargando}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Sí, descargar Excel
+                        {descargando ? (
+                            <>
+                                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Generando...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Sí, descargar Excel
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

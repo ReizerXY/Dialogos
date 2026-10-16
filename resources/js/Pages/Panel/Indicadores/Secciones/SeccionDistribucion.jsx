@@ -1,6 +1,6 @@
 // resources/js/Pages/Panel/Indicadores/Secciones/SeccionDistribucion.jsx
 import SeccionPanel from '../Componentes/SeccionPanel';
-import { CLASIFICACION_COLOR_BLOCK, capitalizar } from '../helpers';
+import ClasificacionDot from '@/Components/ClasificacionDot';
 
 export default function SeccionDistribucion({
     citasPorEstado,
@@ -64,7 +64,7 @@ export default function SeccionDistribucion({
                     </div>
                 </div>
 
-                {/* Tarjeta: Clasificación */}
+                {/* Tarjeta: Clasificación — solo color, con tooltip */}
                 <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50/40">
                     <button
                         onClick={() => toggleSubDist('clasificacion')}
@@ -82,10 +82,9 @@ export default function SeccionDistribucion({
                                     {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
                                         <div
                                             key={`c-${clasif}`}
-                                            className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 cursor-help"
-                                            title={capitalizar(clasif)}
+                                            className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"
                                         >
-                                            <div className={`w-4 h-4 rounded ${CLASIFICACION_COLOR_BLOCK[clasif] || 'bg-gray-400'}`}></div>
+                                            <ClasificacionDot clasificacion={clasif} size="md" />
                                             <span className="text-base font-bold text-gray-800">{total}</span>
                                         </div>
                                     ))}

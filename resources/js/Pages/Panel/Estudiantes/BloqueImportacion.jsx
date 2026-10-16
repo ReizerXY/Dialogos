@@ -25,10 +25,10 @@ export default function BloqueImportacion({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
                         </svg>
                     </div>
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
                         <span className="text-base font-semibold text-gray-800">Actualización de estudiantes</span>
-                        <span className="ml-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5 font-medium">
-                            ⚠️ Realizar al inicio del ciclo
+                        <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5 font-medium">
+                            Realizar al inicio del ciclo
                         </span>
                     </div>
                 </div>
@@ -39,8 +39,7 @@ export default function BloqueImportacion({
 
             <div className={`transition-all duration-300 ease-in-out ${abierto ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
                 <div className="px-6 pb-6 border-t border-amber-100 bg-amber-50/30">
-                    {/* Aviso principal */}
-                    <div className="bg-amber-100 border border-amber-300 rounded-xl p-4 mb-4 mt-4 flex items-start gap-3">
+                    <div className="bg-amber-100 border border-amber-300 rounded-xl p-4 mb-5 mt-4 flex items-start gap-3">
                         <svg className="w-6 h-6 flex-shrink-0 mt-0.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
                         </svg>
@@ -74,13 +73,28 @@ export default function BloqueImportacion({
                         <button
                             type="submit"
                             disabled={cargando || !archivo}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FF5900] text-white font-medium rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                         >
-                            {cargando ? 'Importando...' : 'Importar'}
+                            {cargando ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Importando...
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    Importar
+                                </>
+                            )}
                         </button>
                     </form>
 
-                    <p className="text-xs text-gray-500 mt-3">
+                    <p className="text-xs text-gray-500 mt-3 leading-relaxed">
                         Columnas esperadas: <strong>ID, Nombre, Apellido paterno, Apellido materno, Grado, Grupo, Contacto, Contacto de emergencia</strong>.
                     </p>
 

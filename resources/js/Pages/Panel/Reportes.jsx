@@ -4,10 +4,7 @@ import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import SelectorSemana from '@/Components/SelectorSemana';
 
-// ✅ Detector de dispositivo móvil / pantalla chica.
-// Los navegadores móviles bloquean la previsualización de PDFs
-// dentro de iframes con blob:, así que en esos casos mostramos
-// un aviso y el botón de descarga en lugar del iframe.
+// Detecta movil / pantalla chica
 function esDispositivoMovil() {
     if (typeof window === 'undefined') return false;
     const ua = navigator.userAgent || '';
@@ -15,6 +12,86 @@ function esDispositivoMovil() {
     const esPantallaChica = window.innerWidth < 768;
     return esMovil || esPantallaChica;
 }
+
+// Encabezado de cada paso (numero + icono + label + titulo + linea)
+function EncabezadoPaso({ numero, titulo, descripcion, Icono, completado = false }) {
+    return (
+        <div className="flex items-start gap-4 mb-5">
+            <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${completado ? 'bg-green-100' : 'bg-[#FF5900]/10'}`}>
+                {completado ? (
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                ) : (
+                    <Icono className="w-6 h-6 text-[#FF5900]" />
+                )}
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-[#FF5900] uppercase tracking-wider">
+                    Paso {numero}
+                </p>
+                <h3 className="text-lg font-bold text-gray-800 leading-tight mt-0.5">
+                    {titulo}
+                </h3>
+                {descripcion && (
+                    <p className="text-sm text-gray-500 mt-1 leading-snug">
+                        {descripcion}
+                    </p>
+                )}
+                <div className={`w-12 h-1 rounded-full mt-3 ${completado ? 'bg-green-500' : 'bg-[#FF5900]'}`}></div>
+            </div>
+        </div>
+    );
+}
+
+// Iconos SVG (outline, estilo consistente)
+const IconoTipo = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+);
+
+const IconoPeriodo = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+);
+
+const IconoSecciones = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+);
+
+const IconoResumen = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    </svg>
+);
+
+const IconoInfo = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
+const IconoDescarga = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+);
+
+const IconoCheck = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+    </svg>
+);
+
+const IconoCerrar = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
 
 export default function Reportes({ user, catalogo, aniosDisponibles }) {
     const anios = aniosDisponibles && aniosDisponibles.length > 0
@@ -32,12 +109,9 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
     const [error, setError] = useState('');
     const [tooltip, setTooltip] = useState(null);
 
-    // Preview
     const [previewModal, setPreviewModal] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [previewFilename, setPreviewFilename] = useState('');
-
-    // ✅ Detección de móvil
     const [esMovil, setEsMovil] = useState(false);
 
     const [seccionesPorTipo, setSeccionesPorTipo] = useState(() => {
@@ -104,7 +178,6 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         setError('');
     }, [tipo, periodo, semana, mes, anio, fechaInicio, fechaFin]);
 
-    // ✅ Detectar móvil al montar + cuando cambia el tamaño de pantalla
     useEffect(() => {
         setEsMovil(esDispositivoMovil());
         const onResize = () => setEsMovil(esDispositivoMovil());
@@ -112,7 +185,6 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
-    // Cerrar preview con ESC
     useEffect(() => {
         if (!previewModal) return;
         const onKey = (e) => { if (e.key === 'Escape') cerrarPreview(); };
@@ -120,7 +192,6 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         return () => window.removeEventListener('keydown', onKey);
     }, [previewModal, previewUrl]);
 
-    // Bloquear scroll del body mientras el modal está abierto
     useEffect(() => {
         if (!previewModal) return;
         const prev = document.body.style.overflow;
@@ -128,12 +199,15 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         return () => { document.body.style.overflow = prev; };
     }, [previewModal]);
 
-    // Liberar blob al desmontar
     useEffect(() => {
         return () => {
             if (previewUrl) window.URL.revokeObjectURL(previewUrl);
         };
     }, [previewUrl]);
+
+    useEffect(() => {
+        setTooltip(null);
+    }, [tipo]);
 
     const seccionesActuales = seccionesPorTipo[tipo] || [];
     const infoActual = catalogo[tipo];
@@ -178,7 +252,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
     };
 
     const handleGenerarPDF = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setError('');
 
         if (seccionesActuales.length === 0) {
@@ -244,49 +318,83 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
         setPreviewModal(false);
     };
 
+    const paso1Completo = !!tipo;
+    const paso2Completo = (() => {
+        if (periodo === 'semana') return !!semana;
+        if (periodo === 'mes') return !!mes;
+        if (periodo === 'anio') return !!anio;
+        if (periodo === 'libre') return !!fechaInicio && !!fechaFin;
+        return false;
+    })();
+    const paso3Completo = seccionesActuales.length > 0;
+
+    const puedeGenerar = paso3Completo && !generando;
+
     return (
         <AuthenticatedLayout>
             <Head title="Reportes" />
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-6xl mx-auto pb-24 lg:pb-0">
+                {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Reportes</h1>
                     <p className="text-gray-500 mt-1">
-                        Genera reportes en PDF con los datos del programa. Puedes elegir qué información incluir en cada uno.
+                        Genera reportes en PDF con los datos del programa. Elige qué información incluir en cada uno.
                     </p>
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Tipo de reporte */}
+
+                        {/* PASO 1 - Tipo */}
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-                            <label className="block text-sm font-semibold text-gray-800 mb-1">¿Qué tipo de reporte quieres generar?</label>
-                            <p className="text-xs text-gray-500 mb-3">Elige el enfoque del reporte. Cada tipo muestra información distinta.</p>
+                            <EncabezadoPaso
+                                numero={1}
+                                titulo="¿Qué tipo de reporte quieres generar?"
+                                descripcion="Elige el enfoque del reporte. Cada tipo muestra información distinta."
+                                Icono={IconoTipo}
+                                completado={paso1Completo}
+                            />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {Object.entries(catalogo).map(([key, info]) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => setTipo(key)}
-                                        className={`text-left px-4 py-3 rounded-xl border transition ${
-                                            tipo === key
-                                                ? 'bg-[#FF5900]/5 border-[#FF5900] shadow-sm'
-                                                : 'bg-white border-gray-200 hover:border-gray-300'
-                                        }`}
-                                    >
-                                        <div className={`text-sm font-semibold ${tipo === key ? 'text-[#FF5900]' : 'text-gray-800'}`}>
-                                            {info.titulo}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1 leading-snug">{info.descripcion}</div>
-                                    </button>
-                                ))}
+                                {Object.entries(catalogo).map(([key, info]) => {
+                                    const activo = tipo === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => setTipo(key)}
+                                            className={`text-left px-4 py-3 rounded-xl border transition relative ${
+                                                activo
+                                                    ? 'bg-[#FF5900]/5 border-[#FF5900] shadow-sm'
+                                                    : 'bg-white border-gray-200 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            {activo && (
+                                                <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#FF5900] flex items-center justify-center">
+                                                    <IconoCheck className="w-3 h-3 text-white" />
+                                                </span>
+                                            )}
+                                            <div className={`text-sm font-semibold pr-8 ${activo ? 'text-[#FF5900]' : 'text-gray-800'}`}>
+                                                {info.titulo}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1 leading-snug pr-8">
+                                                {info.descripcion}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        {/* Periodo */}
+                        {/* PASO 2 - Periodo */}
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-                            <label className="block text-sm font-semibold text-gray-800 mb-1">Periodo del reporte</label>
-                            <p className="text-xs text-gray-500 mb-3">¿Qué fechas debe cubrir el reporte?</p>
+                            <EncabezadoPaso
+                                numero={2}
+                                titulo="Periodo del reporte"
+                                descripcion="¿Qué fechas debe cubrir el reporte?"
+                                Icono={IconoPeriodo}
+                                completado={paso2Completo}
+                            />
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                                 {[
                                     { value: 'semana', label: 'Una semana' },
@@ -298,7 +406,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                         key={opt.value}
                                         type="button"
                                         onClick={() => setPeriodo(opt.value)}
-                                        className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition ${
+                                        className={`px-3 py-2.5 rounded-xl border text-sm font-medium transition ${
                                             periodo === opt.value
                                                 ? 'bg-[#FF5900] border-[#FF5900] text-white shadow-sm'
                                                 : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
@@ -333,7 +441,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                 <div>
                                     <label className="block text-xs font-medium text-gray-600 mb-1.5">
                                         Año
-                                        <span className="text-gray-400 ml-1">(solo se muestran los años con citas registradas)</span>
+                                        <span className="text-gray-400 ml-1">(solo años con citas registradas)</span>
                                     </label>
                                     <select
                                         value={anio}
@@ -371,187 +479,235 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                             )}
                         </div>
 
-                        {/* Contenido del reporte */}
+                        {/* PASO 3 - Secciones */}
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-                            <div className="flex items-start justify-between mb-4 gap-3">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-800">
-                                        ¿Qué información quieres incluir?
-                                    </label>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Marca las secciones que aparecerán en el PDF. Pasa el cursor sobre el ícono <strong>?</strong> para ver qué muestra cada una.
-                                    </p>
-                                </div>
-                                <div className="flex gap-2 flex-shrink-0">
-                                    <button
-                                        type="button"
-                                        onClick={seleccionarTodas}
-                                        className="text-xs px-3 py-1.5 bg-[#FF5900] text-white rounded-lg hover:bg-[#CC4700] transition"
-                                    >
-                                        Marcar todas
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={deseleccionarTodas}
-                                        className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-                                    >
-                                        Quitar todas
-                                    </button>
-                                </div>
+                            <EncabezadoPaso
+                                numero={3}
+                                titulo="¿Qué información quieres incluir?"
+                                descripcion={
+                                    esMovil
+                                        ? 'Marca las secciones que aparecerán en el PDF. Toca el ícono de información para ver detalles.'
+                                        : 'Marca las secciones que aparecerán en el PDF. Pasa el cursor sobre el ícono de información para ver qué muestra cada una.'
+                                }
+                                Icono={IconoSecciones}
+                                completado={paso3Completo}
+                            />
+
+                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                                <button
+                                    type="button"
+                                    onClick={seleccionarTodas}
+                                    className="text-xs px-3 py-2 bg-[#FF5900] text-white rounded-lg hover:bg-[#CC4700] transition active:scale-95"
+                                >
+                                    Marcar todas
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={deseleccionarTodas}
+                                    className="text-xs px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition active:scale-95"
+                                >
+                                    Quitar todas
+                                </button>
+                                <span className="ml-auto text-xs text-gray-500">
+                                    <strong className="text-gray-800">{seccionesActuales.length}</strong> de{' '}
+                                    {Object.keys(infoActual.secciones).length} marcadas
+                                </span>
                             </div>
 
                             <div className="space-y-2">
                                 {Object.entries(infoActual.secciones).map(([secKey, secInfo]) => {
                                     const activa = seccionesActuales.includes(secKey);
+                                    const mostrarTooltip = tooltip === secKey && secInfo.descripcion;
                                     return (
-                                        <div
-                                            key={secKey}
-                                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition ${
-                                                activa
-                                                    ? 'bg-[#FF5900]/5 border-[#FF5900]/30'
-                                                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                                            }`}
-                                        >
-                                            <input
-                                                id={`sec-${secKey}`}
-                                                type="checkbox"
-                                                checked={activa}
-                                                onChange={() => toggleSeccion(secKey)}
-                                                className="w-4 h-4 text-[#FF5900] border-gray-300 rounded focus:ring-[#FF5900] cursor-pointer"
-                                            />
-                                            <label
-                                                htmlFor={`sec-${secKey}`}
-                                                className={`text-sm cursor-pointer flex-1 ${activa ? 'text-gray-800 font-medium' : 'text-gray-600'}`}
-                                            >
-                                                {secInfo.label}
-                                            </label>
-
+                                        <div key={secKey}>
                                             <div
-                                                className="relative"
-                                                onMouseEnter={() => setTooltip(secKey)}
-                                                onMouseLeave={() => setTooltip(null)}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition ${
+                                                    activa
+                                                        ? 'bg-[#FF5900]/5 border-[#FF5900]/30'
+                                                        : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                                                }`}
                                             >
-                                                <button
-                                                    type="button"
-                                                    className="text-gray-400 hover:text-[#FF5900] transition-colors focus:outline-none"
-                                                    aria-label={`Más información sobre: ${secInfo.label}`}
+                                                <input
+                                                    id={`sec-${secKey}`}
+                                                    type="checkbox"
+                                                    checked={activa}
+                                                    onChange={() => toggleSeccion(secKey)}
+                                                    className="w-4 h-4 text-[#FF5900] border-gray-300 rounded focus:ring-[#FF5900] cursor-pointer flex-shrink-0"
+                                                />
+                                                <label
+                                                    htmlFor={`sec-${secKey}`}
+                                                    className={`text-sm cursor-pointer flex-1 ${activa ? 'text-gray-800 font-medium' : 'text-gray-600'}`}
                                                 >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                </button>
+                                                    {secInfo.label}
+                                                </label>
 
-                                                {tooltip === secKey && secInfo.descripcion && (
-                                                    <div className="absolute right-0 bottom-full mb-3 w-80 z-50">
-                                                        <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl leading-relaxed">
-                                                            <div className="font-semibold text-[#FF5900] mb-1">{secInfo.label}</div>
-                                                            <div>{secInfo.descripcion}</div>
-                                                            <div className="absolute top-full right-4 -mt-px">
-                                                                <div className="w-2.5 h-2.5 bg-gray-900 rotate-45"></div>
+                                                {/* Contenedor relativo para poder posicionar el tooltip flotante en PC */}
+                                                <div className="relative flex-shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTooltip(mostrarTooltip ? null : secKey)}
+                                                        onMouseEnter={() => { if (!esMovil) setTooltip(secKey); }}
+                                                        onMouseLeave={() => { if (!esMovil) setTooltip(null); }}
+                                                        className={`transition-colors focus:outline-none ${mostrarTooltip ? 'text-[#FF5900]' : 'text-gray-400 hover:text-[#FF5900]'}`}
+                                                        aria-label={`Más información sobre: ${secInfo.label}`}
+                                                    >
+                                                        <IconoInfo className="w-4 h-4" />
+                                                    </button>
+
+                                                    {/* Tooltip flotante SOLO en PC (hover) */}
+                                                    {!esMovil && mostrarTooltip && (
+                                                        <div className="absolute right-0 bottom-full mb-2 w-72 z-30">
+                                                            <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl leading-relaxed">
+                                                                <div className="font-semibold text-[#FF5900] mb-1">{secInfo.label}</div>
+                                                                <div>{secInfo.descripcion}</div>
+                                                                <div className="absolute top-full right-3 -mt-px">
+                                                                    <div className="w-2.5 h-2.5 bg-gray-900 rotate-45"></div>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
+
+                                            {/* Tooltip inline SOLO en movil (tap) */}
+                                            {esMovil && mostrarTooltip && (
+                                                <div className="mt-2 ml-4 mr-4 bg-gray-900 text-white text-xs rounded-lg p-3 leading-relaxed">
+                                                    <div className="font-semibold text-[#FF5900] mb-1">{secInfo.label}</div>
+                                                    <div>{secInfo.descripcion}</div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
-
-                            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-sm">
-                                <span className="text-gray-500">
-                                    <strong className="text-gray-800">{seccionesActuales.length}</strong> de{' '}
-                                    {Object.keys(infoActual.secciones).length} secciones marcadas
-                                </span>
-                            </div>
                         </div>
                     </div>
 
-                    {/* Resumen lateral */}
+                    {/* Sidebar resumen */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 sticky top-6">
-                            <h3 className="text-base font-semibold text-gray-800 mb-3">Revisa antes de generar</h3>
-
-                            <div className="space-y-3 text-sm">
-                                <div>
-                                    <div className="text-xs text-gray-500 uppercase tracking-wide">Tipo de reporte</div>
-                                    <div className="text-gray-800 font-medium mt-0.5">{infoActual.titulo}</div>
-                                </div>
-
-                                <div>
-                                    <div className="text-xs text-gray-500 uppercase tracking-wide">Periodo</div>
-                                    <div className="text-gray-800 font-medium mt-0.5">
-                                        {periodo === 'semana' && (semana || 'Semana actual')}
-                                        {periodo === 'mes' && (mes || 'Mes actual')}
-                                        {periodo === 'anio' && `Año ${anio}`}
-                                        {periodo === 'libre' && (
-                                            fechaInicio && fechaFin
-                                                ? `Del ${fechaInicio} al ${fechaFin}`
-                                                : 'Fechas por definir'
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div className="text-xs text-gray-500 uppercase tracking-wide">Secciones marcadas</div>
-                                    <div className="text-gray-800 font-medium mt-0.5">
-                                        {seccionesActuales.length} {seccionesActuales.length === 1 ? 'sección' : 'secciones'}
-                                    </div>
-                                </div>
+                        <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden lg:sticky lg:top-6">
+                            <div className="px-6 py-5 border-b border-gray-100">
+                                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                                    <IconoResumen className="w-5 h-5 text-[#FF5900]" />
+                                    Revisa antes de generar
+                                </h3>
+                                <div className="w-12 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                             </div>
 
-                            {error && (
-                                <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-                                    {error}
+                            <div className="p-6">
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Tipo de reporte</div>
+                                        <div className="text-gray-800 font-medium mt-1">{infoActual.titulo}</div>
+                                    </div>
+
+                                    <div>
+                                        <div className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Periodo</div>
+                                        <div className="text-gray-800 font-medium mt-1">
+                                            {periodo === 'semana' && (semana || 'Semana actual')}
+                                            {periodo === 'mes' && (mes || 'Mes actual')}
+                                            {periodo === 'anio' && `Año ${anio}`}
+                                            {periodo === 'libre' && (
+                                                fechaInicio && fechaFin
+                                                    ? `Del ${fechaInicio} al ${fechaFin}`
+                                                    : 'Fechas por definir'
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Secciones marcadas</div>
+                                        <div className="text-gray-800 font-medium mt-1">
+                                            {seccionesActuales.length} {seccionesActuales.length === 1 ? 'sección' : 'secciones'}
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
 
-                            <button
-                                type="button"
-                                onClick={handleGenerarPDF}
-                                disabled={generando || seccionesActuales.length === 0}
-                                className="mt-5 w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {generando ? (
-                                    <>
-                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Generando PDF...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                        Generar reporte
-                                    </>
+                                {error && (
+                                    <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+                                        {error}
+                                    </div>
                                 )}
-                            </button>
 
-                            <p className="mt-3 text-xs text-gray-400 text-center leading-snug">
-                                Al hacer clic, el PDF se abrirá en una vista previa. Desde ahí podrás descargarlo o cerrarlo.
-                            </p>
+                                {!puedeGenerar && !generando && seccionesActuales.length === 0 && (
+                                    <p className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 leading-snug">
+                                        Marca al menos una sección en el paso 3 para poder generar el reporte.
+                                    </p>
+                                )}
+
+                                {/* Boton solo visible en desktop */}
+                                <button
+                                    type="button"
+                                    onClick={handleGenerarPDF}
+                                    disabled={!puedeGenerar}
+                                    className="hidden lg:inline-flex mt-5 w-full items-center justify-center gap-2 px-6 py-3 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {generando ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Generando PDF...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <IconoDescarga className="w-5 h-5" />
+                                            Generar reporte
+                                        </>
+                                    )}
+                                </button>
+
+                                <p className="mt-3 text-xs text-gray-400 text-center leading-snug hidden lg:block">
+                                    El PDF se abrirá en una vista previa. Desde ahí podrás descargarlo.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ================= MODAL DE VISTA PREVIA (OPTIMIZADO) ================= */}
+            {/* Boton sticky movil */}
+            {!previewModal && (
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg z-40">
+                    <button
+                        type="button"
+                        onClick={handleGenerarPDF}
+                        disabled={!puedeGenerar}
+                        className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {generando ? (
+                            <>
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Generando PDF...
+                            </>
+                        ) : (
+                            <>
+                                <IconoDescarga className="w-5 h-5" />
+                                Generar reporte
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {/* Modal vista previa */}
             {previewModal && previewUrl && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/70">
                     <div
-                        className="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden isolate"
+                        className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] sm:h-[90vh] flex flex-col overflow-hidden isolate"
                         style={{
                             boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
                             transform: 'translateZ(0)',
                             contain: 'layout paint',
                         }}
                     >
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 flex-shrink-0">
                             <div className="min-w-0">
-                                <h3 className="text-lg font-bold text-gray-800">
+                                <h3 className="text-base sm:text-lg font-bold text-gray-800">
                                     {esMovil ? 'Reporte generado' : 'Vista previa del reporte'}
                                 </h3>
                                 <p className="text-xs text-gray-500 mt-0.5 truncate">{previewFilename}</p>
@@ -562,29 +718,22 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                 className="text-gray-400 hover:text-gray-700 transition-colors p-1 flex-shrink-0"
                                 aria-label="Cerrar vista previa"
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <IconoCerrar className="w-6 h-6" />
                             </button>
                         </div>
 
-                        {/* En escritorio: iframe con el PDF.
-                            En móvil: aviso + botón, porque los navegadores móviles
-                            bloquean la previsualización de PDFs en iframes con blob:. */}
                         {esMovil ? (
                             <div className="flex-1 flex items-center justify-center bg-gray-50 px-6 py-8">
                                 <div className="max-w-sm text-center">
                                     <div className="mx-auto w-20 h-20 rounded-full bg-[#FF5900]/10 flex items-center justify-center mb-4">
-                                        <svg className="w-10 h-10 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
+                                        <IconoDescarga className="w-10 h-10 text-[#FF5900]" />
                                     </div>
                                     <h4 className="text-base font-semibold text-gray-800">
                                         Tu reporte está listo
                                     </h4>
                                     <p className="text-sm text-gray-500 mt-2 leading-relaxed">
                                         Los navegadores móviles no permiten ver PDFs aquí dentro.
-                                        Toca el botón de abajo para <strong>descargar</strong> o <strong>abrir</strong> el archivo.
+                                        Usa el botón de abajo para <strong>descargar</strong> o <strong>abrir</strong> el archivo.
                                     </p>
                                 </div>
                             </div>
@@ -601,7 +750,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                             </div>
                         )}
 
-                        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
+                        <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
                             <button
                                 type="button"
                                 onClick={cerrarPreview}
@@ -614,10 +763,8 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                 onClick={handleDescargar}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF5900] text-white font-semibold rounded-xl hover:bg-[#CC4700] hover:shadow-lg hover:shadow-[#FF5900]/25 transition-all duration-200 active:scale-95"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                {esMovil ? 'Descargar PDF' : 'Descargar PDF'}
+                                <IconoDescarga className="w-5 h-5" />
+                                Descargar PDF
                             </button>
                         </div>
                     </div>

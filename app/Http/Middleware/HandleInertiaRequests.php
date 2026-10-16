@@ -43,6 +43,12 @@ class HandleInertiaRequests extends Middleware
                 'user' => $userSafe,
             ],
 
+            // Flash messages (success / error) — Laravel los deja en la sesion tras un redirect
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+            ],
+
             // Config publica para todas las paginas
             'solicitudCitasActiva' => $configPublica['solicitud_citas_activa'],
             'mensajeCierreCitas'   => $configPublica['mensaje_cierre_citas'],

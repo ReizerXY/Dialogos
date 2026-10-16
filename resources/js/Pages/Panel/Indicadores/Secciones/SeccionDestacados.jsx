@@ -25,7 +25,6 @@ export default function SeccionDestacados({
                                 key={`f-${i}`}
                                 posicion={i}
                                 nombre={item.nombre}
-                                etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
                                 total={item.total}
                                 unidad="cita"
                             />
@@ -46,7 +45,6 @@ export default function SeccionDestacados({
                                 key={`e-${i}`}
                                 posicion={i}
                                 nombre={item.nombre_estudiante}
-                                etiqueta={`Ocupa el puesto #${i + 1} en el periodo`}
                                 total={item.total}
                                 unidad="cita"
                             />
