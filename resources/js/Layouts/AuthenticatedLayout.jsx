@@ -100,9 +100,13 @@ export default function AuthenticatedLayout({ children }) {
             )}
 
             <aside
-                className={`fixed inset-y-0 left-0 z-30 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col h-screen ${
+                className={`fixed inset-y-0 left-0 z-30 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col lg:relative lg:translate-x-0 lg:shadow-md lg:w-72 lg:flex-shrink-0 ${
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                } lg:relative lg:translate-x-0 lg:shadow-md lg:w-72 lg:flex-shrink-0`}
+                }`}
+                style={{
+                    height: '100dvh',
+                    maxHeight: '100dvh',
+                }}
             >
                 <div className="p-5 border-b border-gray-200 flex-shrink-0">
                     <h1 className="text-2xl font-bold text-[#FF5900]">Diálogos</h1>
@@ -133,8 +137,11 @@ export default function AuthenticatedLayout({ children }) {
                 </div>
 
                 <nav
-                    className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-1"
-                    style={{ touchAction: 'pan-y' }}
+                    className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1"
+                    style={{
+                        touchAction: 'pan-y',
+                        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2.5rem)',
+                    }}
                 >
                     {mostrarAlertaImportacion && (
                         <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 mb-3">
