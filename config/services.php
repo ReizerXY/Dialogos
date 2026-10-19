@@ -37,4 +37,14 @@ return [
         'api_key'               => env('WHATSAPP_API_KEY'),
     ],
 
+    'zavu' => [
+        'api_key'   => env('ZAVU_API_KEY'),
+        'sender_id' => env('ZAVU_SENDER_ID'),
+        'templates' => [
+            'confirmacion' => env('ZAVU_TEMPLATE_CONFIRMACION'),
+            'modificacion' => env('ZAVU_TEMPLATE_MODIFICACION'),
+            'cancelacion'  => env('ZAVU_TEMPLATE_CANCELACION'),
+        ],
+    ],
+
 ];
