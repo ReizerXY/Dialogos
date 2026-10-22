@@ -14,6 +14,7 @@
         "laravel/sanctum": "^3.2",
         "laravel/tinker": "^2.8",
         "maatwebsite/excel": "3.1.70",
+        "spatie/laravel-csp": "^2.10",
         "tightenco/ziggy": "^2.0",
         "twilio/sdk": "^8.13",
         "zavudev/sdk": "^0.7.0"

@@ -39,7 +39,10 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\CheckMaintenance::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            
+            // Middlewares de Seguridad
             \App\Http\Middleware\SecurityHeaders::class,
+            \Spatie\Csp\AddCspHeaders::class, // <-- AGREGADO AQUÍ
         ],
 
         'api' => [
