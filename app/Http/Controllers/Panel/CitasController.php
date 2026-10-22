@@ -424,6 +424,9 @@ class CitasController extends Controller
             ]);
 
             try {
+                // 🚨 AQUÍ ESTÁ EL CAMBIO: Limpiamos el flag de idempotencia para permitir múltiples modificaciones
+                DB::table('citas')->where('id_cita', $id)->update(['whatsapp_modificacion_enviada_at' => null]);
+
                 $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
                 \App\Jobs\SendWhatsAppJob::dispatch($citaActualizada, 'modificacion');
             } catch (\Exception $e) {
