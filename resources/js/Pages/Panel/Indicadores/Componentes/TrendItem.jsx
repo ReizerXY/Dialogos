@@ -1,14 +1,25 @@
 // resources/js/Pages/Panel/Indicadores/Componentes/TrendItem.jsx
 
-// Elemento de tendencia (fila con título, descripción y total)
 export default function TrendItem({ titulo, descripcion, total }) {
     return (
-        <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow flex items-center justify-between gap-4">
-            <div className="min-w-0 flex-1">
-                <div className="text-base font-semibold text-gray-800">{titulo}</div>
-                <div className="text-sm text-gray-500 mt-0.5">{descripcion}</div>
+        <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col justify-between hover:shadow-md hover:border-[#FF5900]/30 transition-all duration-200 group h-full">
+            <div>
+                {/* Título más grande, sin mayúsculas y más oscuro */}
+                <p className="text-base font-bold text-gray-800 group-hover:text-[#FF5900] transition-colors capitalize">
+                    {titulo}
+                </p>
+                {/* Descripción más grande y legible */}
+                {descripcion && (
+                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                        {descripcion}
+                    </p>
+                )}
             </div>
-            <div className="text-2xl font-bold text-[#FF5900] shrink-0">{total}</div>
+            <div className="mt-4 flex justify-end items-end">
+                <span className="text-4xl font-extrabold text-[#FF5900] leading-none">
+                    {total}
+                </span>
+            </div>
         </div>
     );
 }

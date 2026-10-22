@@ -409,6 +409,8 @@ export default function Indicadores({
                                 estudiantesAgrupados={estudiantesAgrupados}
                                 estudiantesExpandidos={estudiantesExpandidos}
                                 toggleGradoGrupo={toggleGradoGrupo}
+                                periodoTexto={periodoTexto}
+                                contextoGradoGrupo={contextoGradoGrupo}
                             />
                         )}
 

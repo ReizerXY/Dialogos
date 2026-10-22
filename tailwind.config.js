@@ -8,6 +8,15 @@ export default {
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
         './resources/js/**/*.jsx',
+        './resources/js/**/*.js', // Agregamos esta línea por si los helpers están en .js
+    ],
+
+    safelist: [
+        'bg-blue-500',
+        'bg-green-500',
+        'bg-purple-500',
+        'bg-pink-500',
+        'bg-amber-500',
     ],
 
     theme: {

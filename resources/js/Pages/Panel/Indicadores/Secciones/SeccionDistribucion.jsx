@@ -1,16 +1,18 @@
 // resources/js/Pages/Panel/Indicadores/Secciones/SeccionDistribucion.jsx
+import { useState } from 'react';
 import SeccionPanel from '../Componentes/SeccionPanel';
 import ClasificacionDot from '@/Components/ClasificacionDot';
 
 export default function SeccionDistribucion({
-    citasPorEstado,
-    citasPorClasificacion,
-    citasPorAsistencia,
-    subDistExpandido,
-    toggleSubDist,
+    citasPorEstado = {},
+    citasPorClasificacion = {},
+    citasPorAsistencia = {},
     periodoTexto,
     contextoGradoGrupo,
 }) {
+    // Estado local para controlar la pestaña activa
+    const [activeTab, setActiveTab] = useState('estado');
+
     const estadoColores = {
         programada:         { pill: 'bg-yellow-50 border-yellow-200 text-yellow-800', dot: 'bg-yellow-400' },
         cancelada:          { pill: 'bg-red-50 border-red-200 text-red-800',           dot: 'bg-red-400' },
@@ -29,102 +31,96 @@ export default function SeccionDistribucion({
         'no asistió': { pill: 'bg-red-50 border-red-200 text-red-800', dot: 'bg-red-400' },
     };
 
+    const tabs = [
+        { id: 'estado', label: 'Por Estado' },
+        { id: 'clasificacion', label: 'Por Clasificación' },
+        { id: 'asistencia', label: 'Por Asistencia' }
+    ];
+
     return (
         <SeccionPanel titulo={`Distribución de citas de ${periodoTexto}${contextoGradoGrupo}`}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-                {/* Tarjeta: Estado */}
-                <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50/40">
+            
+            {/* Navegación de Pestañas */}
+            <div className="flex flex-wrap gap-2 border-b border-gray-200 mb-5 pb-3">
+                {tabs.map(tab => (
                     <button
-                        onClick={() => toggleSubDist('estado')}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/60 transition text-left"
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+                            activeTab === tab.id
+                                ? 'bg-[#FF5900] text-white shadow-sm'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
                     >
-                        <span className="text-base font-medium text-gray-700">Cantidad de citas por estado</span>
-                        <svg className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${subDistExpandido === 'estado' ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        {tab.label}
                     </button>
-                    <div className={`transition-all duration-300 ease-in-out ${subDistExpandido === 'estado' ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                        <div className="px-4 pb-4 pt-1">
-                            {Object.keys(citasPorEstado).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {['completada', 'programada', 'cancelada', 'cancelada_liberada'].map(estado => {
-                                        if (!citasPorEstado[estado]) return null;
-                                        const col = estadoColores[estado];
-                                        return (
-                                            <div key={estado} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
-                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
-                                                <span className="text-sm font-medium">{estadoLabels[estado]}</span>
-                                                <span className="text-base font-bold">{citasPorEstado[estado]}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </div>
-                    </div>
-                </div>
+                ))}
+            </div>
 
-                {/* Tarjeta: Clasificación — solo color, con tooltip */}
-                <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50/40">
-                    <button
-                        onClick={() => toggleSubDist('clasificacion')}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/60 transition text-left"
-                    >
-                        <span className="text-base font-medium text-gray-700">Cantidad de citas por tipo de clasificación</span>
-                        <svg className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${subDistExpandido === 'clasificacion' ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    <div className={`transition-all duration-300 ease-in-out ${subDistExpandido === 'clasificacion' ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                        <div className="px-4 pb-4 pt-1">
-                            {Object.keys(citasPorClasificacion).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
-                                        <div
-                                            key={`c-${clasif}`}
-                                            className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"
-                                        >
-                                            <ClasificacionDot clasificacion={clasif} size="md" />
-                                            <span className="text-base font-bold text-gray-800">{total}</span>
+            {/* Contenido de las Pestañas */}
+            <div className="min-h-[120px]">
+                
+                {/* Pestaña: Estado */}
+                {activeTab === 'estado' && (
+                    <div className="animate-fadeIn">
+                        {Object.keys(citasPorEstado).length > 0 ? (
+                            <div className="flex flex-wrap gap-3">
+                                {['completada', 'programada', 'cancelada', 'cancelada_liberada'].map(estado => {
+                                    if (!citasPorEstado[estado]) return null;
+                                    const col = estadoColores[estado];
+                                    return (
+                                        <div key={estado} className={`inline-flex items-center gap-3 rounded-xl border px-4 py-3 ${col.pill} min-w-[200px]`}>
+                                            <span className={`w-3 h-3 rounded-full ${col.dot}`}></span>
+                                            <span className="text-sm font-medium flex-1">{estadoLabels[estado]}</span>
+                                            <span className="text-lg font-bold">{citasPorEstado[estado]}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : <p className="text-gray-400 text-sm py-4">No hay datos para este periodo.</p>}
                     </div>
-                </div>
+                )}
 
-                {/* Tarjeta: Asistencia */}
-                <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50/40">
-                    <button
-                        onClick={() => toggleSubDist('asistencia')}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100/60 transition text-left"
-                    >
-                        <span className="text-base font-medium text-gray-700">Cantidad de citas por asistencia del estudiante</span>
-                        <svg className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${subDistExpandido === 'asistencia' ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    <div className={`transition-all duration-300 ease-in-out ${subDistExpandido === 'asistencia' ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                        <div className="px-4 pb-4 pt-1">
-                            {Object.keys(citasPorAsistencia).length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {['asistió', 'no asistió', 'pendiente'].map(asis => {
-                                        if (!citasPorAsistencia[asis]) return null;
-                                        const col = asistenciaColores[asis];
-                                        return (
-                                            <div key={asis} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 ${col.pill}`}>
-                                                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
-                                                <span className="text-sm font-medium capitalize">{asis}</span>
-                                                <span className="text-base font-bold">{citasPorAsistencia[asis]}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-gray-400 text-sm">No hay datos</p>}
-                        </div>
+                {/* Pestaña: Clasificación (Solo colores, como pediste) */}
+                {activeTab === 'clasificacion' && (
+                    <div className="animate-fadeIn">
+                        {Object.keys(citasPorClasificacion).length > 0 ? (
+                            <div className="flex flex-wrap gap-3">
+                                {Object.entries(citasPorClasificacion).map(([clasif, total]) => (
+                                    <div
+                                        key={`c-${clasif}`}
+                                        className="inline-flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm min-w-[120px]"
+                                    >
+                                        <ClasificacionDot clasificacion={clasif} size="md" />
+                                        <span className="text-xl font-bold text-gray-800">{total}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : <p className="text-gray-400 text-sm py-4">No hay datos para este periodo.</p>}
                     </div>
-                </div>
+                )}
+
+                {/* Pestaña: Asistencia */}
+                {activeTab === 'asistencia' && (
+                    <div className="animate-fadeIn">
+                        {Object.keys(citasPorAsistencia).length > 0 ? (
+                            <div className="flex flex-wrap gap-3">
+                                {['asistió', 'no asistió', 'pendiente'].map(asis => {
+                                    if (!citasPorAsistencia[asis]) return null;
+                                    const col = asistenciaColores[asis];
+                                    return (
+                                        <div key={asis} className={`inline-flex items-center gap-3 rounded-xl border px-4 py-3 ${col.pill} min-w-[200px]`}>
+                                            <span className={`w-3 h-3 rounded-full ${col.dot}`}></span>
+                                            <span className="text-sm font-medium capitalize flex-1">{asis}</span>
+                                            <span className="text-lg font-bold">{citasPorAsistencia[asis]}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : <p className="text-gray-400 text-sm py-4">No hay datos para este periodo.</p>}
+                    </div>
+                )}
+
             </div>
         </SeccionPanel>
     );

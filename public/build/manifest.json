@@ -1,37 +1,31 @@
 {
-  "_AuthenticatedLayout-0b3bd0df.js": {
-    "file": "assets/AuthenticatedLayout-0b3bd0df.js",
+  "_AuthenticatedLayout-71a2c1e1.js": {
+    "file": "assets/AuthenticatedLayout-71a2c1e1.js",
     "imports": [
       "resources/js/app.jsx"
     ]
   },
-  "_ClasificacionDot-fa136308.js": {
-    "file": "assets/ClasificacionDot-fa136308.js",
+  "_ClasificacionDot-4e7decd8.js": {
+    "file": "assets/ClasificacionDot-4e7decd8.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ba19720.js"
     ]
   },
-  "_ConfirmModal-3ad66540.js": {
-    "file": "assets/ConfirmModal-3ad66540.js",
+  "_GuestLayout-0f02b298.js": {
+    "file": "assets/GuestLayout-0f02b298.js",
     "imports": [
       "resources/js/app.jsx"
     ]
   },
-  "_GuestLayout-61f36576.js": {
-    "file": "assets/GuestLayout-61f36576.js",
+  "_Paginacion-eea728a9.js": {
+    "file": "assets/Paginacion-eea728a9.js",
     "imports": [
       "resources/js/app.jsx"
     ]
   },
-  "_Paginacion-35ea54b2.js": {
-    "file": "assets/Paginacion-35ea54b2.js",
-    "imports": [
-      "resources/js/app.jsx"
-    ]
-  },
-  "_SelectorSemana-7a4971d0.js": {
-    "file": "assets/SelectorSemana-7a4971d0.js",
+  "_SelectorSemana-a4e4928b.js": {
+    "file": "assets/SelectorSemana-a4e4928b.js",
     "imports": [
       "resources/js/app.jsx"
     ]
@@ -46,25 +40,25 @@
     "file": "assets/helpers-8ffa4b1c.js"
   },
   "resources/js/Pages/Auth/LoginCustom.jsx": {
-    "file": "assets/LoginCustom-bc110069.js",
+    "file": "assets/LoginCustom-b1f3843f.js",
     "imports": [
       "resources/js/app.jsx",
-      "_GuestLayout-61f36576.js"
+      "_GuestLayout-0f02b298.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Auth/LoginCustom.jsx"
   },
   "resources/js/Pages/AvisoDePrivacidad.jsx": {
-    "file": "assets/AvisoDePrivacidad-36c1ed1c.js",
+    "file": "assets/AvisoDePrivacidad-c646eab4.js",
     "imports": [
       "resources/js/app.jsx",
-      "_GuestLayout-61f36576.js"
+      "_GuestLayout-0f02b298.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/AvisoDePrivacidad.jsx"
   },
   "resources/js/Pages/Mantenimiento.jsx": {
-    "file": "assets/Mantenimiento-8605b4bb.js",
+    "file": "assets/Mantenimiento-d48b76fc.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -72,72 +66,72 @@
     "src": "resources/js/Pages/Mantenimiento.jsx"
   },
   "resources/js/Pages/Panel/Backups.jsx": {
-    "file": "assets/Backups-c508d0c4.js",
+    "file": "assets/Backups-cfc547df.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js"
+      "_AuthenticatedLayout-71a2c1e1.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Backups.jsx"
   },
   "resources/js/Pages/Panel/Citas.jsx": {
-    "file": "assets/Citas-799b948a.js",
+    "file": "assets/Citas-c5f0f7a4.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Citas/CitasCoordinador.jsx",
       "resources/js/Pages/Panel/Citas/MisCitas.jsx",
       "resources/js/Pages/Panel/Citas/CitasTodos.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
+      "_AuthenticatedLayout-71a2c1e1.js",
       "resources/js/Pages/Panel/Citas/TablaCitas.jsx",
       "_helpers-8ba19720.js",
-      "_ClasificacionDot-fa136308.js",
+      "_ClasificacionDot-4e7decd8.js",
       "resources/js/Pages/Panel/Citas/FiltrosCitas.jsx",
-      "_SelectorSemana-7a4971d0.js",
+      "_SelectorSemana-a4e4928b.js",
       "resources/js/Pages/Panel/Citas/SelectClasificacionColor.jsx",
       "resources/js/Pages/Panel/Citas/ModalConfirmExport.jsx",
-      "_Paginacion-35ea54b2.js"
+      "_Paginacion-eea728a9.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Citas.jsx"
   },
   "resources/js/Pages/Panel/Citas/CitasCoordinador.jsx": {
-    "file": "assets/CitasCoordinador-5c9f86f7.js",
+    "file": "assets/CitasCoordinador-72d470e7.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
+      "_AuthenticatedLayout-71a2c1e1.js",
       "resources/js/Pages/Panel/Citas/TablaCitas.jsx",
       "resources/js/Pages/Panel/Citas/FiltrosCitas.jsx",
       "resources/js/Pages/Panel/Citas/ModalConfirmExport.jsx",
       "_helpers-8ba19720.js",
-      "_Paginacion-35ea54b2.js",
-      "_ClasificacionDot-fa136308.js",
-      "_SelectorSemana-7a4971d0.js",
+      "_Paginacion-eea728a9.js",
+      "_ClasificacionDot-4e7decd8.js",
+      "_SelectorSemana-a4e4928b.js",
       "resources/js/Pages/Panel/Citas/SelectClasificacionColor.jsx"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Citas/CitasCoordinador.jsx"
   },
   "resources/js/Pages/Panel/Citas/CitasTodos.jsx": {
-    "file": "assets/CitasTodos-925d1497.js",
+    "file": "assets/CitasTodos-a1588862.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
+      "_AuthenticatedLayout-71a2c1e1.js",
       "resources/js/Pages/Panel/Citas/TablaCitas.jsx",
       "resources/js/Pages/Panel/Citas/FiltrosCitas.jsx",
-      "_Paginacion-35ea54b2.js",
+      "_Paginacion-eea728a9.js",
       "_helpers-8ba19720.js",
-      "_ClasificacionDot-fa136308.js",
-      "_SelectorSemana-7a4971d0.js",
+      "_ClasificacionDot-4e7decd8.js",
+      "_SelectorSemana-a4e4928b.js",
       "resources/js/Pages/Panel/Citas/SelectClasificacionColor.jsx"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Citas/CitasTodos.jsx"
   },
   "resources/js/Pages/Panel/Citas/FiltrosCitas.jsx": {
-    "file": "assets/FiltrosCitas-26253ef9.js",
+    "file": "assets/FiltrosCitas-db6a0bee.js",
     "imports": [
       "resources/js/app.jsx",
-      "_SelectorSemana-7a4971d0.js",
+      "_SelectorSemana-a4e4928b.js",
       "resources/js/Pages/Panel/Citas/SelectClasificacionColor.jsx",
       "_helpers-8ba19720.js"
     ],
@@ -150,23 +144,23 @@
       "resources/js/Pages/Panel/Modales/ModificarModal.jsx",
       "resources/js/Pages/Panel/Modales/CancelarModal.jsx"
     ],
-    "file": "assets/MisCitas-461a4e57.js",
+    "file": "assets/MisCitas-6cde3068.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
+      "_AuthenticatedLayout-71a2c1e1.js",
       "resources/js/Pages/Panel/Citas/TablaCitas.jsx",
       "resources/js/Pages/Panel/Citas/FiltrosCitas.jsx",
-      "_Paginacion-35ea54b2.js",
+      "_Paginacion-eea728a9.js",
       "_helpers-8ba19720.js",
-      "_ClasificacionDot-fa136308.js",
-      "_SelectorSemana-7a4971d0.js",
+      "_ClasificacionDot-4e7decd8.js",
+      "_SelectorSemana-a4e4928b.js",
       "resources/js/Pages/Panel/Citas/SelectClasificacionColor.jsx"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Citas/MisCitas.jsx"
   },
   "resources/js/Pages/Panel/Citas/ModalConfirmExport.jsx": {
-    "file": "assets/ModalConfirmExport-b2247c12.js",
+    "file": "assets/ModalConfirmExport-83c96833.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -174,7 +168,7 @@
     "src": "resources/js/Pages/Panel/Citas/ModalConfirmExport.jsx"
   },
   "resources/js/Pages/Panel/Citas/SelectClasificacionColor.jsx": {
-    "file": "assets/SelectClasificacionColor-4ae605e3.js",
+    "file": "assets/SelectClasificacionColor-d3511256.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ba19720.js"
@@ -183,31 +177,30 @@
     "src": "resources/js/Pages/Panel/Citas/SelectClasificacionColor.jsx"
   },
   "resources/js/Pages/Panel/Citas/TablaCitas.jsx": {
-    "file": "assets/TablaCitas-cbe7d966.js",
+    "file": "assets/TablaCitas-0cb4ae58.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ba19720.js",
-      "_ClasificacionDot-fa136308.js"
+      "_ClasificacionDot-4e7decd8.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Citas/TablaCitas.jsx"
   },
   "resources/js/Pages/Panel/Configuracion.jsx": {
-    "file": "assets/Configuracion-f640a93f.js",
+    "file": "assets/Configuracion-d96d215b.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js"
+      "_AuthenticatedLayout-71a2c1e1.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Configuracion.jsx"
   },
   "resources/js/Pages/Panel/Estudiantes.jsx": {
-    "file": "assets/Estudiantes-7efe677a.js",
+    "file": "assets/Estudiantes-34ca9027.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
-      "_ConfirmModal-3ad66540.js",
-      "_Paginacion-35ea54b2.js",
+      "_AuthenticatedLayout-71a2c1e1.js",
+      "_Paginacion-eea728a9.js",
       "_helpers-8ffa4b1c.js",
       "resources/js/Pages/Panel/Estudiantes/FilaEstudiante.jsx",
       "resources/js/Pages/Panel/Estudiantes/CardEstudiante.jsx",
@@ -220,7 +213,7 @@
     "src": "resources/js/Pages/Panel/Estudiantes.jsx"
   },
   "resources/js/Pages/Panel/Estudiantes/BloqueImportacion.jsx": {
-    "file": "assets/BloqueImportacion-23d7c83b.js",
+    "file": "assets/BloqueImportacion-21f870f8.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ffa4b1c.js"
@@ -229,7 +222,7 @@
     "src": "resources/js/Pages/Panel/Estudiantes/BloqueImportacion.jsx"
   },
   "resources/js/Pages/Panel/Estudiantes/CardEstudiante.jsx": {
-    "file": "assets/CardEstudiante-7f1562ab.js",
+    "file": "assets/CardEstudiante-635fb2e6.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -237,7 +230,7 @@
     "src": "resources/js/Pages/Panel/Estudiantes/CardEstudiante.jsx"
   },
   "resources/js/Pages/Panel/Estudiantes/FilaEstudiante.jsx": {
-    "file": "assets/FilaEstudiante-ecc9df7e.js",
+    "file": "assets/FilaEstudiante-dda7fc7f.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -245,7 +238,7 @@
     "src": "resources/js/Pages/Panel/Estudiantes/FilaEstudiante.jsx"
   },
   "resources/js/Pages/Panel/Estudiantes/FiltrosEstudiantes.jsx": {
-    "file": "assets/FiltrosEstudiantes-a59e3a98.js",
+    "file": "assets/FiltrosEstudiantes-7f2b5d8e.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -253,7 +246,7 @@
     "src": "resources/js/Pages/Panel/Estudiantes/FiltrosEstudiantes.jsx"
   },
   "resources/js/Pages/Panel/Estudiantes/ModalConfigCiclo.jsx": {
-    "file": "assets/ModalConfigCiclo-5cc1ed88.js",
+    "file": "assets/ModalConfigCiclo-d4edc908.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -261,7 +254,7 @@
     "src": "resources/js/Pages/Panel/Estudiantes/ModalConfigCiclo.jsx"
   },
   "resources/js/Pages/Panel/Estudiantes/ModalEstudiante.jsx": {
-    "file": "assets/ModalEstudiante-9a0201e6.js",
+    "file": "assets/ModalEstudiante-5631d3d1.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ffa4b1c.js"
@@ -270,37 +263,39 @@
     "src": "resources/js/Pages/Panel/Estudiantes/ModalEstudiante.jsx"
   },
   "resources/js/Pages/Panel/Expediente.jsx": {
-    "file": "assets/Expediente-636ff5c9.js",
+    "file": "assets/Expediente-c272afd5.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js"
+      "_AuthenticatedLayout-71a2c1e1.js",
+      "_ClasificacionDot-4e7decd8.js",
+      "_helpers-8ba19720.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Expediente.jsx"
   },
   "resources/js/Pages/Panel/GestionCita.jsx": {
-    "file": "assets/GestionCita-efba0bb5.js",
+    "file": "assets/GestionCita-469bcda4.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js"
+      "_AuthenticatedLayout-71a2c1e1.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/GestionCita.jsx"
   },
   "resources/js/Pages/Panel/Horarios.jsx": {
-    "file": "assets/Horarios-ceb5343b.js",
+    "file": "assets/Horarios-4ce1a825.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js"
+      "_AuthenticatedLayout-71a2c1e1.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Horarios.jsx"
   },
   "resources/js/Pages/Panel/Indicadores.jsx": {
-    "file": "assets/Indicadores-32038df6.js",
+    "file": "assets/Indicadores-d47a1e91.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
+      "_AuthenticatedLayout-71a2c1e1.js",
       "_helpers-0a0797b9.js",
       "resources/js/Pages/Panel/Indicadores/FiltrosIndicadores.jsx",
       "resources/js/Pages/Panel/Indicadores/PersonalizadorVista.jsx",
@@ -313,13 +308,13 @@
       "resources/js/Pages/Panel/Indicadores/Secciones/SeccionFormadores.jsx",
       "resources/js/Pages/Panel/Indicadores/Secciones/SeccionEstudiantes.jsx",
       "resources/js/Pages/Panel/Indicadores/Secciones/SeccionCitas.jsx",
-      "_SelectorSemana-7a4971d0.js",
+      "_SelectorSemana-a4e4928b.js",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/KpiCard.jsx",
-      "_ClasificacionDot-fa136308.js",
+      "_ClasificacionDot-4e7decd8.js",
       "_helpers-8ba19720.js",
-      "resources/js/Pages/Panel/Indicadores/Componentes/SubDesplegable.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/TrendItem.jsx",
+      "resources/js/Pages/Panel/Indicadores/Componentes/SubDesplegable.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/RankingItem.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/ComparativaCard.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/MiniStat.jsx",
@@ -329,7 +324,7 @@
     "src": "resources/js/Pages/Panel/Indicadores.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/BannerSinDatos.jsx": {
-    "file": "assets/BannerSinDatos-951151ff.js",
+    "file": "assets/BannerSinDatos-1954fb5a.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -337,7 +332,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/BannerSinDatos.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/ComparativaCard.jsx": {
-    "file": "assets/ComparativaCard-be426bab.js",
+    "file": "assets/ComparativaCard-e0543313.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -345,7 +340,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/ComparativaCard.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/KpiCard.jsx": {
-    "file": "assets/KpiCard-9fc5d495.js",
+    "file": "assets/KpiCard-4ddee59a.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -353,7 +348,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/KpiCard.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/Medal.jsx": {
-    "file": "assets/Medal-770db519.js",
+    "file": "assets/Medal-feb1c094.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -361,7 +356,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/Medal.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/MiniStat.jsx": {
-    "file": "assets/MiniStat-3d63d60c.js",
+    "file": "assets/MiniStat-09058a4e.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -369,7 +364,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/MiniStat.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/RankingItem.jsx": {
-    "file": "assets/RankingItem-226c6801.js",
+    "file": "assets/RankingItem-62f663b3.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -377,7 +372,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/RankingItem.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx": {
-    "file": "assets/SeccionPanel-42f98a69.js",
+    "file": "assets/SeccionPanel-6f63aaa9.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -385,7 +380,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/SubDesplegable.jsx": {
-    "file": "assets/SubDesplegable-34e7043a.js",
+    "file": "assets/SubDesplegable-e129938e.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -393,7 +388,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/SubDesplegable.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Componentes/TrendItem.jsx": {
-    "file": "assets/TrendItem-9873b73a.js",
+    "file": "assets/TrendItem-85b57233.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -401,16 +396,16 @@
     "src": "resources/js/Pages/Panel/Indicadores/Componentes/TrendItem.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/FiltrosIndicadores.jsx": {
-    "file": "assets/FiltrosIndicadores-3ceb549c.js",
+    "file": "assets/FiltrosIndicadores-7c0f0205.js",
     "imports": [
       "resources/js/app.jsx",
-      "_SelectorSemana-7a4971d0.js"
+      "_SelectorSemana-a4e4928b.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Indicadores/FiltrosIndicadores.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/PersonalizadorVista.jsx": {
-    "file": "assets/PersonalizadorVista-f86a19da.js",
+    "file": "assets/PersonalizadorVista-02802ed7.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-0a0797b9.js"
@@ -419,7 +414,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/PersonalizadorVista.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionCitas.jsx": {
-    "file": "assets/SeccionCitas-1c1502dc.js",
+    "file": "assets/SeccionCitas-0d4a796b.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
@@ -429,7 +424,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionCitas.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionComparativas.jsx": {
-    "file": "assets/SeccionComparativas-bb4d2a87.js",
+    "file": "assets/SeccionComparativas-fea4bf31.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
@@ -439,7 +434,7 @@
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionComparativas.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionDestacados.jsx": {
-    "file": "assets/SeccionDestacados-304cb137.js",
+    "file": "assets/SeccionDestacados-c02ce113.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
@@ -450,18 +445,18 @@
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionDestacados.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionDistribucion.jsx": {
-    "file": "assets/SeccionDistribucion-583241e2.js",
+    "file": "assets/SeccionDistribucion-ced6ec8f.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
-      "_ClasificacionDot-fa136308.js",
+      "_ClasificacionDot-4e7decd8.js",
       "_helpers-8ba19720.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionDistribucion.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionEstudiantes.jsx": {
-    "file": "assets/SeccionEstudiantes-c5c4d4fb.js",
+    "file": "assets/SeccionEstudiantes-d2ea6eb6.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx"
@@ -470,20 +465,20 @@
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionEstudiantes.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionFormadores.jsx": {
-    "file": "assets/SeccionFormadores-d14f609c.js",
+    "file": "assets/SeccionFormadores-0a54b1ae.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/MiniStat.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/Medal.jsx",
-      "_ClasificacionDot-fa136308.js",
+      "_ClasificacionDot-4e7decd8.js",
       "_helpers-8ba19720.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionFormadores.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionKpis.jsx": {
-    "file": "assets/SeccionKpis-8c3ed007.js",
+    "file": "assets/SeccionKpis-b3dad599.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
@@ -493,11 +488,10 @@
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionKpis.jsx"
   },
   "resources/js/Pages/Panel/Indicadores/Secciones/SeccionTendencias.jsx": {
-    "file": "assets/SeccionTendencias-bb57d8a0.js",
+    "file": "assets/SeccionTendencias-6d4f68cd.js",
     "imports": [
       "resources/js/app.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/SeccionPanel.jsx",
-      "resources/js/Pages/Panel/Indicadores/Componentes/SubDesplegable.jsx",
       "resources/js/Pages/Panel/Indicadores/Componentes/TrendItem.jsx",
       "_helpers-0a0797b9.js"
     ],
@@ -505,17 +499,16 @@
     "src": "resources/js/Pages/Panel/Indicadores/Secciones/SeccionTendencias.jsx"
   },
   "resources/js/Pages/Panel/MisHorarios.jsx": {
-    "file": "assets/MisHorarios-23e7bfc3.js",
+    "file": "assets/MisHorarios-9ffd9172.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
-      "_ConfirmModal-3ad66540.js"
+      "_AuthenticatedLayout-71a2c1e1.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/MisHorarios.jsx"
   },
   "resources/js/Pages/Panel/Modales/CancelarModal.jsx": {
-    "file": "assets/CancelarModal-d33d6007.js",
+    "file": "assets/CancelarModal-5eef87d0.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ba19720.js"
@@ -524,7 +517,7 @@
     "src": "resources/js/Pages/Panel/Modales/CancelarModal.jsx"
   },
   "resources/js/Pages/Panel/Modales/ClasificacionSelector.jsx": {
-    "file": "assets/ClasificacionSelector-79c32bda.js",
+    "file": "assets/ClasificacionSelector-20cf3ea7.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ba19720.js"
@@ -533,7 +526,7 @@
     "src": "resources/js/Pages/Panel/Modales/ClasificacionSelector.jsx"
   },
   "resources/js/Pages/Panel/Modales/ModificarModal.jsx": {
-    "file": "assets/ModificarModal-e70de5e4.js",
+    "file": "assets/ModificarModal-1ac4da7c.js",
     "imports": [
       "resources/js/app.jsx"
     ],
@@ -541,7 +534,7 @@
     "src": "resources/js/Pages/Panel/Modales/ModificarModal.jsx"
   },
   "resources/js/Pages/Panel/Modales/NotasModal.jsx": {
-    "file": "assets/NotasModal-709aa170.js",
+    "file": "assets/NotasModal-bbdef44a.js",
     "imports": [
       "resources/js/app.jsx",
       "_helpers-8ba19720.js"
@@ -550,59 +543,58 @@
     "src": "resources/js/Pages/Panel/Modales/NotasModal.jsx"
   },
   "resources/js/Pages/Panel/ModificarHorarios.jsx": {
-    "file": "assets/ModificarHorarios-94eba6ce.js",
+    "file": "assets/ModificarHorarios-803af9db.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
-      "_ConfirmModal-3ad66540.js"
+      "_AuthenticatedLayout-71a2c1e1.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/ModificarHorarios.jsx"
   },
   "resources/js/Pages/Panel/Reportes.jsx": {
-    "file": "assets/Reportes-5cd6e4e0.js",
+    "file": "assets/Reportes-4816a791.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js",
-      "_SelectorSemana-7a4971d0.js"
+      "_AuthenticatedLayout-71a2c1e1.js",
+      "_SelectorSemana-a4e4928b.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Reportes.jsx"
   },
   "resources/js/Pages/Panel/Usuarios.jsx": {
-    "file": "assets/Usuarios-5fe2826c.js",
+    "file": "assets/Usuarios-eae7c7ad.js",
     "imports": [
       "resources/js/app.jsx",
-      "_AuthenticatedLayout-0b3bd0df.js"
+      "_AuthenticatedLayout-71a2c1e1.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Panel/Usuarios.jsx"
   },
   "resources/js/Pages/SolicitarCita.jsx": {
-    "file": "assets/SolicitarCita-3fe7c083.js",
+    "file": "assets/SolicitarCita-88407c21.js",
     "imports": [
       "resources/js/app.jsx",
-      "_GuestLayout-61f36576.js"
+      "_GuestLayout-0f02b298.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/SolicitarCita.jsx"
   },
   "resources/js/Pages/Welcome.jsx": {
-    "file": "assets/Welcome-da0945c6.js",
+    "file": "assets/Welcome-f10d967b.js",
     "imports": [
       "resources/js/app.jsx",
-      "_GuestLayout-61f36576.js"
+      "_GuestLayout-0f02b298.js"
     ],
     "isDynamicEntry": true,
     "src": "resources/js/Pages/Welcome.jsx"
   },
   "resources/js/app.css": {
-    "file": "assets/app-17b61056.css",
+    "file": "assets/app-d3680d80.css",
     "src": "resources/js/app.css"
   },
   "resources/js/app.jsx": {
     "css": [
-      "assets/app-17b61056.css"
+      "assets/app-d3680d80.css"
     ],
     "dynamicImports": [
       "resources/js/Pages/Auth/LoginCustom.jsx",
@@ -659,7 +651,7 @@
       "resources/js/Pages/SolicitarCita.jsx",
       "resources/js/Pages/Welcome.jsx"
     ],
-    "file": "assets/app-1fa8c040.js",
+    "file": "assets/app-5b515b11.js",
     "isEntry": true,
     "src": "resources/js/app.jsx"
   }

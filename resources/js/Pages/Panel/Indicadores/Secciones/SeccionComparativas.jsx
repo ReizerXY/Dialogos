@@ -11,7 +11,8 @@ export default function SeccionComparativas({
 }) {
     return (
         <SeccionPanel titulo={`Comparativas de citas de ${periodoTexto}${contextoGradoGrupo}`}>
-            <div className={`grid grid-cols-1 gap-6 ${comparativaSemana.mostrar && comparativaMes.mostrar ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
+            {/* Ajustamos el grid para que respiren mejor si están las dos tarjetas */}
+            <div className={`grid grid-cols-1 gap-6 ${comparativaSemana.mostrar && comparativaMes.mostrar ? 'md:grid-cols-2' : 'max-w-2xl mx-auto'}`}>
                 {comparativaSemana.mostrar && (
                     <ComparativaCard
                         titulo={`Citas registradas: ${comparativaSemana.titulo}`}
