@@ -19,10 +19,10 @@ class BackupController extends Controller
         'personal_access_tokens',
     ];
 
-    // Ruta donde el cron guarda los backups automaticos
+    // Ruta donde el cron guarda los backups automáticos
     private const DIR_BACKUPS_CRON = '/home/sebastian/backups';
 
-    // Pagina de copias de seguridad con los botones de descarga.
+    // Página de copias de seguridad con los botones de descarga.
     public function index()
     {
         $user = Session::get('user');
@@ -37,7 +37,7 @@ class BackupController extends Controller
         ]);
     }
 
-    // Verifica que el usuario en sesion sea Coordinador.
+    // Verifica que el usuario en sesión sea Coordinador.
     private function verificarCoordinador(): void
     {
         $user = Session::get('user');
@@ -81,7 +81,7 @@ class BackupController extends Controller
         return ob_get_clean();
     }
 
-    // Envia el contenido SQL como descarga.
+    // Envía el contenido SQL como descarga.
     private function descargar(string $sqlContent, string $nombreArchivo)
     {
         return response()->streamDownload(function () use ($sqlContent) {
@@ -151,8 +151,8 @@ class BackupController extends Controller
         return $this->descargar($sqlContent, "backup_completo_{$fecha}.sql");
     }
 
-    // Lee el estado actual de los backups automaticos en el VPS.
-    // Devuelve null en 'ultimo' si no hay archivos validos o si el directorio
+    // Lee el estado actual de los backups automáticos en el VPS.
+    // Devuelve null en 'ultimo' si no hay archivos válidos o si el directorio
     // no es accesible (por ejemplo, en local Windows).
     private function estadoBackups(): array
     {
@@ -203,18 +203,18 @@ class BackupController extends Controller
             ];
         }
 
-        // Ordenar por fecha de modificacion descendente
+        // Ordenar por fecha de modificación descendente
         usort($validos, fn($a, $b) => filemtime($b) - filemtime($a));
 
         $ultimo = $validos[0];
         $mtime  = filemtime($ultimo);
         $size   = filesize($ultimo);
 
-        // Cuanto tiempo ha pasado desde el ultimo backup
+        // Cuánto tiempo ha pasado desde el último backup
         $segundosTranscurridos = time() - $mtime;
         $horasTranscurridas = round($segundosTranscurridos / 3600, 1);
 
-        // Alerta si el ultimo backup tiene mas de 48 horas
+        // Alerta si el último backup tiene más de 48 horas
         $desactualizado = $segundosTranscurridos > (48 * 3600);
 
         return [

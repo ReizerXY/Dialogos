@@ -3,7 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 
-// Detecta movil
+// Detecta móvil
 function esDispositivoMovil() {
     if (typeof window === 'undefined') return false;
     const ua = navigator.userAgent || '';
@@ -12,7 +12,7 @@ function esDispositivoMovil() {
 }
 
 export default function Backups({ user, estadoBackups, tablasExcluidas }) {
-    // Modal de confirmacion
+    // Modal de confirmación
     const [confirmModal, setConfirmModal] = useState({
         open: false,
         tipo: null,       // 'citas' | 'completo'

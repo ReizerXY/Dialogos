@@ -6,7 +6,7 @@ import Select from 'react-select';
 import ClasificacionDot from '@/Components/ClasificacionDot';
 import { ESTADO_LABELS, ASISTENCIA_LABELS, formatFecha, etiquetaFechaRelativa } from '@/Pages/Panel/Citas/helpers';
 
-// Detecta movil / pantalla chica
+// Detecta móvil / pantalla chica
 function esDispositivoMovil() {
     if (typeof window === 'undefined') return false;
     const ua = navigator.userAgent || '';
@@ -213,7 +213,7 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                         Buscar estudiante
                     </label>
                     <p className="text-xs text-gray-500 mb-3">
-                        Escribe al menos 2 caracteres. Se incluyen estudiantes activos y egresados.
+                        Escribe al menos 2 caracteres.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-3">

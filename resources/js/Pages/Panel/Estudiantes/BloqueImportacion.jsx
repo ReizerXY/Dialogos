@@ -13,41 +13,41 @@ export default function BloqueImportacion({
     return (
         <div
             id="bloque-importacion"
-            className="bg-white rounded-2xl shadow-md border-2 border-amber-300 mb-6 overflow-hidden scroll-mt-6"
+            className="bg-white rounded-2xl shadow-lg border-2 border-cyan-500 mb-6 overflow-hidden scroll-mt-6"
         >
             <button
                 onClick={() => setAbierto(!abierto)}
-                className="w-full flex flex-wrap items-center justify-between gap-3 px-6 py-4 hover:bg-amber-50/50 transition text-left"
+                className="w-full flex flex-wrap items-center justify-between gap-3 px-6 py-4 bg-cyan-600 hover:bg-cyan-700 transition text-left"
             >
                 <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 shrink-0">
-                        <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 shrink-0 animate-pulse">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
                         </svg>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base font-semibold text-gray-800">Actualización de estudiantes</span>
-                        <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5 font-medium">
-                            Realizar al inicio del ciclo
+                        <span className="text-lg font-bold text-white">Actualización de estudiantes</span>
+                        <span className="text-xs text-cyan-900 bg-cyan-100 border border-cyan-200 rounded-full px-2.5 py-0.5 font-bold shadow-sm">
+                            Requiere atención
                         </span>
                     </div>
                 </div>
-                <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${abierto ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <svg className={`w-5 h-5 text-cyan-100 transition-transform duration-300 ${abierto ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
 
             <div className={`transition-all duration-300 ease-in-out ${abierto ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
-                <div className="px-6 pb-6 border-t border-amber-100 bg-amber-50/30">
-                    <div className="bg-amber-100 border border-amber-300 rounded-xl p-4 mb-5 mt-4 flex items-start gap-3">
-                        <svg className="w-6 h-6 flex-shrink-0 mt-0.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="px-6 pb-6 border-t border-cyan-100 bg-white">
+                    <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4 mb-5 mt-4 flex items-start gap-3">
+                        <svg className="w-6 h-6 flex-shrink-0 mt-0.5 text-cyan-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
                         </svg>
                         <div className="flex-1">
-                            <p className="font-semibold text-amber-900">
+                            <p className="font-bold text-cyan-900 text-lg">
                                 Es momento de actualizar la lista de estudiantes
                             </p>
-                            <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                            <p className="text-sm text-cyan-800 mt-1 leading-relaxed">
                                 Importa el archivo con los datos del ciclo actual. Las filas con ID existente se
                                 <strong> actualizarán</strong> y las nuevas se <strong>insertarán</strong>.
                                 {config?.inicio_ciclo_escolar && (
@@ -59,7 +59,7 @@ export default function BloqueImportacion({
 
                     <form onSubmit={onImport} className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                         <div className="flex-1 w-full">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            <label className="block text-sm font-bold text-gray-700 mb-1.5">
                                 Archivo (.xlsx, .csv)
                             </label>
                             <input
@@ -67,7 +67,7 @@ export default function BloqueImportacion({
                                 type="file"
                                 accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                                 onChange={onFileChange}
-                                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white"
+                                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all bg-white"
                             />
                         </div>
                         <button
@@ -98,7 +98,7 @@ export default function BloqueImportacion({
                         Columnas esperadas: <strong>ID, Nombre, Apellido paterno, Apellido materno, Grado, Grupo, Contacto, Contacto de emergencia</strong>.
                     </p>
 
-                    <div className="mt-5 pt-5 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
+                    <div className="mt-5 pt-5 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
                         <div className="text-xs text-gray-600 max-w-md leading-relaxed">
                             <strong className="text-red-700">Zona de riesgo.</strong> Elimina toda la lista de estudiantes antes de importar el archivo nuevo. Sus citas históricas se conservarán.
                         </div>

@@ -50,7 +50,7 @@ export default function SeccionEstudiantes({
                             <button
                                 key={gradoKey}
                                 onClick={() => setActiveGrado(gradoKey)}
-                                className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+                                className={`px-4 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all duration-200 ${
                                     activeGrado === gradoKey
                                         ? 'bg-[#FF5900] text-white shadow-sm'
                                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
@@ -66,12 +66,13 @@ export default function SeccionEstudiantes({
                         {activeGrado && estudiantesAgrupados[activeGrado] && (
                             <div className="animate-fadeIn border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                                 
-                                <div className="bg-gray-50 border-l-4 border-[#FF5900] px-5 py-4 flex items-center justify-between border-b border-gray-200">
-                                    <h3 className="text-lg font-bold text-gray-800">
+                                {/* Encabezado del Grado: flex-col en móvil para que no se rompa */}
+                                <div className="bg-gray-50 border-l-4 border-[#FF5900] px-4 sm:px-5 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-200 gap-2 sm:gap-0">
+                                    <h3 className="text-base sm:text-lg font-bold text-gray-800">
                                         {formatGrado(activeGrado)}
                                     </h3>
-                                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1">
-                                        <span className="text-base font-bold text-gray-800">
+                                    <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 whitespace-nowrap">
+                                        <span className="text-sm sm:text-base font-bold text-gray-800">
                                             {estudiantesAgrupados[activeGrado].reduce((s, g) => s + g.total, 0)}
                                         </span>
                                         <span>estudiantes atendidos</span>
@@ -79,7 +80,7 @@ export default function SeccionEstudiantes({
                                 </div>
 
                                 {/* Cuadrícula de Grupos */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-5">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-3 sm:p-5">
                                     {estudiantesAgrupados[activeGrado].map((g) => {
                                         const key = `${activeGrado}-${g.grupo}`;
                                         const expandido = !!estudiantesExpandidos[key];
@@ -88,18 +89,18 @@ export default function SeccionEstudiantes({
                                             <div key={key} className="border border-gray-200 rounded-xl overflow-hidden bg-white transition-all duration-200 hover:border-[#FF5900]/40 hover:shadow-sm">
                                                 <button 
                                                     onClick={() => toggleGradoGrupo(key)} 
-                                                    className={`w-full flex items-center justify-between px-4 py-3 transition text-left ${expandido ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+                                                    className={`w-full flex items-center justify-between px-3 sm:px-4 py-3 transition text-left ${expandido ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
                                                 >
                                                     <div>
-                                                        <div className="text-base font-bold text-gray-800">
+                                                        <div className="text-sm sm:text-base font-bold text-gray-800">
                                                             Grupo {g.grupo}
                                                         </div>
-                                                        <div className="text-sm text-gray-500 mt-0.5">
+                                                        <div className="text-xs sm:text-sm text-gray-500 mt-0.5">
                                                             {g.total} {g.total === 1 ? 'estudiante' : 'estudiantes'}
                                                         </div>
                                                     </div>
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${expandido ? 'bg-[#FF5900]/10 text-[#FF5900]' : 'bg-gray-100 text-gray-400'}`}>
-                                                        <svg className={`w-4 h-4 transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors ${expandido ? 'bg-[#FF5900]/10 text-[#FF5900]' : 'bg-gray-100 text-gray-400'}`}>
+                                                        <svg className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                                                         </svg>
                                                     </div>
@@ -109,11 +110,12 @@ export default function SeccionEstudiantes({
                                                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandido ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}>
                                                     <ul className="border-t border-gray-100 max-h-[350px] overflow-y-auto bg-white">
                                                         {g.alumnos.map((al) => (
-                                                            <li key={al.id_estudiante} className="px-4 py-3 text-sm flex items-center justify-between border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
-                                                                <span className="text-base font-medium text-gray-700 truncate pr-2">
+                                                            <li key={al.id_estudiante} className="px-3 sm:px-4 py-2.5 sm:py-3 text-sm flex items-center justify-between border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors gap-2">
+                                                                {/* Eliminamos truncate y agregamos break-words */}
+                                                                <span className="text-sm sm:text-base font-medium text-gray-700 break-words leading-tight flex-1">
                                                                     {al.nombre}
                                                                 </span>
-                                                                <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded-md shrink-0">
+                                                                <span className="text-[10px] sm:text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded-md shrink-0">
                                                                     {al.id_estudiante}
                                                                 </span>
                                                             </li>

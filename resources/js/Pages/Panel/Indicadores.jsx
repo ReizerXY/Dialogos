@@ -82,30 +82,12 @@ export default function Indicadores({
         setSecciones(p => ({ ...p, [k]: !p[k] }));
     };
 
-    // ─── Toggle único para TODOS los acordeones ───
+    // ─── Toggle único para los acordeones de Formadores y Estudiantes ───
     const toggleUnico = (tipo, id) => {
         setExpandido(prev =>
             prev?.tipo === tipo && prev?.id === id ? null : { tipo, id }
         );
     };
-
-    // ─── Derivados (misma firma que antes para no tocar los hijos) ───
-
-    const subDistExpandido = expandido?.tipo === 'dist' ? expandido.id : null;
-    const toggleSubDist    = (k) => toggleUnico('dist', k);
-
-    const subTend = {
-        mes:  expandido?.tipo === 'tend' && expandido.id === 'mes',
-        dia:  expandido?.tipo === 'tend' && expandido.id === 'dia',
-        hora: expandido?.tipo === 'tend' && expandido.id === 'hora',
-    };
-    const toggleSubTend = (k) => toggleUnico('tend', k);
-
-    const subDest = {
-        formadores:  expandido?.tipo === 'dest' && expandido.id === 'formadores',
-        estudiantes: expandido?.tipo === 'dest' && expandido.id === 'estudiantes',
-    };
-    const toggleSubDest = (k) => toggleUnico('dest', k);
 
     const formadoresExpandidos = expandido?.tipo === 'formador' ? { [expandido.id]: true } : {};
     const toggleFormador = (nombre) => toggleUnico('formador', nombre);
@@ -351,8 +333,6 @@ export default function Indicadores({
                                 citasPorEstado={citasPorEstado}
                                 citasPorClasificacion={citasPorClasificacion}
                                 citasPorAsistencia={citasPorAsistencia}
-                                subDistExpandido={subDistExpandido}
-                                toggleSubDist={toggleSubDist}
                                 periodoTexto={periodoTexto}
                                 contextoGradoGrupo={contextoGradoGrupo}
                             />
@@ -363,8 +343,6 @@ export default function Indicadores({
                                 citasPorMes={citasPorMes}
                                 citasPorDiaSemana={citasPorDiaSemana}
                                 citasPorHora={citasPorHora}
-                                subTend={subTend}
-                                toggleSubTend={toggleSubTend}
                                 periodoTexto={periodoTexto}
                                 contextoGradoGrupo={contextoGradoGrupo}
                                 contextoSingular={contextoSingular}
@@ -377,8 +355,6 @@ export default function Indicadores({
                             <SeccionDestacados
                                 formadoresTop={formadoresTop}
                                 estudiantesTop={estudiantesTop}
-                                subDest={subDest}
-                                toggleSubDest={toggleSubDest}
                                 periodoTexto={periodoTexto}
                                 contextoGradoGrupo={contextoGradoGrupo}
                             />

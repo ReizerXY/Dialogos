@@ -12,20 +12,21 @@ export default function RankingItem({ posicion, nombre, total, unidad = 'cita' }
     const plural = total === 1 ? '' : 's';
 
     return (
-        <div className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md hover:border-[#FF5900]/30 transition-all duration-200 flex items-center justify-between gap-4 group">
-            <div className="flex items-center gap-4 min-w-0 flex-1">
+        <div className="bg-white border border-gray-100 rounded-xl p-3 sm:p-4 hover:shadow-md hover:border-[#FF5900]/30 transition-all duration-200 flex items-center justify-between gap-2 sm:gap-4 group">
+            <div className="flex items-center gap-2.5 sm:gap-4 min-w-0 flex-1">
                 {/* Círculo de la posición */}
-                <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold shrink-0 ${getMedallaColor(posicion)}`}>
+                <span className={`inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full text-sm font-bold shrink-0 ${getMedallaColor(posicion)}`}>
                     {posicion + 1}
                 </span>
-                {/* Nombre con mejor tipografía */}
-                <div className="text-base font-bold text-gray-800 truncate group-hover:text-[#FF5900] transition-colors">
+                {/* Nombre con break-words para que salte de línea si es necesario */}
+                <div className="text-sm sm:text-base font-bold text-gray-800 group-hover:text-[#FF5900] transition-colors break-words leading-snug">
                     {nombre}
                 </div>
             </div>
-            <div className="flex items-baseline gap-1.5 shrink-0">
-                <span className="text-3xl font-extrabold text-[#FF5900] leading-none">{total}</span>
-                <span className="text-sm text-gray-500 font-medium">{unidad}{plural}</span>
+            
+            <div className="flex items-baseline gap-1 shrink-0 ml-1">
+                <span className="text-2xl sm:text-3xl font-extrabold text-[#FF5900] leading-none">{total}</span>
+                <span className="text-xs sm:text-sm text-gray-500 font-medium">{unidad}{plural}</span>
             </div>
         </div>
     );

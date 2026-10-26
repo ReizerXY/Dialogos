@@ -13,11 +13,12 @@ export default function MiniStat({ label, value, accent = 'gray' }) {
     const style = accentColors[accent] || accentColors.gray;
 
     return (
-        <div className={`rounded-xl border p-3 flex flex-col items-center justify-center ${style}`}>
-            <span className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1 text-center leading-tight">
+        <div className={`rounded-xl border p-2 sm:p-3 flex flex-col items-center justify-center ${style}`}>
+            {/* Se quita 'uppercase' y se ajusta el tamaño en móvil para que no se desborde */}
+            <span className="text-[10px] sm:text-xs font-semibold mb-1 text-center leading-tight break-words opacity-80">
                 {label}
             </span>
-            <span className="text-2xl font-extrabold">
+            <span className="text-xl sm:text-2xl font-extrabold">
                 {value}
             </span>
         </div>

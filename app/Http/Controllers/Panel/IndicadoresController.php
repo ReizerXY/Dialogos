@@ -15,7 +15,7 @@ class IndicadoresController extends Controller
 {
     private $MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-    // Devuelve el titulo del mes a partir de YYYY-MM
+    // Devuelve el título del mes a partir de YYYY-MM
     private function mesTitulo($mesYMD)
     {
         if (!$mesYMD) return '';
@@ -30,7 +30,7 @@ class IndicadoresController extends Controller
             abort(403, 'No autorizado.');
         }
 
-        // ---- Validacion de filtros ----
+        // ---- Validación de filtros ----
         $anio   = $this->validarAnio($request->get('anio'));
         $mes    = $this->validarMes($request->get('mes'));
         $semana = $this->validarSemana($request->get('semana'));
@@ -83,7 +83,7 @@ class IndicadoresController extends Controller
                 return $q;
             };
 
-            // Catalogos (10 min de cache)
+            // Catálogos (10 min de cache)
             $gradosActivos = Cache::remember('catalogos.grados', 600, function () {
                 return DB::table('estudiantes')
                     ->select('grado')->distinct()->orderBy('grado')
@@ -159,8 +159,8 @@ class IndicadoresController extends Controller
                 ->get()
                 ->mapWithKeys(function ($item) {
                     $dias = [
-                        'Monday'=>'Lunes','Tuesday'=>'Martes','Wednesday'=>'Miercoles',
-                        'Thursday'=>'Jueves','Friday'=>'Viernes','Saturday'=>'Sabado','Sunday'=>'Domingo'
+                        'Monday'=>'Lunes','Tuesday'=>'Martes','Wednesday'=>'Miércoles',
+                        'Thursday'=>'Jueves','Friday'=>'Viernes','Saturday'=>'Sábado','Sunday'=>'Domingo'
                     ];
                     return [$dias[$item->dia] ?? $item->dia => $item->total];
                 })
@@ -195,7 +195,7 @@ class IndicadoresController extends Controller
                 ? round($totalCitas / $estudiantesAtendidos, 1)
                 : 0;
 
-            // Estudiantes agrupados (solo los atendidos en el periodo)
+            // Estudiantes agrupados (solo los atendidos en el período)
             $qEstAgrupados = DB::table('citas')
                 ->join('estudiantes', 'citas.id_estudiante', '=', 'estudiantes.id_estudiante')
                 ->select(

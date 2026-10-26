@@ -1,13 +1,32 @@
 // resources/js/Pages/Panel/Indicadores/Secciones/SeccionCitas.jsx
+import { useState, useEffect } from 'react';
 import SeccionPanel from '../Componentes/SeccionPanel';
 import ClasificacionDot from '@/Components/ClasificacionDot';
 import { formatFecha } from '../helpers';
+
+// Detecta móvil / pantalla chica
+function esDispositivoMovil() {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const esMovil = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(ua);
+    const esPantallaChica = window.innerWidth < 768;
+    return esMovil || esPantallaChica;
+}
 
 export default function SeccionCitas({
     citasDelPeriodo,
     tituloCitas,
     mensajeSinCitas,
 }) {
+    const [esMovil, setEsMovil] = useState(false);
+
+    useEffect(() => {
+        setEsMovil(esDispositivoMovil());
+        const onResize = () => setEsMovil(esDispositivoMovil());
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
     // Colores para los estados de las citas
     const estadoColores = {
         programada:         'bg-yellow-50 border-yellow-200 text-yellow-800',
@@ -16,7 +35,7 @@ export default function SeccionCitas({
         completada:         'bg-green-50 border-green-200 text-green-800',
     };
 
-    // Etiquetas de texto para los estados (definidas aquí para evitar el error)
+    // Etiquetas de texto para los estados
     const estadoLabels = {
         programada: 'Programada',
         cancelada: 'Cancelada',
@@ -27,60 +46,100 @@ export default function SeccionCitas({
     return (
         <SeccionPanel titulo={tituloCitas}>
             {citasDelPeriodo.length > 0 ? (
-                <div className="overflow-x-auto rounded-xl border border-gray-100">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estudiante</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Formador</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha y Hora</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Clasificación</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
+                <>
+                    {/* 📱 VISTA MÓVIL: Tarjetas */}
+                    {esMovil && (
+                        <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden bg-white shadow-sm">
                             {citasDelPeriodo.map(c => {
                                 const estadoColor = estadoColores[c.estado] || 'bg-gray-50 border-gray-200 text-gray-700';
                                 const estadoLabel = estadoLabels[c.estado] || c.estado;
 
                                 return (
-                                    <tr key={`cita-${c.id_cita}`} className="hover:bg-gray-50 transition-colors">
-                                        {/* Estudiante */}
-                                        <td className="px-6 py-3.5 text-base font-medium text-gray-800">
-                                            {c.nombre_estudiante}
-                                        </td>
-                                        
-                                        {/* Formador */}
-                                        <td className="px-6 py-3.5 text-sm text-gray-600">
-                                            {c.nombre_formador || '—'}
-                                        </td>
-                                        
-                                        {/* Fecha y Hora (Juntas para ahorrar espacio) */}
-                                        <td className="px-6 py-3.5 text-sm text-gray-600 whitespace-nowrap">
-                                            <span className="font-medium text-gray-800">{formatFecha(c.fecha)}</span>
-                                            <span className="text-gray-400 mx-1">·</span>
-                                            {c.hora?.substring(0,5)}
-                                        </td>
-
-                                        {/* Clasificación (Solo color) */}
-                                        <td className="px-6 py-3.5 text-center">
-                                            <div className="flex justify-center">
-                                                <ClasificacionDot clasificacion={c.clasificacion} size="md" />
+                                    <div key={`card-${c.id_cita}`} className="p-4 hover:bg-gray-50 transition-colors">
+                                        <div className="flex justify-between items-start gap-3 mb-2">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-bold text-gray-800 leading-tight truncate">
+                                                    {c.nombre_estudiante}
+                                                </p>
+                                                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                                    {c.nombre_formador || 'Sin formador asignado'}
+                                                </p>
                                             </div>
-                                        </td>
-
-                                        {/* Estado (Píldora) */}
-                                        <td className="px-6 py-3.5 whitespace-nowrap">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${estadoColor}`}>
+                                            <ClasificacionDot clasificacion={c.clasificacion} size="md" />
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between gap-2 mt-3">
+                                            <span className="text-xs text-gray-700 font-medium bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
+                                                {formatFecha(c.fecha)} · {c.hora?.substring(0,5)}
+                                            </span>
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium border ${estadoColor}`}>
                                                 {estadoLabel}
                                             </span>
-                                        </td>
-                                    </tr>
+                                        </div>
+                                    </div>
                                 );
                             })}
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+                    )}
+
+                    {/* 💻 VISTA ESCRITORIO: Tabla */}
+                    {!esMovil && (
+                        <div className="overflow-x-auto rounded-xl border border-gray-100">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estudiante</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Formador</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha y Hora</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Clasificación</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-100">
+                                    {citasDelPeriodo.map(c => {
+                                        const estadoColor = estadoColores[c.estado] || 'bg-gray-50 border-gray-200 text-gray-700';
+                                        const estadoLabel = estadoLabels[c.estado] || c.estado;
+
+                                        return (
+                                            <tr key={`row-${c.id_cita}`} className="hover:bg-gray-50 transition-colors">
+                                                {/* Estudiante */}
+                                                <td className="px-6 py-3.5 text-base font-medium text-gray-800">
+                                                    {c.nombre_estudiante}
+                                                </td>
+                                                
+                                                {/* Formador */}
+                                                <td className="px-6 py-3.5 text-sm text-gray-600">
+                                                    {c.nombre_formador || '—'}
+                                                </td>
+                                                
+                                                {/* Fecha y Hora */}
+                                                <td className="px-6 py-3.5 text-sm text-gray-600 whitespace-nowrap">
+                                                    <span className="font-medium text-gray-800">{formatFecha(c.fecha)}</span>
+                                                    <span className="text-gray-400 mx-1">·</span>
+                                                    {c.hora?.substring(0,5)}
+                                                </td>
+
+                                                {/* Clasificación (Solo color) */}
+                                                <td className="px-6 py-3.5 text-center">
+                                                    <div className="flex justify-center">
+                                                        <ClasificacionDot clasificacion={c.clasificacion} size="md" />
+                                                    </div>
+                                                </td>
+
+                                                {/* Estado (Píldora) */}
+                                                <td className="px-6 py-3.5 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${estadoColor}`}>
+                                                        {estadoLabel}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </>
             ) : (
                 /* Empty State estándar */
                 <div className="bg-white rounded-2xl border border-gray-100 py-16 px-6 text-center">

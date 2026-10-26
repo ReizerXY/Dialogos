@@ -22,23 +22,26 @@ export default function SeccionFormadores({
                             {/* Cabecera del Acordeón */}
                             <button 
                                 onClick={() => toggleFormador(f.nombre)} 
-                                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition text-left"
+                                className="w-full flex items-center justify-between px-3 sm:px-5 py-4 hover:bg-gray-50 transition text-left gap-2"
                             >
-                                <div className="flex items-center gap-4 min-w-0">
+                                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                                     <Medal position={idx} />
                                     <div className="min-w-0">
-                                        <div className="text-lg font-bold text-gray-800 truncate">{f.nombre}</div>
-                                        <div className="text-sm text-gray-500 mt-0.5">
+                                        {/* Eliminamos truncate y agregamos break-words */}
+                                        <div className="text-sm sm:text-lg font-bold text-gray-800 break-words leading-tight pr-1">
+                                            {f.nombre}
+                                        </div>
+                                        <div className="text-[11px] sm:text-sm text-gray-500 mt-1 leading-tight">
                                             Atendió a {f.estudiantesUnicos} estudiante{f.estudiantesUnicos === 1 ? '' : 's'}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#CC4700] bg-[#FF5900]/10 border border-[#FF5900]/20 rounded-full px-4 py-1.5 whitespace-nowrap">
-                                        <span className="text-base font-extrabold">{f.total}</span>
+                                <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                                    <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#CC4700] bg-[#FF5900]/10 border border-[#FF5900]/20 rounded-full px-2.5 sm:px-4 py-1 sm:py-1.5 whitespace-nowrap">
+                                        <span className="text-sm sm:text-base font-extrabold">{f.total}</span>
                                         <span>cita{f.total === 1 ? '' : 's'}</span>
                                     </span>
-                                    <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${expandido ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform duration-300 ${expandido ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </div>
@@ -46,47 +49,47 @@ export default function SeccionFormadores({
 
                             {/* Contenido del Acordeón */}
                             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandido ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <div className="px-5 py-5 border-t border-gray-100 bg-gray-50/40">
+                                <div className="px-3 sm:px-5 py-4 sm:py-5 border-t border-gray-100 bg-gray-50/40">
                                     
                                     {/* Fila 1: Estatus de las citas */}
-                                    <div className="grid grid-cols-3 gap-3 mb-4">
+                                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
                                         <MiniStat label="Completadas" value={f.completadas} accent="green" />
                                         <MiniStat label="Programadas" value={f.programadas} accent="yellow" />
                                         <MiniStat label="Canceladas" value={f.canceladas} accent="red" />
                                     </div>
 
                                     {/* Fila 2: Asistencia */}
-                                    <div className="bg-white border border-gray-100 rounded-xl p-4 mb-5 flex flex-col md:flex-row items-center justify-between gap-4">
-                                        <div className="flex items-center gap-6">
+                                    <div className="bg-white border border-gray-100 rounded-xl p-3 sm:p-4 mb-4 sm:mb-5 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
+                                        <div className="flex items-center gap-4 sm:gap-6">
                                             <div className="text-center">
-                                                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Sí asistió</div>
-                                                <div className="text-xl font-bold text-gray-800">{f.asistencias}</div>
+                                                <div className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide mb-1">Sí asistió</div>
+                                                <div className="text-lg sm:text-xl font-bold text-gray-800">{f.asistencias}</div>
                                             </div>
                                             <div className="w-px h-8 bg-gray-200"></div>
                                             <div className="text-center">
-                                                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">No asistió</div>
-                                                <div className="text-xl font-bold text-gray-800">{f.faltas}</div>
+                                                <div className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide mb-1">No asistió</div>
+                                                <div className="text-lg sm:text-xl font-bold text-gray-800">{f.faltas}</div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
-                                            <span className="text-sm font-medium text-gray-600">Tasa de asistencia:</span>
-                                            <span className="text-xl font-extrabold text-[#FF5900]">{f.tasaAsistencia}%</span>
+                                        <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 rounded-lg border border-gray-100 w-full md:w-auto justify-center">
+                                            <span className="text-xs sm:text-sm font-medium text-gray-600">Tasa de asistencia:</span>
+                                            <span className="text-lg sm:text-xl font-extrabold text-[#FF5900]">{f.tasaAsistencia}%</span>
                                         </div>
                                     </div>
 
-                                    {/* Fila 3: Temas (Solo color y número) */}
+                                    {/* Fila 3: Temas */}
                                     {f.clasificaciones.length > 0 && (
                                         <div>
-                                            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Temas más tratados</div>
+                                            <div className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 sm:mb-3">Temas más tratados</div>
                                             <div className="flex flex-wrap gap-2">
                                                 {f.clasificaciones.map((c, i) => (
                                                     <div
                                                         key={i}
-                                                        className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm"
-                                                        title={c.clasificacion} /* Tooltip nativo por si acaso */
+                                                        className="flex items-center gap-1.5 sm:gap-2 bg-white border border-gray-200 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm"
+                                                        title={c.clasificacion}
                                                     >
                                                         <ClasificacionDot clasificacion={c.clasificacion} size="sm" />
-                                                        <span className="text-sm font-bold text-gray-900 bg-gray-100 rounded-md px-1.5 py-0.5 ml-1">
+                                                        <span className="text-xs sm:text-sm font-bold text-gray-900 bg-gray-100 rounded-md px-1.5 py-0.5 ml-0.5">
                                                             {c.total}
                                                         </span>
                                                     </div>

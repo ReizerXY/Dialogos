@@ -144,24 +144,24 @@ export default function AuthenticatedLayout({ children }) {
                     }}
                 >
                     {mostrarAlertaImportacion && (
-                        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 mb-3">
+                        <div className="bg-cyan-600 rounded-xl p-3.5 mb-3 shadow-lg shadow-cyan-600/30">
                             <div className="flex items-start gap-2.5">
-                                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z" />
                                     </svg>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-amber-900 leading-tight">
+                                    <p className="text-sm font-bold text-white leading-tight">
                                         Actualización pendiente
                                     </p>
-                                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                                        Es momento de actualizar la lista de estudiantes del ciclo actual.
+                                    <p className="text-xs text-cyan-50 mt-1 leading-relaxed">
+                                        Es momento de actualizar la lista de estudiantes.
                                     </p>
                                     <button
                                         type="button"
                                         onClick={irAImportar}
-                                        className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF5900] hover:text-[#CC4700] transition-colors active:scale-95"
+                                        className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-white bg-cyan-700 hover:bg-cyan-800 px-3 py-1.5 rounded-lg transition-colors active:scale-95 shadow-sm"
                                     >
                                         Importar ahora
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

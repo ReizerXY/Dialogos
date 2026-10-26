@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import SelectorSemana from '@/Components/SelectorSemana';
 
-// Detecta movil / pantalla chica
+// Detecta móvil / pantalla chica
 function esDispositivoMovil() {
     if (typeof window === 'undefined') return false;
     const ua = navigator.userAgent || '';
@@ -13,7 +13,7 @@ function esDispositivoMovil() {
     return esMovil || esPantallaChica;
 }
 
-// Encabezado de cada paso (numero + icono + label + titulo + linea)
+// Encabezado de cada paso (número + ícono + label + título + línea)
 function EncabezadoPaso({ numero, titulo, descripcion, Icono, completado = false }) {
     return (
         <div className="flex items-start gap-4 mb-5">
@@ -44,7 +44,7 @@ function EncabezadoPaso({ numero, titulo, descripcion, Icono, completado = false
     );
 }
 
-// Iconos SVG (outline, estilo consistente)
+// Íconos SVG (outline, estilo consistente)
 const IconoTipo = (props) => (
     <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -569,7 +569,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                                 </div>
                                             </div>
 
-                                            {/* Tooltip inline SOLO en movil (tap) */}
+                                            {/* Tooltip inline SOLO en móvil (tap) */}
                                             {esMovil && mostrarTooltip && (
                                                 <div className="mt-2 ml-4 mr-4 bg-gray-900 text-white text-xs rounded-lg p-3 leading-relaxed">
                                                     <div className="font-semibold text-[#FF5900] mb-1">{secInfo.label}</div>
@@ -635,7 +635,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                                     </p>
                                 )}
 
-                                {/* Boton solo visible en desktop */}
+                                {/* Botón solo visible en desktop */}
                                 <button
                                     type="button"
                                     onClick={handleGenerarPDF}
@@ -667,7 +667,7 @@ export default function Reportes({ user, catalogo, aniosDisponibles }) {
                 </div>
             </div>
 
-            {/* Boton sticky movil */}
+            {/* Botón sticky móvil */}
             {!previewModal && (
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg z-40">
                     <button

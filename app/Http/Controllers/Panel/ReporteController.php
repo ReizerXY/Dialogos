@@ -12,7 +12,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReporteController extends Controller
 {
-    // Catalogo de tipos de reporte y sus secciones disponibles
+    // Catálogo de tipos de reporte y sus secciones disponibles
     public static function catalogo(): array
     {
         return [
@@ -220,7 +220,7 @@ class ReporteController extends Controller
         ];
     }
 
-    // Vista inicial del modulo de reportes
+    // Vista inicial del módulo de reportes
     public function index()
     {
         $user = Session::get('user');
@@ -314,7 +314,7 @@ class ReporteController extends Controller
                     if ($week >= 1 && $week <= 53) {
                         $fechaInicio = (new \DateTime())->setISODate($year, $week, 1)->format('Y-m-d');
                         $fechaFin    = (new \DateTime())->setISODate($year, $week, 7)->format('Y-m-d');
-                        $periodoLabel = "Semana {$week} del anio {$year}";
+                        $periodoLabel = "Semana {$week} del año {$year}";
                         break;
                     }
                 }
@@ -351,7 +351,7 @@ class ReporteController extends Controller
                 }
                 $fechaInicio = "{$anio}-01-01";
                 $fechaFin    = "{$anio}-12-31";
-                $periodoLabel = "Anio {$anio}";
+                $periodoLabel = "Año {$anio}";
                 break;
 
             case 'libre':
@@ -363,10 +363,10 @@ class ReporteController extends Controller
                 $finValido    = $rawFin    && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $rawFin);
 
                 if (!$inicioValido || !$finValido) {
-                    // Formato invalido -> usar semana anterior silenciosamente
+                    // Formato inválido -> usar semana anterior silenciosamente
                     $fechaInicio = now()->subWeek()->startOfWeek()->toDateString();
                     $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
-                    $periodoLabel = 'Semana anterior (fechas invalidas)';
+                    $periodoLabel = 'Semana anterior (fechas inválidas)';
                 } else {
                     // Verificar que sean fechas reales
                     try {
@@ -385,13 +385,13 @@ class ReporteController extends Controller
                     } catch (\Exception $e) {
                         $fechaInicio = now()->subWeek()->startOfWeek()->toDateString();
                         $fechaFin    = now()->subWeek()->endOfWeek()->toDateString();
-                        $periodoLabel = 'Semana anterior (fechas invalidas)';
+                        $periodoLabel = 'Semana anterior (fechas inválidas)';
                     }
                 }
                 break;
         }
 
-        // Auditoria
+        // Auditoría
         Log::info('Reporte PDF generado', [
             'tipo'          => $tipo,
             'periodo'       => $periodo,
@@ -456,7 +456,7 @@ class ReporteController extends Controller
     // Recopila todos los datos agregados del periodo para armar el PDF
     private function recopilarDatos($fechaInicio, $fechaFin): array
     {
-        // ---- Numeros principales ----
+        // ---- Números principales ----
         $totalCitas = DB::table('citas')->whereBetween('fecha', [$fechaInicio, $fechaFin])->count();
 
         $totalFormadores = DB::table('usuarios')->where('rol', 'Formador')->where('visibilidad_usuario', 1)->count();
@@ -482,7 +482,7 @@ class ReporteController extends Controller
         $tasaCompletacion = $totalCitas > 0 ? round(($completadas / $totalCitas) * 100, 1) : 0;
         $tasaCancelacion  = $totalCitas > 0 ? round(($canceladas  / $totalCitas) * 100, 1) : 0;
 
-        // ---- Citas por tipo de clasificacion ----
+        // ---- Citas por tipo de clasificación ----
         $citasPorClasificacion = DB::table('citas')
             ->select('clasificacion', DB::raw('count(*) as total'))
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
@@ -641,7 +641,7 @@ class ReporteController extends Controller
                 : 0;
         }
 
-        // ---- Cobertura historica general ----
+        // ---- Cobertura histórica general ----
         $estudiantesAtendidosHistorico = DB::table('citas')
             ->whereNotNull('id_estudiante')
             ->distinct('id_estudiante')
@@ -739,14 +739,14 @@ class ReporteController extends Controller
             $primerasCitasMap[$p->id_estudiante] = $p->primera;
         }
 
-        // Lista de meses que toca el rango (con proteccion contra loops infinitos)
+        // Lista de meses que toca el rango (con protección contra loops infinitos)
         $meses = [];
         $cursor = new \DateTime($fechaInicio);
         $cursor->modify('first day of this month');
         $cursorFin = new \DateTime($fechaFin);
 
         $iteraciones = 0;
-        $maxIteraciones = 120; // 10 anios de meses
+        $maxIteraciones = 120; // 10 años de meses
         while ($cursor <= $cursorFin && $iteraciones < $maxIteraciones) {
             $meses[] = $cursor->format('Y-m');
             $cursor->modify('+1 month');

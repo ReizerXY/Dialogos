@@ -409,15 +409,15 @@
                 </div>
                 <div class="card">
                     <div class="value">{{ $datos['tasa_completacion'] }}%</div>
-                    <div class="label">Tasa completación</div>
+                    <div class="label">Tasa de completación</div>
                 </div>
                 <div class="card">
                     <div class="value">{{ $datos['tasa_cancelacion'] }}%</div>
-                    <div class="label">Tasa cancelación</div>
+                    <div class="label">Tasa de cancelación</div>
                 </div>
                 <div class="card">
                     <div class="value">{{ $datos['tasa_asistencia'] }}%</div>
-                    <div class="label">Tasa asistencia</div>
+                    <div class="label">Tasa de asistencia</div>
                 </div>
             </div>
             <div class="cards" style="margin-top:-8px;">
