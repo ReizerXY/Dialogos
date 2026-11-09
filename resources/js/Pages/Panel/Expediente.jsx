@@ -4,6 +4,7 @@ import { Head } from '@inertiajs/react';
 import { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import ClasificacionDot from '@/Components/ClasificacionDot';
+import ConfirmModal from '@/Components/ConfirmModal'; // <-- Importamos el modal
 import { ESTADO_LABELS, ASISTENCIA_LABELS, formatFecha, etiquetaFechaRelativa } from '@/Pages/Panel/Citas/helpers';
 
 // Detecta móvil / pantalla chica
@@ -117,6 +118,9 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
     const [avisoBusqueda, setAvisoBusqueda] = useState('');
     const [esMovil, setEsMovil] = useState(false);
 
+    // Estado para el modal de confirmación del PDF
+    const [confirmPdfOpen, setConfirmPdfOpen] = useState(false);
+
     useEffect(() => {
         setEsMovil(esDispositivoMovil());
         const onResize = () => setEsMovil(esDispositivoMovil());
@@ -184,6 +188,12 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
             setAvisoBusqueda('Selecciona un estudiante de la lista antes de buscar.');
             setTimeout(() => setAvisoBusqueda(''), 4000);
         }
+    };
+
+    // Ejecuta la descarga del PDF
+    const handleDescargarPdf = () => {
+        setConfirmPdfOpen(false);
+        window.location.href = `/expediente/${estudiante.id_estudiante}/pdf`;
     };
 
     // Nombre completo del estudiante (ya viene compuesto del backend para activos)
@@ -317,34 +327,50 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                         {/* Card principal del estudiante */}
                         <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                             <div className="px-6 py-5 border-b border-gray-100">
-                                <div className="flex items-start gap-4">
-                                    <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF5900] to-[#CC4700] flex items-center justify-center shadow-lg shadow-[#FF5900]/20">
-                                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h2 className="text-xl font-bold text-gray-800 leading-tight truncate">
-                                            {nombreCompleto}
-                                        </h2>
-                                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                                                {estudiante.id_estudiante}
-                                            </span>
-                                            {gradoGrupo && (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF5900]/10 text-[#CC4700]">
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                                    </svg>
-                                                    {gradoGrupo}
-                                                </span>
-                                            )}
-                                            {egresado && (
-                                                <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wide">
-                                                    Egresado
-                                                </span>
-                                            )}
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                                        <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF5900] to-[#CC4700] flex items-center justify-center shadow-lg shadow-[#FF5900]/20">
+                                            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
                                         </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h2 className="text-xl font-bold text-gray-800 leading-tight break-words pr-2">
+                                                {nombreCompleto}
+                                            </h2>
+                                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                                    {estudiante.id_estudiante}
+                                                </span>
+                                                {gradoGrupo && (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF5900]/10 text-[#CC4700]">
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                        </svg>
+                                                        {gradoGrupo}
+                                                    </span>
+                                                )}
+                                                {egresado && (
+                                                    <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wide">
+                                                        Egresado
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Botón de descarga PDF */}
+                                    <div className="flex-shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+                                        <button
+                                            onClick={() => setConfirmPdfOpen(true)}
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-100 hover:text-[#FF5900] hover:border-[#FF5900]/30 transition-all duration-200 w-full sm:w-auto"
+                                            title="Descargar expediente en PDF"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            Descargar PDF
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -568,6 +594,26 @@ export default function Expediente({ estudiante, citas, totalCitas, citasProgram
                     </div>
                 )}
             </div>
+
+            {/* Modal de confirmación para descargar PDF */}
+            <ConfirmModal
+                isOpen={confirmPdfOpen}
+                onClose={() => setConfirmPdfOpen(false)}
+                onConfirm={handleDescargarPdf}
+                title="Descargar expediente en PDF"
+                message={
+                    <span>
+                        ¿Estás seguro de que deseas descargar el expediente de <strong>{nombreCompleto}</strong> en formato PDF?
+                        <br /><br />
+                        <span className="text-sm text-gray-500">
+                            Este documento contiene información confidencial de las citas del estudiante.
+                        </span>
+                    </span>
+                }
+                confirmText="Sí, descargar PDF"
+                cancelText="Cancelar"
+                variant="info" // Usamos 'info' para que sea azul, o 'primary' si tienes esa variante
+            />
         </AuthenticatedLayout>
     );
 }

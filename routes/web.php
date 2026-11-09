@@ -108,7 +108,7 @@ Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
     Route::prefix('estudiantes')->middleware('check.role:Coordinador')->group(function () {
         Route::get('/', [EstudianteController::class, 'index'])->name('estudiantes.index');
         Route::post('/', [EstudianteController::class, 'store'])->name('estudiantes.store');
-        Route::get('/exportar-excel', [EstudianteController::class, 'exportarExcel'])->name('estudiantes.exportarExcel');  // ← NUEVA
+        Route::get('/exportar-excel', [EstudianteController::class, 'exportarExcel'])->name('estudiantes.exportarExcel');
         Route::put('/configuracion', [EstudianteController::class, 'updateConfiguracion'])->name('estudiantes.configuracion');
         Route::post('/importar', [EstudianteController::class, 'import'])->name('estudiantes.importar');
         Route::delete('/todos', [EstudianteController::class, 'destroyAll'])->name('estudiantes.destroyAll');
@@ -182,6 +182,9 @@ Route::middleware(['auth.session', 'throttle:autenticado'])->group(function () {
     })->name('expediente.index');
 
     Route::get('/expediente/{id_estudiante}', [ExpedienteController::class, 'show'])->name('expediente.show');
+
+    // ⬇️ NUEVA RUTA PARA EL PDF ⬇️
+    Route::get('/expediente/{id_estudiante}/pdf', [ExpedienteController::class, 'descargarPdf'])->name('expediente.pdf');
 
     Route::get('/api/expediente/estudiantes', [ExpedienteController::class, 'buscarEstudiantes'])
         ->name('api.expediente.estudiantes');

@@ -8,12 +8,46 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Barryvdh\DomPDF\Facade\Pdf; // <-- IMPORTANTE: Importar DomPDF
 
 class ExpedienteController extends Controller
 {
     // Muestra el expediente de un estudiante (activo o egresado)
-    // Todos los usuarios autenticados pueden ver cualquier expediente.
     public function show($id_estudiante)
+    {
+        $datos = $this->obtenerDatosExpediente($id_estudiante);
+        $datos['user'] = Session::get('user');
+        
+        return inertia('Panel/Expediente', $datos);
+    }
+
+    // Genera y descarga el expediente en formato PDF
+    public function descargarPdf($id_estudiante)
+    {
+        $datos = $this->obtenerDatosExpediente($id_estudiante);
+        $user = Session::get('user');
+
+        // Auditoría
+        Log::info('Expediente PDF descargado', [
+            'id_estudiante' => $id_estudiante,
+            'por_usuario'   => $user['usuario'] ?? null,
+            'ip'            => request()->ip(),
+        ]);
+
+        // Cargar la vista de blade para el PDF
+        $pdf = Pdf::loadView('pdf.expediente', $datos);
+        
+        // Configurar papel
+        $pdf->setPaper('letter', 'portrait');
+
+        // Nombre del archivo
+        $nombreArchivo = 'Expediente_' . str_replace(' ', '_', $datos['estudiante']->nombre) . '.pdf';
+
+        return $pdf->download($nombreArchivo);
+    }
+
+    // Método privado que extrae toda la lógica de consulta a la BD
+    private function obtenerDatosExpediente($id_estudiante)
     {
         $user = Session::get('user');
         if (!$user) {
@@ -84,7 +118,7 @@ class ExpedienteController extends Controller
         $faltas               = $citas->where('asistencia', 'no asistió')->count();
         $pendientesAsistencia = $citas->where('asistencia', 'pendiente')->count();
 
-        // Auditoría: registrar quién consulta cada expediente
+        // Auditoría (solo para la vista web, no para el PDF)
         Log::info('Expediente consultado', [
             'id_estudiante' => $id_estudiante,
             'por_usuario'   => $user['usuario'] ?? null,
@@ -92,7 +126,7 @@ class ExpedienteController extends Controller
             'ip'            => request()->ip(),
         ]);
 
-        return inertia('Panel/Expediente', [
+        return [
             'estudiante' => $estudiante,
             'citas' => $citas,
             'totalCitas' => $totalCitas,
@@ -103,12 +137,10 @@ class ExpedienteController extends Controller
             'faltas' => $faltas,
             'pendientesAsistencia' => $pendientesAsistencia,
             'egresado' => $egresado,
-            'user' => $user,
-        ]);
+        ];
     }
 
     // Busca estudiantes por nombre completo o por ID (insensible a acentos)
-    // Disponible para Coordinadores y Formadores sin restricción.
     public function buscarEstudiantes(Request $request)
     {
         $user = Session::get('user');
@@ -122,7 +154,6 @@ class ExpedienteController extends Controller
             return response()->json([]);
         }
 
-        // Normalizar: reemplazar caracteres especiales por espacios
         $queryLimpio = preg_replace('/[\(\)\-_,\.\*\+\?\¿\¡\!\[\]\{\}]+/u', ' ', $query);
         $queryLimpio = trim(preg_replace('/\s+/u', ' ', $queryLimpio));
 
@@ -132,16 +163,13 @@ class ExpedienteController extends Controller
 
         $palabras = array_values(array_filter(explode(' ', $queryLimpio), fn($p) => $p !== ''));
 
-        // Límite de palabras para evitar DOS con queries gigantes
         if (count($palabras) > 5) {
             $palabras = array_slice($palabras, 0, 5);
         }
 
-        // Límite de largo de cada palabra
         $palabras = array_map(fn($p) => mb_substr($p, 0, 30), $palabras);
 
         try {
-            // Búsqueda de estudiantes activos
             $activos = DB::table('estudiantes')
                 ->where(function ($outer) use ($palabras) {
                     foreach ($palabras as $palabra) {
@@ -149,8 +177,7 @@ class ExpedienteController extends Controller
                             $sub->whereRaw(
                                 "CONVERT(CONCAT(nombre, ' ', apellido_paterno, ' ', apellido_materno) USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE ?",
                                 ["%{$palabra}%"]
-                            )
-                            ->orWhere('id_estudiante', 'LIKE', "%{$palabra}%");
+                            )->orWhere('id_estudiante', 'LIKE', "%{$palabra}%");
                         });
                     }
                 })
@@ -173,7 +200,6 @@ class ExpedienteController extends Controller
 
             $idsActivos = $activos->pluck('id_estudiante')->toArray();
 
-            // Búsqueda de egresados (mismo criterio sobre nombre_estudiante)
             $egresados = DB::table('citas')
                 ->whereNotNull('id_estudiante')
                 ->whereNotIn('id_estudiante', function ($sub) {
@@ -207,11 +233,7 @@ class ExpedienteController extends Controller
                     return !in_array($e['id_estudiante'], $idsActivos);
                 });
 
-            $resultado = collect($activos)
-                ->merge($egresados)
-                ->unique('id_estudiante')
-                ->values()
-                ->take(15);
+            $resultado = collect($activos)->merge($egresados)->unique('id_estudiante')->values()->take(15);
 
             return response()->json($resultado);
         } catch (\Exception $e) {
