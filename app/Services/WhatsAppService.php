@@ -156,10 +156,14 @@ class WhatsAppService
 
         $formador = $cita->nombre_formador ?: $this->getFormadorName($cita->id_usuario);
 
+        \Carbon\Carbon::setLocale('es');
+        $fechaF = \Carbon\Carbon::parse($cita->fecha)->translatedFormat('d \d\e F \d\e Y');
+        $horaF = \Carbon\Carbon::parse($cita->hora)->format('h:i A');
+
         $mensaje = "Hola {$cita->nombre_estudiante}.\n\n" .
                    "Tu cita ha sido confirmada.\n" .
-                   "Fecha: {$cita->fecha}\n" .
-                   "Hora: " . substr($cita->hora, 0, 5) . "\n" .
+                   "Fecha: {$fechaF}\n" .
+                   "Hora: {$horaF}\n" .
                    "Formador: {$formador}\n\n" .
                    "Por favor llega puntual. Te esperamos.";
 
@@ -174,10 +178,14 @@ class WhatsAppService
 
         $formador = $cita->nombre_formador ?: $this->getFormadorName($cita->id_usuario);
 
+        \Carbon\Carbon::setLocale('es');
+        $fechaF = \Carbon\Carbon::parse($cita->fecha)->translatedFormat('d \d\e F \d\e Y');
+        $horaF = \Carbon\Carbon::parse($cita->hora)->format('h:i A');
+
         $mensaje = "Hola {$cita->nombre_estudiante}.\n\n" .
                    "Tu cita ha sido modificada.\n" .
-                   "Nueva fecha: {$cita->fecha}\n" .
-                   "Nueva hora: " . substr($cita->hora, 0, 5) . "\n" .
+                   "Nueva fecha: {$fechaF}\n" .
+                   "Nueva hora: {$horaF}\n" .
                    "Formador: {$formador}\n\n" .
                    "Si no solicitaste este cambio, contacta al coordinador.";
 
@@ -190,9 +198,13 @@ class WhatsAppService
         $phone = $this->getPhoneByStudent($cita->id_estudiante, $cita->nombre_estudiante);
         if (!$phone) return false;
 
+        \Carbon\Carbon::setLocale('es');
+        $fechaF = \Carbon\Carbon::parse($cita->fecha)->translatedFormat('d \d\e F \d\e Y');
+        $horaF = \Carbon\Carbon::parse($cita->hora)->format('h:i A');
+
         $mensaje = "Hola {$cita->nombre_estudiante}.\n\n" .
                    "Lamentamos informarte que tu cita del " .
-                   "{$cita->fecha} a las " . substr($cita->hora, 0, 5) . " ha sido cancelada.\n\n" .
+                   "{$fechaF} a las {$horaF} ha sido cancelada.\n\n" .
                    "Si necesitas reagendar, contacta al coordinador.";
 
         return $this->sendMessage($phone, $mensaje);

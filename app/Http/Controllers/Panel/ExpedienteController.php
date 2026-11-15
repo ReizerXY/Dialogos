@@ -113,7 +113,12 @@ class ExpedienteController extends Controller
         $totalCitas           = $citas->count();
         $citasProgramadas     = $citas->where('estado', 'programada')->count();
         $citasCompletadas     = $citas->where('estado', 'completada')->count();
-        $citasCanceladas      = $citas->where('estado', 'cancelada')->count();
+        
+        // --- CORRECCIÓN AQUÍ ---
+        // Ahora cuenta tanto 'cancelada' como 'cancelada_liberada'
+        $citasCanceladas      = $citas->whereIn('estado', ['cancelada', 'cancelada_liberada'])->count();
+        // -----------------------
+
         $asistencias          = $citas->where('asistencia', 'asistió')->count();
         $faltas               = $citas->where('asistencia', 'no asistió')->count();
         $pendientesAsistencia = $citas->where('asistencia', 'pendiente')->count();

@@ -31,7 +31,7 @@ export default function GuestLayout({ title, children }) {
                                     Calle Universidad 100, Col. Rancho San Emigdio,<br />
                                     C.P. 94500, Cordoba, Veracruz, Mexico.
                                 </p>
-                                <p className="text-gray-600 mt-1">Telefono: 271 117 0280</p>
+                                <p className="text-gray-600 mt-1">Telefono: 272 123 4567</p>
                             </div>
                             <div>
                                 <h3 className="font-bold text-gray-800 mb-2">Enlaces</h3>

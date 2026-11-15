@@ -1,6 +1,6 @@
 // resources/js/Pages/Panel/Citas/CitasTodos.jsx
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useState, useEffect, useMemo } from 'react';
 import TablaCitas from './TablaCitas';
 import FiltrosCitas from './FiltrosCitas';
@@ -140,36 +140,11 @@ export default function CitasTodos({
         <AuthenticatedLayout>
             <Head title="Citas de todos los formadores" />
             <div className="max-w-7xl mx-auto">
-                <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Citas de todos los formadores</h1>
-                        <p className="text-gray-500 mt-1">Consulta de solo lectura: citas de todos los formadores</p>
-                        <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
-                    </div>
-                    <Link
-                        href={route('citas.index')}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF5900] text-white text-sm font-medium rounded-xl hover:bg-[#CC4700] transition-all duration-200 active:scale-95"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Ir a mis citas
-                    </Link>
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold text-gray-800">Citas de todos los formadores</h1>
+                    <p className="text-gray-500 mt-1">Consulta de solo lectura: citas de todos los formadores</p>
+                    <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>
-
-                {/* Banner solo lectura */}
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
-                    <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                        <p className="font-semibold text-blue-800 text-sm">Vista de consulta</p>
-                        <p className="text-sm text-blue-700 mt-1">
-                            Aquí puedes consultar las citas de tus compañeros. Para gestionar tus propias citas, ve a <strong>"Ir a mis citas"</strong>.
-                        </p>
-                    </div>
-                </div>
-
 
                 {/* Chips */}
                 {chipsFiltros.length > 0 && (

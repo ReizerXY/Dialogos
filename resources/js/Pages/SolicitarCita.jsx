@@ -344,7 +344,7 @@ export default function SolicitarCita({ formadores, solicitudActiva, diasAnticip
                             autoFocus
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                            Ingresa el ID que aparece en tu credencial escolar.
+                            Ingresa tu ID.
                         </p>
                         {getErrorMensaje('idEstudiante') && (
                             <p className="mt-1 text-sm text-red-600 flex items-center gap-1">

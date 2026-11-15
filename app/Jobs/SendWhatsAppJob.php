@@ -84,17 +84,23 @@ class SendWhatsAppJob implements ShouldQueue
 
         // 5) Enviar con Http de Laravel
         try {
+            // --- FORMATEO DE FECHA Y HORA ---
+            \Carbon\Carbon::setLocale('es');
+            $fechaFormateada = \Carbon\Carbon::parse($this->cita->fecha)->translatedFormat('d \d\e F \d\e Y');
+            $horaFormateada = \Carbon\Carbon::parse($this->cita->hora)->format('h:i A');
+            // --------------------------------
+
             $variables = match ($this->tipo) {
                 'confirmacion', 'modificacion' => [
                     '1' => $this->cita->nombre_estudiante,
-                    '2' => $this->cita->fecha,
-                    '3' => substr($this->cita->hora, 0, 5),
+                    '2' => $fechaFormateada,
+                    '3' => $horaFormateada,
                     '4' => $this->cita->nombre_formador ?? 'Formador',
                 ],
                 'cancelacion' => [
                     '1' => $this->cita->nombre_estudiante,
-                    '2' => $this->cita->fecha,
-                    '3' => substr($this->cita->hora, 0, 5),
+                    '2' => $fechaFormateada,
+                    '3' => $horaFormateada,
                 ],
                 default => []
             };

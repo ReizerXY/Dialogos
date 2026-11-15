@@ -307,7 +307,7 @@ export default function MisHorarios({ horarios, user }) {
                                         value={data.hora_inicio}
                                         onChange={e => setData('hora_inicio', e.target.value)}
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                        step="1800"
+                                        step="60"
                                         required
                                     />
                                     {errors.hora_inicio && <p className="text-red-600 text-sm mt-1">{errors.hora_inicio}</p>}
@@ -319,7 +319,7 @@ export default function MisHorarios({ horarios, user }) {
                                         value={data.hora_fin}
                                         onChange={e => setData('hora_fin', e.target.value)}
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
-                                        step="1800"
+                                        step="60"
                                         required
                                     />
                                     {errors.hora_fin && <p className="text-red-600 text-sm mt-1">{errors.hora_fin}</p>}
