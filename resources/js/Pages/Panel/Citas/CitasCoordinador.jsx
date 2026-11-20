@@ -21,7 +21,6 @@ export default function CitasCoordinador({
     soloLectura = false,
     user,
     // Lista GLOBAL de citas que faltan por completar de TODOS los formadores.
-    // La envía el backend independientemente de los filtros de formador.
     citasPendientesGlobal = [],
 }) {
     const [formadorFilter, setFormadorFilter]           = useState(filtros.formador || '');
@@ -122,12 +121,13 @@ export default function CitasCoordinador({
     }, [citas, filtros, fechaActiva]);
 
     // Fuente de datos de "Citas por atender".
-    // Prioriza la lista GLOBAL del backend; si viene vacía, cae al fallback anterior.
+    // REGLA: Si hay filtros activos, no mostramos esta tabla.
     const citasPorAtenderMostradas = useMemo(() => {
+        if (modoFiltrado) return [];
         if (Array.isArray(citasPendientesGlobal) && citasPendientesGlobal.length > 0) {
             return citasPendientesGlobal;
         }
-        return modoFiltrado ? [] : citasPorAtender;
+        return citasPorAtender;
     }, [citasPendientesGlobal, citasPorAtender, modoFiltrado]);
 
     useEffect(() => {
@@ -563,7 +563,28 @@ export default function CitasCoordinador({
                             )
                         )}
 
-                        {/* Tabla completadas del día (solo sin filtros) */}
+                        {/* Tabla por atender (Solo visible sin filtros) */}
+                        {!modoFiltrado && citasPorAtenderMostradas.length > 0 && (
+                            <div className="mt-6">
+                                <TablaCitas
+                                    titulo="Citas por atender"
+                                    subtitulo={`${citasPorAtenderMostradas.length} cita${citasPorAtenderMostradas.length === 1 ? '' : 's'} vencida${citasPorAtenderMostradas.length === 1 ? '' : 's'} de todos los formadores que aún no se completan`}
+                                    citas={citasPorAtenderMostradas}
+                                    selectedIds={selectedIds}
+                                    setSelectedIds={setSelectedIds}
+                                    esCoordinador={esCoordinador}
+                                    mostrarAcciones={false}
+                                    mostrarFiltroFormador={mostrarFiltroFormador}
+                                    user={user}
+                                    onNotas={() => {}}
+                                    onModificar={() => {}}
+                                    onCancelar={() => {}}
+                                    colorTitulo="bg-amber-500"
+                                />
+                            </div>
+                        )}
+
+                        {/* Tabla completadas del día (Solo visible sin filtros) */}
                         {!modoFiltrado && citasCompletadasHoy.length > 0 && (
                             <div className="mt-6">
                                 <TablaCitas
@@ -584,29 +605,6 @@ export default function CitasCoordinador({
                             </div>
                         )}
                     </>
-                )}
-
-                {/* Tabla "Citas por atender" — FUERA del condicional para que se muestre
-                    aunque la tabla principal esté vacía. Es una vista operativa global
-                    de TODOS los formadores, sin importar los filtros aplicados. */}
-                {citasPorAtenderMostradas.length > 0 && (
-                    <div className="mt-6">
-                        <TablaCitas
-                            titulo="Citas por atender"
-                            subtitulo={`${citasPorAtenderMostradas.length} cita${citasPorAtenderMostradas.length === 1 ? '' : 's'} vencida${citasPorAtenderMostradas.length === 1 ? '' : 's'} de todos los formadores que aún no se completan`}
-                            citas={citasPorAtenderMostradas}
-                            selectedIds={selectedIds}
-                            setSelectedIds={setSelectedIds}
-                            esCoordinador={esCoordinador}
-                            mostrarAcciones={false}
-                            mostrarFiltroFormador={mostrarFiltroFormador}
-                            user={user}
-                            onNotas={() => {}}
-                            onModificar={() => {}}
-                            onCancelar={() => {}}
-                            colorTitulo="bg-amber-500"
-                        />
-                    </div>
                 )}
             </div>
 
