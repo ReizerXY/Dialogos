@@ -20,6 +20,8 @@ export default function CitasTodos({
     soloLectura = true,
     user
 }) {
+    // NUEVO: Filtro de búsqueda
+    const [busquedaFilter, setBusquedaFilter]           = useState(filtros.busqueda || '');
     const [formadorFilter, setFormadorFilter]           = useState(filtros.formador || '');
     const [estadoFilter, setEstadoFilter]               = useState(filtros.estado || '');
     const [clasificacionFilter, setClasificacionFilter] = useState(filtros.clasificacion || '');
@@ -56,6 +58,7 @@ export default function CitasTodos({
 
     const { citasSemana, citasPorAtender, citasCompletadasHoy, modoFiltrado } = useMemo(() => {
         const hayFiltrosActivos = !!(
+            filtros.busqueda || // NUEVO
             filtros.estado ||
             filtros.clasificacion ||
             filtros.asistencia ||
@@ -110,7 +113,6 @@ export default function CitasTodos({
         };
     }, [citas, filtros, fechaActiva]);
 
-
     const totalPaginas = Math.max(1, Math.ceil(citasSemana.length / POR_PAGINA));
     const citasPaginadas = useMemo(() => {
         const inicio = (paginaActual - 1) * POR_PAGINA;
@@ -131,6 +133,7 @@ export default function CitasTodos({
             },
         });
 
+        if (filtros.busqueda) pushChip('busqueda', 'Nombre', filtros.busqueda); // NUEVO
         if (filtros.formador) {
             const f = formadores?.find(x => String(x.id_usuario) === String(filtros.formador));
             pushChip('formador', 'Formador', f?.nombre || `#${filtros.formador}`);
@@ -151,6 +154,7 @@ export default function CitasTodos({
     const applyFilters = () => {
         const params = new URLSearchParams();
         params.append('todas', '1');
+        if (busquedaFilter) params.append('busqueda', busquedaFilter); // NUEVO
         if (formadorFilter) params.append('formador', formadorFilter);
         if (estadoFilter) params.append('estado', estadoFilter);
         if (clasificacionFilter) params.append('clasificacion', clasificacionFilter);
@@ -217,12 +221,14 @@ export default function CitasTodos({
                     gradosActivos={gradosActivos}
                     gruposPorGrado={gruposPorGrado}
                     filtros={{
+                        busquedaFilter, // NUEVO
                         formadorFilter, estadoFilter, clasificacionFilter, asistenciaFilter,
                         gradoFilter, grupoFilter,
                         anioFilter, mesFilter, semanaValorFilter, fechaFilter,
                         periodoFilter,
                     }}
                     setters={{
+                        setBusquedaFilter, // NUEVO
                         setFormadorFilter, setEstadoFilter, setClasificacionFilter, setAsistenciaFilter,
                         setGradoFilter, setGrupoFilter,
                         setAnioFilter, setMesFilter, setSemanaValorFilter, setFechaFilter,

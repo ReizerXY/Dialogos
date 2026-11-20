@@ -24,6 +24,8 @@ export default function MisCitas({
     soloLectura = false,
     user
 }) {
+    // NUEVO: Filtro de búsqueda
+    const [busquedaFilter, setBusquedaFilter]           = useState(filtros.busqueda || '');
     const [formadorFilter, setFormadorFilter]           = useState(filtros.formador || '');
     const [estadoFilter, setEstadoFilter]               = useState(filtros.estado || '');
     const [clasificacionFilter, setClasificacionFilter] = useState(filtros.clasificacion || '');
@@ -65,9 +67,9 @@ export default function MisCitas({
         }
     }, [gradoFilter, gruposPorGrado]);
 
-    // Divide las citas en sus respectivas tablas
     const { citasSemana, citasPorAtender, citasCompletadasHoy, modoFiltrado } = useMemo(() => {
         const hayFiltrosActivos = !!(
+            filtros.busqueda || // NUEVO
             filtros.estado ||
             filtros.clasificacion ||
             filtros.asistencia ||
@@ -121,8 +123,6 @@ export default function MisCitas({
         };
     }, [citas, filtros, fechaActiva]);
 
-
-    // Paginacion de la tabla principal
     const totalPaginas = Math.max(1, Math.ceil(citasSemana.length / POR_PAGINA));
     const citasPaginadas = useMemo(() => {
         const inicio = (paginaActual - 1) * POR_PAGINA;
@@ -132,7 +132,6 @@ export default function MisCitas({
     useEffect(() => { setPaginaActual(1); }, [citasSemana.length]);
     useEffect(() => { if (paginaActual > totalPaginas) setPaginaActual(totalPaginas); }, [paginaActual, totalPaginas]);
 
-    // Chips de filtros activos
     const chipsFiltros = useMemo(() => {
         const chips = [];
         const pushChip = (key, label, valor) => chips.push({
@@ -144,6 +143,7 @@ export default function MisCitas({
             },
         });
 
+        if (filtros.busqueda) pushChip('busqueda', 'Nombre', filtros.busqueda); // NUEVO
         if (filtros.estado) pushChip('estado', 'Estado', ESTADO_LABELS[filtros.estado] || filtros.estado);
         if (filtros.clasificacion) pushChip('clasificacion', 'Clasificación', CLASIFICACION_LABELS[filtros.clasificacion] || filtros.clasificacion);
         if (filtros.asistencia) pushChip('asistencia', 'Asistencia', ASISTENCIA_LABELS[filtros.asistencia] || filtros.asistencia);
@@ -159,6 +159,7 @@ export default function MisCitas({
 
     const applyFilters = () => {
         const params = new URLSearchParams();
+        if (busquedaFilter) params.append('busqueda', busquedaFilter); // NUEVO
         if (formadorFilter) params.append('formador', formadorFilter);
         if (estadoFilter) params.append('estado', estadoFilter);
         if (clasificacionFilter) params.append('clasificacion', clasificacionFilter);
@@ -233,12 +234,14 @@ export default function MisCitas({
                     gradosActivos={gradosActivos}
                     gruposPorGrado={gruposPorGrado}
                     filtros={{
+                        busquedaFilter, // NUEVO
                         formadorFilter, estadoFilter, clasificacionFilter, asistenciaFilter,
                         gradoFilter, grupoFilter,
                         anioFilter, mesFilter, semanaValorFilter, fechaFilter,
                         periodoFilter,
                     }}
                     setters={{
+                        setBusquedaFilter, // NUEVO
                         setFormadorFilter, setEstadoFilter, setClasificacionFilter, setAsistenciaFilter,
                         setGradoFilter, setGrupoFilter,
                         setAnioFilter, setMesFilter, setSemanaValorFilter, setFechaFilter,

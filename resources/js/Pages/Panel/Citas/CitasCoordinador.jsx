@@ -20,9 +20,10 @@ export default function CitasCoordinador({
     rol,
     soloLectura = false,
     user,
-    // Lista GLOBAL de citas que faltan por completar de TODOS los formadores.
     citasPendientesGlobal = [],
 }) {
+    // NUEVO: Filtro de búsqueda
+    const [busquedaFilter, setBusquedaFilter]           = useState(filtros.busqueda || '');
     const [formadorFilter, setFormadorFilter]           = useState(filtros.formador || '');
     const [estadoFilter, setEstadoFilter]               = useState(filtros.estado || '');
     const [clasificacionFilter, setClasificacionFilter] = useState(filtros.clasificacion || '');
@@ -37,13 +38,10 @@ export default function CitasCoordinador({
     const [fechaFilter, setFechaFilter]               = useState(filtros.fecha || '');
 
     const [filtrosOpen, setFiltrosOpen] = useState(false);
-
     const [selectedIds, setSelectedIds] = useState([]);
-
     const [confirmExportOpen, setConfirmExportOpen] = useState(false);
     const [ordenExport, setOrdenExport] = useState('fecha');
     const [descargando, setDescargando] = useState(false);
-
     const [paginaActual, setPaginaActual] = useState(1);
 
     const esCoordinador = rol === 'Coordinador';
@@ -66,6 +64,7 @@ export default function CitasCoordinador({
 
     const { citasSemana, citasPorAtender, citasCompletadasHoy, modoFiltrado } = useMemo(() => {
         const hayFiltrosActivos = !!(
+            filtros.busqueda || // NUEVO
             filtros.estado ||
             filtros.clasificacion ||
             filtros.asistencia ||
@@ -120,8 +119,6 @@ export default function CitasCoordinador({
         };
     }, [citas, filtros, fechaActiva]);
 
-    // Fuente de datos de "Citas por atender".
-    // REGLA: Si hay filtros activos, no mostramos esta tabla.
     const citasPorAtenderMostradas = useMemo(() => {
         if (modoFiltrado) return [];
         if (Array.isArray(citasPendientesGlobal) && citasPendientesGlobal.length > 0) {
@@ -153,7 +150,21 @@ export default function CitasCoordinador({
 
     const chipsFiltros = useMemo(() => {
         const chips = [];
-
+        
+        // NUEVO CHIP
+        if (filtros.busqueda) {
+            chips.push({
+                key: 'busqueda',
+                label: 'Nombre',
+                valor: filtros.busqueda,
+                onRemove: () => {
+                    const params = new URLSearchParams(window.location.search);
+                    params.delete('busqueda');
+                    window.location.href = `/citas?${params.toString()}`;
+                },
+            });
+        }
+        
         if (filtros.formador) {
             const f = formadores?.find(x => String(x.id_usuario) === String(filtros.formador));
             chips.push({
@@ -281,6 +292,7 @@ export default function CitasCoordinador({
 
     const applyFilters = () => {
         const params = new URLSearchParams();
+        if (busquedaFilter) params.append('busqueda', busquedaFilter); // NUEVO
         if (formadorFilter) params.append('formador', formadorFilter);
         if (estadoFilter) params.append('estado', estadoFilter);
         if (clasificacionFilter) params.append('clasificacion', clasificacionFilter);
@@ -302,7 +314,8 @@ export default function CitasCoordinador({
 
     const resumenFiltros = useMemo(() => {
         const items = [];
-
+        
+        if (busquedaFilter) items.push({ label: 'Nombre', valor: busquedaFilter }); // NUEVO
         if (formadorFilter) {
             const f = formadores?.find(x => String(x.id_usuario) === String(formadorFilter));
             items.push({ label: 'Formador', valor: f?.nombre || `ID ${formadorFilter}` });
@@ -323,7 +336,7 @@ export default function CitasCoordinador({
         }
 
         return items;
-    }, [formadorFilter, estadoFilter, clasificacionFilter, asistenciaFilter, gradoFilter, grupoFilter,
+    }, [busquedaFilter, formadorFilter, estadoFilter, clasificacionFilter, asistenciaFilter, gradoFilter, grupoFilter,
         anioFilter, mesFilter, semanaValorFilter, fechaFilter, periodoFilter, formadores]);
 
     const totalADescargar = haySeleccion ? selectedIds.length : (citas?.length || 0);
@@ -341,6 +354,7 @@ export default function CitasCoordinador({
         if (haySeleccion) {
             selectedIds.forEach(id => params.append('ids[]', id));
         } else {
+            if (filtros.busqueda)      params.append('busqueda', filtros.busqueda); // NUEVO
             if (filtros.formador)      params.append('formador', filtros.formador);
             if (filtros.estado)        params.append('estado', filtros.estado);
             if (filtros.clasificacion) params.append('clasificacion', filtros.clasificacion);
@@ -467,12 +481,14 @@ export default function CitasCoordinador({
                     gradosActivos={gradosActivos}
                     gruposPorGrado={gruposPorGrado}
                     filtros={{
+                        busquedaFilter, // NUEVO
                         formadorFilter, estadoFilter, clasificacionFilter, asistenciaFilter,
                         gradoFilter, grupoFilter,
                         anioFilter, mesFilter, semanaValorFilter, fechaFilter,
                         periodoFilter,
                     }}
                     setters={{
+                        setBusquedaFilter, // NUEVO
                         setFormadorFilter, setEstadoFilter, setClasificacionFilter, setAsistenciaFilter,
                         setGradoFilter, setGrupoFilter,
                         setAnioFilter, setMesFilter, setSemanaValorFilter, setFechaFilter,

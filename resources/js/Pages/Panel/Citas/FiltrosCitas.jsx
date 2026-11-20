@@ -18,6 +18,7 @@ export default function FiltrosCitas({
     setAbierto,
 }) {
     const {
+        busquedaFilter, // NUEVO
         formadorFilter, estadoFilter, clasificacionFilter, asistenciaFilter,
         gradoFilter, grupoFilter,
         anioFilter, mesFilter, semanaValorFilter, fechaFilter,
@@ -25,6 +26,7 @@ export default function FiltrosCitas({
     } = filtros;
 
     const {
+        setBusquedaFilter, // NUEVO
         setFormadorFilter, setEstadoFilter, setClasificacionFilter, setAsistenciaFilter,
         setGradoFilter, setGrupoFilter,
         setAnioFilter, setMesFilter, setSemanaValorFilter, setFechaFilter,
@@ -77,6 +79,7 @@ export default function FiltrosCitas({
 
     // Cuenta cuántos filtros están activos
     const filtrosActivos = [
+        busquedaFilter, // NUEVO
         formadorFilter, estadoFilter, clasificacionFilter, asistenciaFilter,
         gradoFilter, grupoFilter,
         anioFilter, mesFilter, semanaValorFilter, fechaFilter,
@@ -172,8 +175,19 @@ export default function FiltrosCitas({
                         </div>
                     </div>
 
-                    {/* Fila 2: Grado y Grupo */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {/* Fila 2: Nombre, Grado y Grupo */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Buscar por nombre</label>
+                            <input
+                                type="text"
+                                placeholder="Ej. Juan Pérez"
+                                value={busquedaFilter || ''}
+                                onChange={(e) => setBusquedaFilter(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF5900]/50 focus:border-[#FF5900] transition-all bg-white text-gray-700"
+                            />
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">Grado</label>
                             <select

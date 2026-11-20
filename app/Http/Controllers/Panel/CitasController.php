@@ -27,6 +27,7 @@ class CitasController extends Controller
         $verTodas = ($rol === 'Formador') && ($request->get('todas') == 1);
         $soloLectura = $verTodas;
 
+        $filtroBusqueda      = $request->get('busqueda'); // NUEVO
         $filtroFormador      = $request->get('formador');
         $filtroEstado        = $request->get('estado');
         $filtroClasificacion = $request->get('clasificacion');
@@ -40,6 +41,11 @@ class CitasController extends Controller
         $filtroGrupo         = $request->get('grupo');
 
         $query = DB::table('citas')->select('citas.*');
+
+        // Búsqueda por nombre
+        if ($filtroBusqueda) {
+            $query->where('citas.nombre_estudiante', 'LIKE', '%' . $filtroBusqueda . '%');
+        }
 
         if ($rol == 'Formador' && !$verTodas) {
             $query->where('citas.id_usuario', $usuarioId);
@@ -108,14 +114,6 @@ class CitasController extends Controller
                        ->orderBy('citas.id_cita', 'asc')
                        ->get();
 
-        /*
-         * NUEVO: Lista GLOBAL de citas que faltan por completar (para el panel del Coordinador).
-         * Ignora el filtro de formador para que el coordinador vea el panorama de TODOS los formadores.
-         * Cubre dos escenarios:
-         *   a) 'programada' con fecha/hora ya vencida (cron aún no corre o se retrasó)
-         *   b) 'completada' por el cron pero sin asistencia real marcada por el formador
-         *      (asistencia = 'pendiente'), es decir, "faltan por completar de verdad".
-         */
         $ahoraFecha = now()->toDateString();
         $ahoraHora  = now()->toTimeString();
 
@@ -173,6 +171,7 @@ class CitasController extends Controller
             'gradosActivos'         => $gradosActivos,
             'gruposPorGrado'        => $gruposPorGrado,
             'filtros'               => [
+                'busqueda'      => $filtroBusqueda, // NUEVO
                 'formador'      => $filtroFormador,
                 'estado'        => $filtroEstado,
                 'clasificacion' => $filtroClasificacion,
@@ -216,6 +215,7 @@ class CitasController extends Controller
         if (!empty($ids)) {
             $query->whereIn('citas.id_cita', $ids);
         } else {
+            $filtroBusqueda      = $request->get('busqueda'); // NUEVO
             $filtroFormador      = $request->get('formador');
             $filtroEstado        = $request->get('estado');
             $filtroClasificacion = $request->get('clasificacion');
@@ -228,6 +228,7 @@ class CitasController extends Controller
             $filtroGrado         = $request->get('grado');
             $filtroGrupo         = $request->get('grupo');
 
+            if ($filtroBusqueda)      $query->where('citas.nombre_estudiante', 'LIKE', '%' . $filtroBusqueda . '%');
             if ($filtroFormador)      $query->where('citas.id_usuario', $filtroFormador);
             if ($filtroEstado && in_array($filtroEstado, ['programada', 'cancelada', 'completada', 'cancelada_liberada'], true)) {
                 $query->where('citas.estado', $filtroEstado);
