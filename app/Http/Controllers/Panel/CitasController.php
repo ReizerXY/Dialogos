@@ -14,7 +14,6 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CitasController extends Controller
 {
-    // Lista de citas con todos los filtros aplicados
     public function index(Request $request)
     {
         $user = Session::get('user');
@@ -42,7 +41,6 @@ class CitasController extends Controller
 
         $query = DB::table('citas')->select('citas.*');
 
-        // Si es Formador en su propia vista, solo ve sus citas
         if ($rol == 'Formador' && !$verTodas) {
             $query->where('citas.id_usuario', $usuarioId);
         } else {
@@ -71,7 +69,6 @@ class CitasController extends Controller
             $query->whereIn('citas.id_estudiante', $idsEstudiantes ?: [0]);
         }
 
-        // Filtros de fecha
         if ($semanaValor && preg_match('/^\d{4}-W\d{2}$/', $semanaValor)) {
             $year = substr($semanaValor, 0, 4);
             $week = substr($semanaValor, 6, 2);
@@ -111,6 +108,38 @@ class CitasController extends Controller
                        ->orderBy('citas.id_cita', 'asc')
                        ->get();
 
+        /*
+         * NUEVO: Lista GLOBAL de citas que faltan por completar (para el panel del Coordinador).
+         * Ignora el filtro de formador para que el coordinador vea el panorama de TODOS los formadores.
+         * Cubre dos escenarios:
+         *   a) 'programada' con fecha/hora ya vencida (cron aún no corre o se retrasó)
+         *   b) 'completada' por el cron pero sin asistencia real marcada por el formador
+         *      (asistencia = 'pendiente'), es decir, "faltan por completar de verdad".
+         */
+        $ahoraFecha = now()->toDateString();
+        $ahoraHora  = now()->toTimeString();
+
+        $citasPendientesGlobal = DB::table('citas')
+            ->select('citas.*')
+            ->where(function ($q) {
+                $q->where('citas.estado', 'programada')
+                  ->orWhere(function ($q2) {
+                      $q2->where('citas.estado', 'completada')
+                         ->where('citas.asistencia', 'pendiente');
+                  });
+            })
+            ->where(function ($q) use ($ahoraFecha, $ahoraHora) {
+                $q->where('citas.fecha', '<', $ahoraFecha)
+                  ->orWhere(function ($q2) use ($ahoraFecha, $ahoraHora) {
+                      $q2->where('citas.fecha', $ahoraFecha)
+                         ->where('citas.hora', '<', $ahoraHora);
+                  });
+            })
+            ->orderBy('citas.fecha', 'asc')
+            ->orderBy('citas.hora', 'asc')
+            ->limit(500)
+            ->get();
+
         $formadores = DB::table('usuarios')
             ->where('rol', 'Formador')
             ->where('visibilidad_usuario', 1)
@@ -137,12 +166,13 @@ class CitasController extends Controller
         }
 
         return inertia('Panel/Citas', [
-            'citas'            => $citas,
-            'formadores'       => $formadores,
-            'aniosDisponibles' => $aniosDisponibles,
-            'gradosActivos'    => $gradosActivos,
-            'gruposPorGrado'   => $gruposPorGrado,
-            'filtros'          => [
+            'citas'                 => $citas,
+            'citasPendientesGlobal' => $citasPendientesGlobal,
+            'formadores'            => $formadores,
+            'aniosDisponibles'      => $aniosDisponibles,
+            'gradosActivos'         => $gradosActivos,
+            'gruposPorGrado'        => $gruposPorGrado,
+            'filtros'               => [
                 'formador'      => $filtroFormador,
                 'estado'        => $filtroEstado,
                 'clasificacion' => $filtroClasificacion,
@@ -161,7 +191,6 @@ class CitasController extends Controller
         ]);
     }
 
-    // Exporta citas a Excel, respetando filtros o seleccion manual
     public function exportarExcel(Request $request)
     {
         $user = Session::get('user');
@@ -261,7 +290,6 @@ class CitasController extends Controller
         return Excel::download(new CitasExport($citas), $nombreArchivo);
     }
 
-    // Muestra la pantalla individual de gestion de una cita (solo Formador)
     public function show($id)
     {
         $user = Session::get('user');
@@ -289,7 +317,6 @@ class CitasController extends Controller
         ]);
     }
 
-    // Actualiza clasificacion, notas y asistencia
     public function actualizarNotas(Request $request, $id)
     {
         try {
@@ -365,7 +392,6 @@ class CitasController extends Controller
         return 'programada';
     }
 
-    // Modifica la fecha y hora de una cita
     public function modificarCita(Request $request, $id)
     {
         try {
@@ -424,7 +450,6 @@ class CitasController extends Controller
             ]);
 
             try {
-                // 🚨 AQUÍ ESTÁ EL CAMBIO: Limpiamos el flag de idempotencia para permitir múltiples modificaciones
                 DB::table('citas')->where('id_cita', $id)->update(['whatsapp_modificacion_enviada_at' => null]);
 
                 $citaActualizada = DB::table('citas')->where('id_cita', $id)->first();
@@ -444,7 +469,6 @@ class CitasController extends Controller
         }
     }
 
-    // Cancela una cita con o sin liberacion de horario
     public function cancelarCita(Request $request, $id)
     {
         try {
@@ -523,7 +547,6 @@ class CitasController extends Controller
         }
     }
 
-    // Devuelve las horas disponibles de un formador en una fecha
     public function disponibilidadParaModificar(Request $request)
     {
         $user = Session::get('user');
@@ -545,7 +568,6 @@ class CitasController extends Controller
             return response()->json([]);
         }
 
-        // Formador solo puede consultar su propia disponibilidad
         if ($user['rol'] === 'Formador' && (int) $usuarioId !== (int) $user['id_usuario']) {
             return response()->json(['error' => 'No autorizado'], 403);
         }
@@ -576,7 +598,6 @@ class CitasController extends Controller
         return response()->json(array_values($horasDisponibles));
     }
 
-    // Actualiza una cita completa (version antigua)
     public function update(Request $request, $id)
     {
         $user = Session::get('user');

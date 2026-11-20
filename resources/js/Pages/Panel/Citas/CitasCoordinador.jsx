@@ -8,9 +8,7 @@ import ModalConfirmExport from './ModalConfirmExport';
 import { citaYaPaso, formatFecha, ESTADO_LABELS, CLASIFICACION_LABELS, ASISTENCIA_LABELS } from './helpers';
 import Paginacion from '@/Components/Paginacion';
 
-// Cantidad de citas por pagina
 const POR_PAGINA = 15;
-
 
 export default function CitasCoordinador({
     citas,
@@ -21,7 +19,10 @@ export default function CitasCoordinador({
     filtros,
     rol,
     soloLectura = false,
-    user
+    user,
+    // Lista GLOBAL de citas que faltan por completar de TODOS los formadores.
+    // La envía el backend independientemente de los filtros de formador.
+    citasPendientesGlobal = [],
 }) {
     const [formadorFilter, setFormadorFilter]           = useState(filtros.formador || '');
     const [estadoFilter, setEstadoFilter]               = useState(filtros.estado || '');
@@ -64,48 +65,92 @@ export default function CitasCoordinador({
         }
     }, [gradoFilter, gruposPorGrado]);
 
+    const { citasSemana, citasPorAtender, citasCompletadasHoy, modoFiltrado } = useMemo(() => {
+        const hayFiltrosActivos = !!(
+            filtros.estado ||
+            filtros.clasificacion ||
+            filtros.asistencia ||
+            filtros.grado ||
+            filtros.grupo ||
+            fechaActiva ||
+            (filtros.semana && filtros.semana !== 'actual') ||
+            filtros.formador
+        );
+
+        if (hayFiltrosActivos) {
+            return {
+                citasSemana: [...(citas || [])],
+                citasPorAtender: [],
+                citasCompletadasHoy: [],
+                modoFiltrado: true
+            };
+        }
+
+        const semana = [];
+        const porAtender = [];
+        const completadasHoy = [];
+        const hoyStr = new Date().toLocaleDateString('en-CA');
+
+        (citas || []).forEach(c => {
+            const yaPaso = citaYaPaso(c);
+
+            if (c.estado === 'programada' && yaPaso) {
+                porAtender.push(c);
+                return;
+            }
+
+            if (c.estado === 'completada' && c.fecha === hoyStr) {
+                completadasHoy.push(c);
+                return;
+            }
+
+            if (yaPaso && c.fecha !== hoyStr) {
+                if (c.estado === 'cancelada' || c.estado === 'cancelada_liberada' || c.estado === 'completada') {
+                    return;
+                }
+            }
+
+            semana.push(c);
+        });
+
+        return {
+            citasSemana: semana,
+            citasPorAtender: porAtender,
+            citasCompletadasHoy: completadasHoy,
+            modoFiltrado: false
+        };
+    }, [citas, filtros, fechaActiva]);
+
+    // Fuente de datos de "Citas por atender".
+    // Prioriza la lista GLOBAL del backend; si viene vacía, cae al fallback anterior.
+    const citasPorAtenderMostradas = useMemo(() => {
+        if (Array.isArray(citasPendientesGlobal) && citasPendientesGlobal.length > 0) {
+            return citasPendientesGlobal;
+        }
+        return modoFiltrado ? [] : citasPorAtender;
+    }, [citasPendientesGlobal, citasPorAtender, modoFiltrado]);
+
     useEffect(() => {
         if (!citas) return;
-        const idsVisibles = new Set(citas.map(c => c.id_cita));
+        const idsVisibles = new Set([
+            ...citasSemana.map(c => c.id_cita),
+            ...citasPorAtenderMostradas.map(c => c.id_cita),
+            ...citasCompletadasHoy.map(c => c.id_cita)
+        ]);
         setSelectedIds(prev => prev.filter(id => idsVisibles.has(id)));
-    }, [citas]);
+    }, [citasSemana, citasPorAtenderMostradas, citasCompletadasHoy, citas]);
 
-    // Lista de citas a mostrar (sin vencidas cerradas si no hay filtro)
-    const citasAMostrar = useMemo(() => {
-        const hayFiltroEstado = !!filtros.estado;
-
-        if (fechaActiva) return [...(citas || [])];
-        if (filtros.semana === 'todas') return [...(citas || [])];
-
-        return (citas || []).filter(c => {
-            if (hayFiltroEstado) return true;
-            if (!citaYaPaso(c)) return true;
-            return !(
-                c.estado === 'cancelada' ||
-                c.estado === 'cancelada_liberada' ||
-                c.estado === 'completada'
-            );
-        });
-    }, [citas, filtros.estado, filtros.semana, fechaActiva]);
-
-    // Paginacion
-    const totalPaginas = Math.max(1, Math.ceil(citasAMostrar.length / POR_PAGINA));
+    const totalPaginas = Math.max(1, Math.ceil(citasSemana.length / POR_PAGINA));
     const citasPaginadas = useMemo(() => {
         const inicio = (paginaActual - 1) * POR_PAGINA;
-        return citasAMostrar.slice(inicio, inicio + POR_PAGINA);
-    }, [citasAMostrar, paginaActual]);
+        return citasSemana.slice(inicio, inicio + POR_PAGINA);
+    }, [citasSemana, paginaActual]);
 
-    // Reset a la primera pagina cuando cambia el total de citas
-    useEffect(() => {
-        setPaginaActual(1);
-    }, [citasAMostrar.length]);
-
-    // Si por algún motivo la página actual queda fuera de rango, retroceder
+    useEffect(() => { setPaginaActual(1); }, [citasSemana.length]);
     useEffect(() => {
         if (paginaActual > totalPaginas) setPaginaActual(totalPaginas);
     }, [paginaActual, totalPaginas]);
 
-    // Chips de filtros activos
     const chipsFiltros = useMemo(() => {
         const chips = [];
 
@@ -250,9 +295,7 @@ export default function CitasCoordinador({
         window.location.href = `/citas?${params.toString()}`;
     };
 
-    const clearFilters = () => {
-        window.location.href = '/citas';
-    };
+    const clearFilters = () => { window.location.href = '/citas'; };
 
     const limpiarSeleccion = () => setSelectedIds([]);
     const haySeleccion = selectedIds.length > 0;
@@ -383,7 +426,6 @@ export default function CitasCoordinador({
                     </div>
                 </div>
 
-
                 {/* Chips de filtros activos */}
                 {chipsFiltros.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -442,7 +484,7 @@ export default function CitasCoordinador({
                     setAbierto={setFiltrosOpen}
                 />
 
-                {/* Listado de citas */}
+                {/* Estado vacío o listado principal */}
                 {!citas || citas.length === 0 ? (
                     <div className="bg-white rounded-2xl shadow-md border border-gray-100 py-16 px-6 text-center">
                         <div className="w-20 h-20 rounded-full bg-[#FF5900]/10 flex items-center justify-center mx-auto mb-4">
@@ -450,7 +492,7 @@ export default function CitasCoordinador({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                         </div>
-                        <p className="text-gray-700 text-lg font-semibold">No hay citas para mostrar</p>
+                        <p className="text-gray-700 text-lg font-semibold">No hay citas programadas</p>
                         <p className="text-gray-500 text-sm mt-1 max-w-md mx-auto">
                             {chipsFiltros.length > 0
                                 ? 'No se encontraron citas con los filtros aplicados. Prueba quitando alguno o limpia todos los filtros.'
@@ -470,20 +512,89 @@ export default function CitasCoordinador({
                     </div>
                 ) : (
                     <>
-                        {/* Paginación arriba */}
-                        <Paginacion
-                            paginaActual={paginaActual}
-                            totalPaginas={totalPaginas}
-                            totalRegistros={citasAMostrar.length}
-                            porPagina={POR_PAGINA}
-                            onChange={setPaginaActual}
-                            className="mb-4"
-                        />
+                        {/* Tabla principal (Filtrada o de la semana) */}
+                        {citasSemana.length > 0 ? (
+                            <>
+                                <Paginacion
+                                    paginaActual={paginaActual}
+                                    totalPaginas={totalPaginas}
+                                    totalRegistros={citasSemana.length}
+                                    porPagina={POR_PAGINA}
+                                    onChange={setPaginaActual}
+                                    className="mb-4"
+                                    etiqueta="citas"
+                                />
+                                <TablaCitas
+                                    titulo={modoFiltrado ? "Citas" : "Citas de la semana"}
+                                    subtitulo={modoFiltrado ? "Todas las citas que coinciden con los filtros aplicados" : "Citas programadas para los próximos días"}
+                                    citas={citasPaginadas}
+                                    selectedIds={selectedIds}
+                                    setSelectedIds={setSelectedIds}
+                                    esCoordinador={esCoordinador}
+                                    mostrarAcciones={false}
+                                    mostrarFiltroFormador={mostrarFiltroFormador}
+                                    user={user}
+                                    onNotas={() => {}}
+                                    onModificar={() => {}}
+                                    onCancelar={() => {}}
+                                    colorTitulo="bg-[#FF5900]"
+                                />
+                                <Paginacion
+                                    paginaActual={paginaActual}
+                                    totalPaginas={totalPaginas}
+                                    totalRegistros={citasSemana.length}
+                                    porPagina={POR_PAGINA}
+                                    onChange={setPaginaActual}
+                                    className="mt-4"
+                                    etiqueta="citas"
+                                />
+                            </>
+                        ) : (
+                            !modoFiltrado && (
+                                <div className="bg-white rounded-2xl shadow-md border border-gray-100 py-12 px-6 text-center mb-6">
+                                    <div className="w-16 h-16 rounded-full bg-[#FF5900]/10 flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-gray-700 text-lg font-semibold">No hay citas programadas</p>
+                                    <p className="text-gray-500 text-sm mt-1">No hay citas programadas para los próximos días.</p>
+                                </div>
+                            )
+                        )}
 
+                        {/* Tabla completadas del día (solo sin filtros) */}
+                        {!modoFiltrado && citasCompletadasHoy.length > 0 && (
+                            <div className="mt-6">
+                                <TablaCitas
+                                    titulo="Citas completadas del día"
+                                    subtitulo="Citas que se completaron hoy"
+                                    citas={citasCompletadasHoy}
+                                    selectedIds={selectedIds}
+                                    setSelectedIds={setSelectedIds}
+                                    esCoordinador={esCoordinador}
+                                    mostrarAcciones={false}
+                                    mostrarFiltroFormador={mostrarFiltroFormador}
+                                    user={user}
+                                    onNotas={() => {}}
+                                    onModificar={() => {}}
+                                    onCancelar={() => {}}
+                                    colorTitulo="bg-green-500"
+                                />
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* Tabla "Citas por atender" — FUERA del condicional para que se muestre
+                    aunque la tabla principal esté vacía. Es una vista operativa global
+                    de TODOS los formadores, sin importar los filtros aplicados. */}
+                {citasPorAtenderMostradas.length > 0 && (
+                    <div className="mt-6">
                         <TablaCitas
-                            titulo="Citas"
-                            subtitulo="Todas las citas que coinciden con los filtros aplicados"
-                            citas={citasPaginadas}
+                            titulo="Citas por atender"
+                            subtitulo={`${citasPorAtenderMostradas.length} cita${citasPorAtenderMostradas.length === 1 ? '' : 's'} vencida${citasPorAtenderMostradas.length === 1 ? '' : 's'} de todos los formadores que aún no se completan`}
+                            citas={citasPorAtenderMostradas}
                             selectedIds={selectedIds}
                             setSelectedIds={setSelectedIds}
                             esCoordinador={esCoordinador}
@@ -493,19 +604,9 @@ export default function CitasCoordinador({
                             onNotas={() => {}}
                             onModificar={() => {}}
                             onCancelar={() => {}}
-                            colorTitulo="bg-[#FF5900]"
+                            colorTitulo="bg-amber-500"
                         />
-
-                        {/* Paginación abajo */}
-                        <Paginacion
-                            paginaActual={paginaActual}
-                            totalPaginas={totalPaginas}
-                            totalRegistros={citasAMostrar.length}
-                            porPagina={POR_PAGINA}
-                            onChange={setPaginaActual}
-                            className="mt-4"
-                        />
-                    </>
+                    </div>
                 )}
             </div>
 

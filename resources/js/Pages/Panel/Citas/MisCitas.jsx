@@ -65,45 +65,71 @@ export default function MisCitas({
         }
     }, [gradoFilter, gruposPorGrado]);
 
-    // Divide las citas en dos grupos
-    const { citasProximas, citasPorAtender } = useMemo(() => {
-        const hayFiltroEstado = !!filtros.estado;
+    // Divide las citas en sus respectivas tablas
+    const { citasSemana, citasPorAtender, citasCompletadasHoy, modoFiltrado } = useMemo(() => {
+        const hayFiltrosActivos = !!(
+            filtros.estado ||
+            filtros.clasificacion ||
+            filtros.asistencia ||
+            filtros.grado ||
+            filtros.grupo ||
+            fechaActiva ||
+            (filtros.semana && filtros.semana !== 'actual')
+        );
 
-        if (fechaActiva) {
-            return { citasProximas: [...(citas || [])], citasPorAtender: [] };
-        }
-        if (filtros.semana === 'todas') {
-            return { citasProximas: [...(citas || [])], citasPorAtender: [] };
+        if (hayFiltrosActivos) {
+            return {
+                citasSemana: [...(citas || [])],
+                citasPorAtender: [],
+                citasCompletadasHoy: [],
+                modoFiltrado: true
+            };
         }
 
-        const proximas = [];
+        const semana = [];
         const porAtender = [];
+        const completadasHoy = [];
+        const hoyStr = new Date().toLocaleDateString('en-CA');
 
         (citas || []).forEach(c => {
-            if (c.estado === 'programada' && citaYaPaso(c)) {
+            const yaPaso = citaYaPaso(c);
+
+            if (c.estado === 'programada' && yaPaso) {
                 porAtender.push(c);
                 return;
             }
-            if (!hayFiltroEstado && citaYaPaso(c)) {
+
+            if (c.estado === 'completada' && c.fecha === hoyStr) {
+                completadasHoy.push(c);
+                return;
+            }
+
+            if (yaPaso && c.fecha !== hoyStr) {
                 if (c.estado === 'cancelada' || c.estado === 'cancelada_liberada' || c.estado === 'completada') {
                     return;
                 }
             }
-            proximas.push(c);
+
+            semana.push(c);
         });
 
-        return { citasProximas: proximas, citasPorAtender: porAtender };
-    }, [citas, filtros.estado, filtros.semana, fechaActiva]);
+        return {
+            citasSemana: semana,
+            citasPorAtender: porAtender,
+            citasCompletadasHoy: completadasHoy,
+            modoFiltrado: false
+        };
+    }, [citas, filtros, fechaActiva]);
 
 
     // Paginacion de la tabla principal
-    const totalPaginas = Math.max(1, Math.ceil(citasProximas.length / POR_PAGINA));
+    const totalPaginas = Math.max(1, Math.ceil(citasSemana.length / POR_PAGINA));
     const citasPaginadas = useMemo(() => {
         const inicio = (paginaActual - 1) * POR_PAGINA;
-        return citasProximas.slice(inicio, inicio + POR_PAGINA);
-    }, [citasProximas, paginaActual]);
+        return citasSemana.slice(inicio, inicio + POR_PAGINA);
+    }, [citasSemana, paginaActual]);
 
-    useEffect(() => { setPaginaActual(1); }, [citasProximas.length]);
+    useEffect(() => { setPaginaActual(1); }, [citasSemana.length]);
     useEffect(() => { if (paginaActual > totalPaginas) setPaginaActual(totalPaginas); }, [paginaActual, totalPaginas]);
 
     // Chips de filtros activos
@@ -165,7 +191,6 @@ export default function MisCitas({
                     <p className="text-gray-500 mt-1">Consulta, atiende y gestiona las citas que tienes asignadas</p>
                     <div className="w-16 h-1 bg-[#FF5900] rounded-full mt-3"></div>
                 </div>
-
 
                 {/* Chips de filtros activos */}
                 {chipsFiltros.length > 0 && (
@@ -233,11 +258,11 @@ export default function MisCitas({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                         </div>
-                        <p className="text-gray-700 text-lg font-semibold">No hay citas para mostrar</p>
+                        <p className="text-gray-700 text-lg font-semibold">No hay citas programadas</p>
                         <p className="text-gray-500 text-sm mt-1 max-w-md mx-auto">
                             {chipsFiltros.length > 0
                                 ? 'No se encontraron citas con los filtros aplicados. Prueba quitando alguno o limpia todos los filtros.'
-                                : 'Aún no tienes citas registradas.'}
+                                : 'No tienes citas programadas.'}
                         </p>
                         {chipsFiltros.length > 0 && (
                             <button
@@ -253,21 +278,21 @@ export default function MisCitas({
                     </div>
                 ) : (
                     <>
-                        {/* Tabla principal con paginación */}
-                        {citasProximas.length > 0 && (
+                        {/* Tabla principal (Filtrada o de la semana) */}
+                        {citasSemana.length > 0 ? (
                             <>
                                 <Paginacion
                                     paginaActual={paginaActual}
                                     totalPaginas={totalPaginas}
-                                    totalRegistros={citasProximas.length}
+                                    totalRegistros={citasSemana.length}
                                     porPagina={POR_PAGINA}
                                     onChange={setPaginaActual}
                                     className="mb-4"
                                     etiqueta="citas"
                                 />
                                 <TablaCitas
-                                    titulo="Citas"
-                                    subtitulo="Todas las citas que coinciden con los filtros aplicados"
+                                    titulo={modoFiltrado ? "Citas" : "Citas de la semana"}
+                                    subtitulo={modoFiltrado ? "Todas las citas que coinciden con los filtros aplicados" : "Citas programadas para los próximos días"}
                                     citas={citasPaginadas}
                                     selectedIds={selectedIds}
                                     setSelectedIds={setSelectedIds}
@@ -283,17 +308,29 @@ export default function MisCitas({
                                 <Paginacion
                                     paginaActual={paginaActual}
                                     totalPaginas={totalPaginas}
-                                    totalRegistros={citasProximas.length}
+                                    totalRegistros={citasSemana.length}
                                     porPagina={POR_PAGINA}
                                     onChange={setPaginaActual}
                                     className="mt-4"
                                     etiqueta="citas"
                                 />
                             </>
+                        ) : (
+                            !modoFiltrado && (
+                                <div className="bg-white rounded-2xl shadow-md border border-gray-100 py-12 px-6 text-center mb-6">
+                                    <div className="w-16 h-16 rounded-full bg-[#FF5900]/10 flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-[#FF5900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-gray-700 text-lg font-semibold">No hay citas programadas</p>
+                                    <p className="text-gray-500 text-sm mt-1">No tienes citas programadas para los próximos días.</p>
+                                </div>
+                            )
                         )}
 
-                        {/* Tabla por atender (sin paginación) */}
-                        {citasPorAtender.length > 0 && (
+                        {/* Tabla por atender */}
+                        {!modoFiltrado && citasPorAtender.length > 0 && (
                             <div className="mt-6">
                                 <TablaCitas
                                     titulo="Citas por atender"
@@ -309,6 +346,27 @@ export default function MisCitas({
                                     onModificar={abrirModificar}
                                     onCancelar={abrirCancelar}
                                     colorTitulo="bg-amber-500"
+                                />
+                            </div>
+                        )}
+
+                        {/* Tabla completadas del día */}
+                        {!modoFiltrado && citasCompletadasHoy.length > 0 && (
+                            <div className="mt-6">
+                                <TablaCitas
+                                    titulo="Citas completadas del día"
+                                    subtitulo="Citas que se completaron hoy"
+                                    citas={citasCompletadasHoy}
+                                    selectedIds={selectedIds}
+                                    setSelectedIds={setSelectedIds}
+                                    esCoordinador={false}
+                                    mostrarAcciones={mostrarAcciones}
+                                    mostrarFiltroFormador={mostrarFiltroFormador}
+                                    user={user}
+                                    onNotas={abrirNotas}
+                                    onModificar={abrirModificar}
+                                    onCancelar={abrirCancelar}
+                                    colorTitulo="bg-green-500"
                                 />
                             </div>
                         )}
